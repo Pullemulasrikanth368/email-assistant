@@ -56,7 +56,7 @@ const BulkEmailSend = () => {
   const [emails, setEmails] = useState([]);
   const [parseError, setParseError] = useState('');
 
-  const [accounts, setAccounts] = useState([]);          // all connected gmail accounts
+  const [accounts, setAccounts] = useState([]);          // all connected mail accounts
   const [fromAccount, setFromAccount] = useState('');    // selected "send from" account
   const [sending, setSending] = useState(false);
   const [summary, setSummary] = useState(null);
@@ -87,10 +87,11 @@ const BulkEmailSend = () => {
 
   // Connect a new account for SENDING ONLY (purpose=send → never read/synced).
   // Returns to this screen; the new account then appears in the picker.
-  const connectNewAccount = () => {
+  const connectNewAccount = (provider = 'google') => {
     let login = '';
     try { login = JSON.parse(localStorage.getItem('loginCredentials'))?.email || ''; } catch { /* ignore */ }
-    window.location.href = `${config.apiUrl}auth/google/email-analysis?purpose=send&login=${encodeURIComponent(login)}`;
+    const path = provider === 'outlook' ? 'auth/microsoft/outlook' : 'auth/google/email-analysis';
+    window.location.href = `${config.apiUrl}${path}?purpose=send&login=${encodeURIComponent(login)}`;
   };
 
   const handleFile = (file) => {
@@ -188,15 +189,18 @@ const BulkEmailSend = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.map((a) => (
-                    <SelectItem key={a.email} value={a.email}>
-                      {a.name ? `${a.name} · ${a.email}` : a.email}
+                    <SelectItem key={`${a.provider}-${a.email}`} value={a.email}>
+                      {a.name ? `${a.name} · ${a.email}` : a.email} ({a.provider === 'outlook' ? 'Outlook' : 'Gmail'})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <div className="bes-from-action">
                 <Button size="sm" className="bes-btn-theme" onClick={connectNewAccount}>
-                  <Plus size={14} /> Connect
+                  <Plus size={14} /> Gmail
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => connectNewAccount('outlook')}>
+                  <Plus size={14} /> Outlook
                 </Button>
               </div>
             </div>

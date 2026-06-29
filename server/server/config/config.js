@@ -74,6 +74,9 @@ const config = {
   microsoftTeamsRedirectUri:
     process.env.MS_TEAMS_REDIRECT_URI ||
     `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/microsoft/teams/webhook`,
+  microsoftOutlookRedirectUri:
+    process.env.MS_OUTLOOK_REDIRECT_URI ||
+    `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/microsoft/outlook/webhook`,
 
   /**
    * AI backend for the email-analysis flow.

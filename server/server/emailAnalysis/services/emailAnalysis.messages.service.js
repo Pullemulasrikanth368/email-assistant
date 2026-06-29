@@ -137,6 +137,10 @@ class GmailApiReader {
     return this.#requireGmail().users.messages.trash({ userId: "me", id });
   }
 
+  async modifyMessage(id, requestBody) {
+    return this.#requireGmail().users.messages.modify({ userId: "me", id, requestBody });
+  }
+
   async downloadAttachment(messageId, attachmentId) {
     const res = await this.#requireGmail().users.messages.attachments.get({
       userId: "me",
@@ -350,6 +354,20 @@ export default class EmailAnalysisMessagesService {
     return { total: emails.length, sent, failed: emails.length - sent, results };
   }
 
+  async sendMail({ to = [], cc = [], bcc = [], subject = "", html = "", text = "" }) {
+    await this.#buildAuthedReader();
+    const raw = buildRawMessage({
+      fromName: this.user.name || "",
+      fromAddress: this.user.email,
+      to: Array.isArray(to) ? to.join(", ") : to,
+      subject,
+      body: html || text,
+      isHtml: !!html,
+    });
+    const res = await this.reader.sendRawEmail(raw);
+    return { sent: true, messageId: res?.data?.id || null };
+  }
+
   /**
    * Send an HTML reply on the thread of a previously-synced email (by its
    * providerMessageId / sourceId). Threads correctly via In-Reply-To/References
@@ -430,6 +448,65 @@ export default class EmailAnalysisMessagesService {
       }
     }
     return { trashed, failed };
+  }
+
+  async forwardMessage({ sourceId, to = [], comment = "" }) {
+    if (!sourceId) throw new Error("sourceId is required.");
+    await this.#buildAuthedReader();
+    const mail = await EmailAnalysisMail.findOne({
+      email: this.email, providerMessageId: sourceId, active: true,
+    }).lean();
+    if (!mail) throw new Error("Linked email not found for this account.");
+
+    const subject = /^\s*fwd?:/i.test(mail.subject || "") ? mail.subject : `Fwd: ${mail.subject || "(no subject)"}`;
+    const body =
+      `${comment ? `${escapeHtml(comment)}<br><br>` : ""}` +
+      `<blockquote style="border-left:3px solid #ddd;margin:0;padding-left:12px">` +
+      `<p><b>From:</b> ${escapeHtml(mail.from || "")}<br>` +
+      `<b>Date:</b> ${mail.receivedAt ? new Date(mail.receivedAt).toUTCString() : ""}<br>` +
+      `<b>Subject:</b> ${escapeHtml(mail.subject || "")}</p>${mail.body || escapeHtml(mail.snippet || "")}</blockquote>`;
+    return this.sendMail({ to, subject, html: body });
+  }
+
+  async markRead(messageIds = [], isRead = true) {
+    const ids = [...new Set((messageIds || []).filter(Boolean))];
+    if (!ids.length) return { updated: 0 };
+    await this.#buildAuthedReader();
+
+    let updated = 0;
+    for (const id of ids) {
+      await this.reader.modifyMessage(id, isRead
+        ? { removeLabelIds: ["UNREAD"] }
+        : { addLabelIds: ["UNREAD"] });
+      await EmailAnalysisMail.updateOne(
+        { email: this.email, providerMessageId: id },
+        isRead ? { $pull: { labels: "UNREAD" } } : { $addToSet: { labels: "UNREAD" } }
+      );
+      updated += 1;
+    }
+    return { updated };
+  }
+
+  async searchEmails(query, limit = 25) {
+    await this.#buildAuthedReader();
+    const messages = await this.reader.listMessages({
+      query,
+      maxResults: Math.min(Math.max(Number(limit) || 25, 1), 50),
+      includeSpamTrash: await this.#includeSpamEnabled(),
+    });
+    await this.#saveMessages(messages.map((m) => m.id));
+    return EmailAnalysisMail.find({
+      email: this.email,
+      providerMessageId: { $in: messages.map((m) => m.id) },
+      active: true,
+    }).lean();
+  }
+
+  async getConversation(threadId) {
+    if (!threadId) return [];
+    return EmailAnalysisMail.find({ email: this.email, threadId, active: true })
+      .sort({ receivedAt: 1 })
+      .lean();
   }
 
   /**

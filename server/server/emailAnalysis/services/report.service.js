@@ -7,7 +7,7 @@ import EmailAnalysisReport from "../models/emailAnalysisReport.model";
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
 import MicrosoftUser from "../../microsoft/models/microsoftUser.model";
 import MicrosoftTeamsService from "../../microsoft/services/microsoftTeams.service";
-import EmailAnalysisMessagesService from "./emailAnalysis.messages.service";
+import { createMailService } from "./mailProvider.service";
 import prioritizeService from "./prioritize.service";
 import { generateBrief } from "./briefEngine";
 import { renderBriefMarkdown } from "./renderMd";
@@ -280,7 +280,8 @@ export async function syncAndPrioritize(email) {
   if (!email) return null;
   let result = null;
   try {
-    result = await new EmailAnalysisMessagesService(email).syncForUser();
+    const service = await createMailService(email);
+    result = await service.syncForUser();
   } catch (err) {
     console.error(`[EmailAnalysis] Pre-brief sync failed for ${email}:`, err.message);
   }

@@ -33,6 +33,7 @@ const ConnectionsDelivery = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [connectedProvider, setConnectedProvider] = useState(null);
   const [adminEmail, setAdminEmail] = useState('');
+  const [sourceAccounts, setSourceAccounts] = useState([]);
 
   // Delivery / schedule preferences (front-end state for the brief configuration)
   const [emailBrief, setEmailBrief] = useState(true);
@@ -68,6 +69,13 @@ const ConnectionsDelivery = () => {
       showToasterMessage('Could not connect the Google account', 'error');
     }
 
+    const outlookResult = params.get('outlook');
+    if (outlookResult === 'connected') {
+      showToasterMessage('Outlook account connected successfully', 'success');
+    } else if (outlookResult === 'error') {
+      showToasterMessage('Could not connect the Outlook account', 'error');
+    }
+
     const msResult = params.get('microsoft');
     if (msResult === 'connected') {
       showToasterMessage('Microsoft account connected successfully', 'success');
@@ -75,9 +83,10 @@ const ConnectionsDelivery = () => {
       showToasterMessage('Could not connect the Microsoft account', 'error');
     }
 
-    if (result || msResult) {
+    if (result || msResult || outlookResult) {
       params.delete('emailAnalysis');
       params.delete('microsoft');
+      params.delete('outlook');
       const query = params.toString();
       window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
     }
@@ -112,10 +121,13 @@ const ConnectionsDelivery = () => {
   };
 
   const getConnectionStatus = async () => {
-    const resp = await apiRequest('GET', 'auth/google/email-analysis/status');
-    if (resp?.connected) {
-      setConnectedProvider('google');
-      setAdminEmail(resp.email || '');
+    const resp = await apiRequest('GET', 'auth/google/email-analysis/accounts');
+    const source = (resp?.accounts || []).filter((a) => a.purpose !== 'send');
+    setSourceAccounts(source);
+    if (source.length) {
+      const current = source.find((a) => a.email === adminEmail) || source[0];
+      setConnectedProvider(current.provider || 'google');
+      setAdminEmail(current.email || '');
     } else {
       setConnectedProvider(null);
       setAdminEmail('');
@@ -130,6 +142,11 @@ const ConnectionsDelivery = () => {
   const handleGoogleLogin = () => {
     const login = encodeURIComponent(getLoginEmail());
     window.location.href = `${config.apiUrl}auth/google/email-analysis?login=${login}`;
+  };
+
+  const handleOutlookLogin = () => {
+    const login = encodeURIComponent(getLoginEmail());
+    window.location.href = `${config.apiUrl}auth/microsoft/outlook?login=${login}`;
   };
 
   const getMicrosoftStatus = async () => {
@@ -198,6 +215,7 @@ const ConnectionsDelivery = () => {
     try {
       const resp = await apiRequest('POST', 'auth/google/email-analysis/disconnect', {
         email: adminEmail,
+        provider: connectedProvider,
         purgeData,
       });
       if (resp?.respCode) {
@@ -217,28 +235,37 @@ const ConnectionsDelivery = () => {
 
   const handleRemoveAccount = () => setRemoveDialog(true);
 
-  const isGoogleConnected = connectedProvider === 'google';
+  const isGoogleConnected = sourceAccounts.some((a) => a.provider === 'google');
+  const isOutlookConnected = sourceAccounts.some((a) => a.provider === 'outlook' || a.provider === 'microsoft');
+  const hasSourceAccount = sourceAccounts.length > 0;
+
+  const changeActiveSource = (email) => {
+    const account = sourceAccounts.find((a) => a.email === email);
+    setAdminEmail(email);
+    setConnectedProvider(account?.provider || null);
+  };
 
   const StatusPill = ({ on, children }) => (
     <span className={`cd-pill ${on ? 'ok' : 'off'}`}>{children}</span>
   );
 
-  const SourceRow = ({ icon, name, desc }) => (
+  const SourceRow = ({ icon, name, desc, connected, account, onConnect }) => (
     <div className="cd-conn">
       <div className="cd-ic">{icon}</div>
       <div className="cd-conn-text">
         <div className="cd-nm">{name}</div>
         <div className="cd-ds">{desc}</div>
       </div>
-      {isGoogleConnected ? (
+      {connected ? (
         <div className="d-flex align-items-center gap-2">
           <StatusPill on>connected</StatusPill>
+          {account?.email && <span className="cd-account-inline">{account.email}</span>}
           <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" onClick={handleRemoveAccount}>
             Disconnect
           </Button>
         </div>
       ) : (
-        <Button size="sm" className="app-btn" onClick={handleGoogleLogin}>Connect</Button>
+        <Button size="sm" className="app-btn" onClick={onConnect}>Connect</Button>
       )}
     </div>
   );
@@ -264,7 +291,7 @@ const ConnectionsDelivery = () => {
       <Dialog open={removeDialog} onOpenChange={(o) => { if (!o && !removing) setRemoveDialog(false); }}>
         <DialogContent className="max-w-[480px] w-[94vw]">
           <DialogHeader>
-            <DialogTitle>Remove Google account</DialogTitle>
+            <DialogTitle>Remove {connectedProvider === 'outlook' ? 'Outlook' : 'Google'} account</DialogTitle>
           </DialogHeader>
           <p className="cd-remove-intro">
             Choose how you want to remove {adminEmail ? <b>{adminEmail}</b> : 'this account'}.
@@ -274,7 +301,7 @@ const ConnectionsDelivery = () => {
             <div className="cd-remove-option-text">
               <div className="cd-remove-option-title">Disconnect account only</div>
               <div className="cd-remove-option-desc">
-                Removes the Google connection. Emails and attachments already synced into the
+                Removes the mailbox connection. Emails and attachments already synced into the
                 system are kept.
               </div>
             </div>
@@ -309,8 +336,8 @@ const ConnectionsDelivery = () => {
           <div className="cd-eyebrow">Settings</div>
           <h1 className="cd-title">Connections &amp; delivery</h1>
         </div>
-        {isGoogleConnected && adminEmail && (
-          <div className="cd-account">{adminEmail}</div>
+        {hasSourceAccount && adminEmail && (
+          <div className="cd-account">{connectedProvider === 'outlook' ? 'Outlook' : 'Gmail'} · {adminEmail}</div>
         )}
       </div>
 
@@ -324,10 +351,39 @@ const ConnectionsDelivery = () => {
               icon={<img src={configImages.gmailLogo} alt="Gmail" className="cd-logo" />}
               name="Google Workspace inbox"
               desc="Reads overnight email for the brief"
+              connected={isGoogleConnected}
+              account={sourceAccounts.find((a) => a.provider === 'google')}
+              onConnect={handleGoogleLogin}
+            />
+            <SourceRow
+              icon={<img src={configImages.outlookLogo} alt="Outlook" className="cd-logo" />}
+              name="Microsoft 365 Outlook"
+              desc="Reads Outlook mail through Microsoft Graph"
+              connected={isOutlookConnected}
+              account={sourceAccounts.find((a) => a.provider === 'outlook' || a.provider === 'microsoft')}
+              onConnect={handleOutlookLogin}
             />
 
+            {sourceAccounts.length > 1 && (
+              <div className="cd-field">
+                <label>Active inbox</label>
+                <Select value={adminEmail || ''} onValueChange={changeActiveSource}>
+                  <SelectTrigger className="cd-time-dropdown">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sourceAccounts.map((a) => (
+                      <SelectItem key={`${a.provider}-${a.email}`} value={a.email}>
+                        {(a.provider === 'outlook' ? 'Outlook' : 'Gmail')} · {a.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Live sync progress */}
-            {isGoogleConnected && syncStatus && (syncStatus.active || syncStatus.phase === 'done' || syncStatus.phase === 'error') && (
+            {hasSourceAccount && syncStatus && (syncStatus.active || syncStatus.phase === 'done' || syncStatus.phase === 'error') && (
               <div className="cd-syncbar">
                 {syncStatus.active ? (
                   <>
@@ -418,7 +474,7 @@ const ConnectionsDelivery = () => {
                 <div className="cd-nm">Bulk email send</div>
                 <div className="cd-ds">Upload a .js file of emails and send them through this account</div>
               </div>
-              <Button size="sm" className="app-btn" disabled={!isGoogleConnected} onClick={() => navigate('/bulkEmailSend')}>
+              <Button size="sm" className="app-btn" disabled={!hasSourceAccount} onClick={() => navigate('/bulkEmailSend')}>
                 Open
               </Button>
             </div>

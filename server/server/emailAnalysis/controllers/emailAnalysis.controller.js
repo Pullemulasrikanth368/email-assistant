@@ -11,7 +11,8 @@ const ATTACHMENT_DIR = path.resolve(__dirname, "../../upload/email-analysis");
 /**@OAuth + Service */
 import googleEmailAnalysisOAuth from "../auth/googleEmailAnalysis.oauth";
 import EmailAnalysisAuthService from "../services/emailAnalysis.auth.service";
-import EmailAnalysisMessagesService from "../services/emailAnalysis.messages.service";
+import OutlookAuthService from "../services/outlook.auth.service";
+import { createMailService } from "../services/mailProvider.service";
 
 /**@Report engine + scheduling */
 import reportService from "../services/report.service";
@@ -59,8 +60,8 @@ function escapeRegex(value = "") {
  * First link backfills the last 7 days; later runs are incremental via history.
  */
 function triggerMailSync(email) {
-  const service = new EmailAnalysisMessagesService(email);
-  service.syncForUser()
+  createMailService(email)
+    .then((service) => service.syncForUser())
     .then(async (result) => {
       // Assign an intent-based priority to the newly synced mail (per day).
       try {
@@ -155,6 +156,7 @@ async function emailAnalysisGoogleWebhook(req, res) {
     user.name = data.name;
     user.picture = data.picture;
     user.googleId = data.googleId;
+    user.providerUserId = data.googleId;
     user.provider = "google";
     user.purpose = purpose;
     if (loginUserEmailId) user.loginUserEmailId = loginUserEmailId;
@@ -181,6 +183,58 @@ async function emailAnalysisGoogleWebhook(req, res) {
   }
 }
 
+async function emailAnalysisOutlookLogin(req, res) {
+  const purpose = req.query?.purpose === "send" ? "send" : "source";
+  const login = String(req.query?.login || "").trim();
+  const state = `${purpose}::${login}`;
+  const service = new OutlookAuthService();
+  return res.redirect(service.getAuthUrl(state));
+}
+
+async function emailAnalysisOutlookWebhook(req, res) {
+  const origin = getFrontendOrigin();
+  try {
+    const { code } = req.query;
+    if (!code) return res.redirect(`${origin}/connectionsDelivery?outlook=error`);
+
+    const [statePurpose = "source", stateLogin = ""] = String(req.query.state || "").split("::");
+    const purpose = statePurpose === "send" ? "send" : "source";
+    const loginUserEmailId = (stateLogin || "").trim() || null;
+
+    const service = new OutlookAuthService();
+    const data = await service.authenticate(code);
+
+    let user = await EmailAnalysisUser.findOne({ email: data.email, provider: "outlook" });
+    if (!user) user = new EmailAnalysisUser({ email: data.email });
+
+    user.name = data.name;
+    user.picture = "";
+    user.microsoftId = data.microsoftId;
+    user.providerUserId = data.providerUserId || data.microsoftId;
+    user.provider = "outlook";
+    user.purpose = purpose;
+    if (loginUserEmailId) user.loginUserEmailId = loginUserEmailId;
+    user.accessToken = data.access_token;
+    if (data.refresh_token) user.refreshToken = data.refresh_token;
+    user.scope = data.scope;
+    user.idToken = data.id_token;
+    user.expiryDate = data.expiry_date;
+    user.active = true;
+
+    await EmailAnalysisUser.saveData(user);
+
+    if (purpose === "send") {
+      return res.redirect(`${origin}/bulkEmailSend?account=connected`);
+    }
+
+    triggerMailSync(data.email);
+    return res.redirect(`${origin}/connectionsDelivery?outlook=connected`);
+  } catch (err) {
+    console.error("emailAnalysisOutlookWebhook error:", err);
+    return res.redirect(`${origin}/connectionsDelivery?outlook=error`);
+  }
+}
+
 /**
  * Return the currently connected email-analysis account (if any).
  * @param { import('express').Request } req
@@ -189,9 +243,23 @@ async function emailAnalysisGoogleWebhook(req, res) {
 async function emailAnalysisStatus(req, res) {
   const user = await EmailAnalysisUser.findOne({ active: true, purpose: { $ne: "send" } }).sort({ updatedAt: -1 });
   if (user) {
-    return res.json({ connected: true, email: user.email, name: user.name, picture: user.picture });
+    return res.json({ connected: true, email: user.email, name: user.name, picture: user.picture, provider: user.provider });
   }
   return res.json({ connected: false });
+}
+
+async function emailAnalysisProviderStatus(req, res) {
+  const provider = req.params.provider || req.query.provider || (req.path?.includes("outlook") ? "outlook" : "");
+  const providerQuery = provider === "outlook" ? { $in: ["outlook", "microsoft"] } : provider;
+  const user = await EmailAnalysisUser.findOne({
+    active: true,
+    provider: providerQuery,
+    purpose: { $ne: "send" },
+  }).sort({ updatedAt: -1 });
+  if (user) {
+    return res.json({ connected: true, email: user.email, name: user.name, picture: user.picture, provider: user.provider });
+  }
+  return res.json({ connected: false, provider });
 }
 
 /**
@@ -201,9 +269,9 @@ async function emailAnalysisStatus(req, res) {
 async function listEmailAnalysisAccounts(req, res) {
   const users = await EmailAnalysisUser.find({ active: true })
     .sort({ updatedAt: -1 })
-    .select("email name picture")
+    .select("email name picture provider purpose")
     .lean();
-  return res.json({ accounts: users.map((u) => ({ email: u.email, name: u.name, picture: u.picture })) });
+  return res.json({ accounts: users.map((u) => ({ email: u.email, name: u.name, picture: u.picture, provider: u.provider, purpose: u.purpose })) });
 }
 
 /**
@@ -239,12 +307,15 @@ function deleteAttachmentFiles(mails = []) {
  * @param { import('express').Response } res
  */
 async function disconnectEmailAnalysisAccount(req, res) {
-  const { email, purgeData } = req.body || {};
+  const { email, purgeData, provider } = req.body || {};
   if (!email) {
     return res.json({ errorCode: 9001, errorMessage: "Please provide an email." });
   }
 
-  const result = await EmailAnalysisUser.deleteOne({ email });
+  const accountQuery = { email };
+  if (provider) accountQuery.provider = provider === "outlook" ? { $in: ["outlook", "microsoft"] } : provider;
+  const removedAccount = await EmailAnalysisUser.findOne(accountQuery).lean();
+  const result = await EmailAnalysisUser.deleteOne(accountQuery);
   if (!result || result.deletedCount === 0) {
     return res.json({ errorCode: 9001, errorMessage: "Email not matched." });
   }
@@ -260,9 +331,11 @@ async function disconnectEmailAnalysisAccount(req, res) {
   }
 
   // Purge: remove attachment files first, then the mail documents.
-  const mails = await EmailAnalysisMail.find({ email }, { attachments: 1 }).lean();
+  const mailQuery = { email };
+  if (removedAccount?.provider) mailQuery.provider = removedAccount.provider === "google" ? "gmail" : removedAccount.provider;
+  const mails = await EmailAnalysisMail.find(mailQuery, { attachments: 1 }).lean();
   const deletedFiles = deleteAttachmentFiles(mails);
-  const mailResult = await EmailAnalysisMail.deleteMany({ email });
+  const mailResult = await EmailAnalysisMail.deleteMany(mailQuery);
   const deletedMails = mailResult?.deletedCount || 0;
 
   return res.json({
@@ -289,7 +362,7 @@ async function syncEmailAnalysisMails(req, res) {
     return res.json({ errorCode: 9001, errorMessage: "No connected account to sync." });
   }
 
-  const service = new EmailAnalysisMessagesService(email);
+  const service = await createMailService(email);
   const result = await service.syncForUser();
   return res.json({ respCode: 200, respMessage: "Sync completed.", result });
 }
@@ -359,7 +432,7 @@ async function bulkSendEmails(req, res) {
     return res.json({ errorCode: 9001, errorMessage: "No connected account to send from." });
   }
 
-  const service = new EmailAnalysisMessagesService(email);
+  const service = await createMailService(email);
   const summary = await service.sendEmails({ to, emails });
   return res.json({
     respCode: 200,
@@ -395,12 +468,13 @@ async function listEmailAnalysisMails(req, res) {
   // Always scope to ONE connected account: the explicit filter email, otherwise
   // the account currently connected in Settings (most-recently connected).
   // `active: true` also keeps soft-deleted (cleaned-up) mail out of the inbox.
-  const account = filter.email || await resolveAccount(null, filter.loginUserEmailId);
+  const account = filter.email || await resolveAccount(null, filter.loginUserEmailId, filter.provider);
   if (!account) {
     return res.json({ mails: [], pagination: { totalCount: 0, page, limit } });
   }
 
   const query = { active: true, email: account };
+  if (filter.provider) query.provider = filter.provider === "google" ? "gmail" : filter.provider;
   if (search) {
     const rx = new RegExp(escapeRegex(search), "i");
     query.$or = [{ subject: rx }, { from: rx }, { to: rx }, { snippet: rx }];
@@ -440,15 +514,149 @@ async function getEmailAnalysisMail(req, res) {
   return res.json({ mail });
 }
 
+async function sendMail(req, res) {
+  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+
+  try {
+    const service = await createMailService(email);
+    const sent = await service.sendMail({
+      to: req.body?.to || [],
+      cc: req.body?.cc || [],
+      bcc: req.body?.bcc || [],
+      subject: req.body?.subject || "",
+      html: req.body?.html || "",
+      text: req.body?.text || req.body?.body || "",
+    });
+    return res.json({ respCode: 200, respMessage: "Email sent.", sent });
+  } catch (err) {
+    return res.json({ errorCode: 9101, errorMessage: err.message });
+  }
+}
+
+async function replyMail(req, res) {
+  const sourceId = String(req.body?.sourceId || "").trim();
+  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  if (!sourceId) return res.json({ errorCode: 9102, errorMessage: "sourceId is required." });
+
+  try {
+    const service = await createMailService(email);
+    const sent = await service.sendReplyToSource({
+      sourceId,
+      html: req.body?.html || req.body?.body || "",
+      text: req.body?.text || "",
+    });
+    return res.json({ respCode: 200, respMessage: "Reply sent.", sent });
+  } catch (err) {
+    return res.json({ errorCode: 9103, errorMessage: err.message });
+  }
+}
+
+async function forwardMail(req, res) {
+  const sourceId = String(req.body?.sourceId || "").trim();
+  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  if (!sourceId) return res.json({ errorCode: 9104, errorMessage: "sourceId is required." });
+
+  try {
+    const service = await createMailService(email);
+    const forwarded = await service.forwardMessage({
+      sourceId,
+      to: req.body?.to || [],
+      comment: req.body?.comment || req.body?.body || "",
+    });
+    return res.json({ respCode: 200, respMessage: "Email forwarded.", forwarded });
+  } catch (err) {
+    return res.json({ errorCode: 9105, errorMessage: err.message });
+  }
+}
+
+async function deleteMails(req, res) {
+  const messageIds = Array.isArray(req.body?.messageIds) ? req.body.messageIds : [req.body?.sourceId || req.body?.messageId].filter(Boolean);
+  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+
+  try {
+    const service = await createMailService(email);
+    const result = await service.trashMessages(messageIds);
+    await EmailAnalysisMail.updateMany(
+      { email, providerMessageId: { $in: messageIds } },
+      { $set: { active: false, removedAt: new Date(), removedReason: "deleted" } }
+    );
+    return res.json({ respCode: 200, respMessage: "Email deleted.", result });
+  } catch (err) {
+    return res.json({ errorCode: 9106, errorMessage: err.message });
+  }
+}
+
+async function markMailReadState(req, res) {
+  const messageIds = Array.isArray(req.body?.messageIds) ? req.body.messageIds : [req.body?.sourceId || req.body?.messageId].filter(Boolean);
+  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+
+  try {
+    const service = await createMailService(email);
+    const result = await service.markRead(messageIds, req.body?.isRead !== false);
+    return res.json({ respCode: 200, respMessage: "Email updated.", result });
+  } catch (err) {
+    return res.json({ errorCode: 9107, errorMessage: err.message });
+  }
+}
+
+async function searchProviderMails(req, res) {
+  const q = String(req.query.q || req.query.search || "").trim();
+  const limit = parseInt(req.query.limit, 10) || 25;
+  const email = await resolveAccount(req.query.email, req.query.loginUserEmailId, req.query.provider);
+  if (!email) return res.json({ mails: [], pagination: { totalCount: 0, page: 1, limit } });
+  if (!q) return res.json({ mails: [], pagination: { totalCount: 0, page: 1, limit } });
+
+  try {
+    const service = await createMailService(email);
+    const mails = await service.searchEmails(q, limit);
+    return res.json({ mails: mails.map((m) => ({ ...m, attachments: mapAttachments(m.attachments || []) })), pagination: { totalCount: mails.length, page: 1, limit } });
+  } catch (err) {
+    return res.json({ errorCode: 9108, errorMessage: err.message });
+  }
+}
+
+async function getMailConversation(req, res) {
+  const mail = await EmailAnalysisMail.findOne({ _id: req.params.id, active: true }).lean();
+  if (!mail) return res.json({ errorCode: 9002, errorMessage: "Mail not found." });
+
+  try {
+    const service = await createMailService(mail.email);
+    const mails = await service.getConversation(mail.threadId);
+    return res.json({ mails: mails.map((m) => ({ ...m, attachments: mapAttachments(m.attachments || []) })) });
+  } catch (err) {
+    return res.json({ errorCode: 9109, errorMessage: err.message });
+  }
+}
+
+async function downloadAttachment(req, res) {
+  const mail = await EmailAnalysisMail.findOne({ _id: req.params.id, active: true }).lean();
+  if (!mail) return res.status(404).json({ errorCode: 9002, errorMessage: "Mail not found." });
+
+  const attachment = (mail.attachments || []).find((a) => a.savedPath && path.basename(a.savedPath) === req.params.file);
+  if (!attachment) return res.status(404).json({ errorCode: 9110, errorMessage: "Attachment not found." });
+
+  const filePath = path.join(ATTACHMENT_DIR, path.basename(attachment.savedPath));
+  if (!fs.existsSync(filePath)) return res.status(404).json({ errorCode: 9111, errorMessage: "Attachment file not found." });
+  return res.download(filePath, attachment.filename || path.basename(filePath));
+}
+
 /* ============================ REPORTS ============================ */
 
 /** Resolve the SOURCE account to operate on. Priority:
  *  1) explicit email, 2) the source account THIS logged-in admin connected
  *  (loginUserEmailId), 3) the most-recent source account. Send-only
  *  (bulk-send) accounts are never picked as a source. */
-async function resolveAccount(email, loginUserEmailId) {
+async function resolveAccount(email, loginUserEmailId, provider) {
   if (email) return email;
   const base = { active: true, purpose: { $ne: "send" } };
+  if (provider) {
+    base.provider = provider === "outlook" ? { $in: ["outlook", "microsoft"] } : provider;
+  }
   if (loginUserEmailId) {
     const own = await EmailAnalysisUser.findOne({ ...base, loginUserEmailId })
       .sort({ updatedAt: -1 }).lean();
@@ -697,7 +905,8 @@ async function completeActionItem(req, res) {
 
   let sent;
   try {
-    sent = await new EmailAnalysisMessagesService(email).sendReplyToSource({ sourceId, html });
+    const service = await createMailService(email);
+    sent = await service.sendReplyToSource({ sourceId, html });
   } catch (err) {
     return res.json({ errorCode: 9204, errorMessage: `Could not send reply: ${err.message}` });
   }
@@ -805,8 +1014,8 @@ async function sendQuickReply(req, res) {
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;line-height:1.5"><p>${escapeHtmlText(reply)}</p></div>`;
 
   try {
-    const sent = await new EmailAnalysisMessagesService(email)
-      .sendReplyToSource({ sourceId: mail.providerMessageId, html });
+    const service = await createMailService(email);
+    const sent = await service.sendReplyToSource({ sourceId: mail.providerMessageId, html });
     return res.json({ respCode: 200, respMessage: `Reply sent to ${sent.to}.`, sent });
   } catch (err) {
     console.error("[EmailAnalysis] quick-reply send failed:", err.message);
@@ -869,7 +1078,8 @@ async function cleanupMails(req, res) {
   // Also move them to Gmail Trash (best-effort — never fails the request).
   let trashed = 0;
   try {
-    const r = await new EmailAnalysisMessagesService(email).trashMessages(providerIds);
+    const service = await createMailService(email);
+    const r = await service.trashMessages(providerIds);
     trashed = r.trashed;
   } catch (err) {
     console.error("[EmailAnalysis] Cleanup Gmail trash failed:", err.message);
@@ -1003,13 +1213,24 @@ async function getReportMarkdown(req, res) {
 export default {
   emailAnalysisGoogleLogin,
   emailAnalysisGoogleWebhook,
+  emailAnalysisOutlookLogin,
+  emailAnalysisOutlookWebhook,
   emailAnalysisStatus,
+  emailAnalysisProviderStatus,
   listEmailAnalysisAccounts,
   disconnectEmailAnalysisAccount,
   syncEmailAnalysisMails,
   bulkSendEmails,
   listEmailAnalysisMails,
   getEmailAnalysisMail,
+  sendMail,
+  replyMail,
+  forwardMail,
+  deleteMails,
+  markMailReadState,
+  searchProviderMails,
+  getMailConversation,
+  downloadAttachment,
   generateEmailAnalysisReport,
   listEmailAnalysisReports,
   getEmailAnalysisReport,

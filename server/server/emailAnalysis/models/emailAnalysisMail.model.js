@@ -62,7 +62,7 @@ const EmailAnalysisMailSchema = new mongoose.Schema({
   removedReason: { type: String, default: null },
 }, { usePushEach: true, timestamps: true });
 
-EmailAnalysisMailSchema.index({ email: 1, providerMessageId: 1 }, { unique: true });
+EmailAnalysisMailSchema.index({ email: 1, provider: 1, providerMessageId: 1 }, { unique: true });
 
 /**
  * Statics

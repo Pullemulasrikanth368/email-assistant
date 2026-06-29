@@ -19,6 +19,17 @@ router.post("/google/email-analysis/disconnect", asyncHandler(emailAnalysisCtrl.
 router.post("/google/email-analysis/sync", asyncHandler(emailAnalysisCtrl.syncEmailAnalysisMails));
 
 /**
+ * Email-analysis Outlook connection (Microsoft Graph mail).
+ * Register the webhook URL in Azure as a Web redirect URI:
+ * <serverUrl>/api/auth/microsoft/outlook/webhook
+ */
+router.get("/microsoft/outlook", asyncHandler(emailAnalysisCtrl.emailAnalysisOutlookLogin));
+router.get("/microsoft/outlook/webhook", asyncHandler(emailAnalysisCtrl.emailAnalysisOutlookWebhook));
+router.get("/microsoft/outlook/status", asyncHandler(emailAnalysisCtrl.emailAnalysisProviderStatus));
+router.post("/microsoft/outlook/disconnect", asyncHandler(emailAnalysisCtrl.disconnectEmailAnalysisAccount));
+router.post("/microsoft/outlook/sync", asyncHandler(emailAnalysisCtrl.syncEmailAnalysisMails));
+
+/**
  * Microsoft (Entra ID) Teams connection (separate, isolated flow).
  * Register the webhook URL in the Azure app registration as a Web redirect URI:
  * <serverUrl>/api/auth/microsoft/teams/webhook

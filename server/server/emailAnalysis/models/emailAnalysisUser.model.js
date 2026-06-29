@@ -7,7 +7,7 @@ import APIError from '../../helpers/APIError';
 /**
  * Email Analysis User Schema
  *
- * Stores the Google account connected specifically for the email-analysis
+ * Stores the mailbox account connected specifically for the email-analysis
  * feature. This is intentionally separate from the existing auth/accessTokens
  * flow so that connecting/disconnecting here never touches the login flow.
  */
@@ -22,6 +22,12 @@ const EmailAnalysisUserSchema = new mongoose.Schema({
     type: String,
   },
   googleId: {
+    type: String,
+  },
+  microsoftId: {
+    type: String,
+  },
+  providerUserId: {
     type: String,
   },
   // The admin app user (their login email) who connected this account — so the
@@ -58,6 +64,10 @@ const EmailAnalysisUserSchema = new mongoose.Schema({
   // Gmail History API cursor: the historyId captured at the end of the last
   // successful sync. Used to fetch only messages added since then.
   historyId: {
+    type: String,
+  },
+  // Microsoft Graph delta cursor for Outlook incremental sync.
+  deltaLink: {
     type: String,
   },
   // Whether the one-time initial backfill (last 7 days) has run.

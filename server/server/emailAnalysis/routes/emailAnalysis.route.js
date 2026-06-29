@@ -23,9 +23,17 @@ router.get("/cleanup/preview", asyncHandler(emailAnalysisCtrl.cleanupPreview));
 router.post("/cleanup", asyncHandler(emailAnalysisCtrl.cleanupMails));
 // (re)prioritize mails by intent — before the /mails/:id catch-all
 router.post("/mails/prioritize", asyncHandler(emailAnalysisCtrl.prioritizeEmailAnalysisMails));
+router.get("/mails/search", asyncHandler(emailAnalysisCtrl.searchProviderMails));
 // by-source (sourceId == providerMessageId) drill-down — before /mails/:id
 router.get("/mails/by-source/:sourceId", asyncHandler(emailAnalysisCtrl.getMailBySource));
+router.get("/mails/:id/conversation", asyncHandler(emailAnalysisCtrl.getMailConversation));
+router.get("/mails/:id/attachments/:file/download", asyncHandler(emailAnalysisCtrl.downloadAttachment));
 router.get("/mails/:id", asyncHandler(emailAnalysisCtrl.getEmailAnalysisMail));
+router.post("/mail/send", asyncHandler(emailAnalysisCtrl.sendMail));
+router.post("/mail/reply", asyncHandler(emailAnalysisCtrl.replyMail));
+router.post("/mail/forward", asyncHandler(emailAnalysisCtrl.forwardMail));
+router.post("/mail/delete", asyncHandler(emailAnalysisCtrl.deleteMails));
+router.post("/mail/mark-read", asyncHandler(emailAnalysisCtrl.markMailReadState));
 
 /**
  * Reports (the generated "morning brief").

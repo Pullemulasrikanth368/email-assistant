@@ -10,7 +10,7 @@
 import cron from "node-cron";
 
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
-import EmailAnalysisMessagesService from "../services/emailAnalysis.messages.service";
+import { createMailService } from "../services/mailProvider.service";
 import reportService from "../services/report.service";
 import prioritizeService from "../services/prioritize.service";
 
@@ -49,7 +49,8 @@ async function syncAllAccounts() {
 /** 1-month backfill + prioritize for all accounts (recovers any gaps). */
 async function backfillAllAccounts(days = BACKFILL_DAYS) {
   await forEachAccount("Backfill", async (email) => {
-    await new EmailAnalysisMessagesService(email).backfillRecent(days);
+    const service = await createMailService(email);
+    await service.backfillRecent(days);
     await prioritizeService.prioritizePendingForAccount(email);
   });
 }
