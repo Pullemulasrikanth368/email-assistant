@@ -263,10 +263,10 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
         style={{ width: '460px', maxWidth: '94vw' }}
         onHide={() => { if (!completing) setConfirm({ visible: false, todo: null }); }}
       >
-        <p style={{ margin: '0 0 10px', color: '#3c4043', fontSize: 14, lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 10px', color: '#3c4043', fontSize: 12, lineHeight: 1.55 }}>
           Mark <strong>“{confirm.todo?.task}”</strong> as completed?
         </p>
-        <p style={{ margin: '0 0 18px', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 18px', color: '#5f6368', fontSize: 12, lineHeight: 1.55 }}>
           We’ll generate a tailored reply from the linked email’s content and send it to the
           original sender on the same thread, then check this item off.
         </p>

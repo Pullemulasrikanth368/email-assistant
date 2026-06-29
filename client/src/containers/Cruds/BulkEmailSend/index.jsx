@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { InputText } from 'primereact/inputtext';
-import { Button } from 'primereact/button';
-import { Dropdown } from 'primereact/dropdown';
+import { Send, Plus } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import config from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import './BulkEmailSend.scss';
@@ -181,20 +182,22 @@ const BulkEmailSend = () => {
           <div className="bes-field">
             <label>Emails are sent from this connected account</label>
             <div className="bes-from-row">
-              <Dropdown
-                value={fromAccount}
-                options={accounts.map((a) => ({ label: a.name ? `${a.name} · ${a.email}` : a.email, value: a.email }))}
-                onChange={(e) => setFromAccount(e.value)}
-                placeholder="Select an account"
-                className="bes-account-dd"
-              />
+              <Select value={fromAccount || ''} onValueChange={setFromAccount}>
+                <SelectTrigger className="bes-account-dd">
+                  <SelectValue placeholder="Select an account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.email} value={a.email}>
+                      {a.name ? `${a.name} · ${a.email}` : a.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="bes-from-action">
-                <Button
-                  label="Connect"
-                  icon="pi pi-plus"
-                  className="p-button-sm bes-btn-theme"
-                  onClick={connectNewAccount}
-                />
+                <Button size="sm" className="bes-btn-theme" onClick={connectNewAccount}>
+                  <Plus size={14} /> Connect
+                </Button>
               </div>
             </div>
             <small className="bes-hint-muted">
@@ -205,7 +208,7 @@ const BulkEmailSend = () => {
           <div className="bes-noacct">
             <span>No connected accounts yet.</span>
             <div className="bes-from-action">
-              <Button label="Connect" icon="pi pi-plus" className="p-button-sm bes-btn-theme" onClick={connectNewAccount} />
+              <Button size="sm" className="bes-btn-theme" onClick={connectNewAccount}><Plus size={14} /> Connect</Button>
             </div>
           </div>
         )}
@@ -216,12 +219,12 @@ const BulkEmailSend = () => {
         <div className="bes-ph">2 · Recipient (To)</div>
         <div className="bes-field">
           <label htmlFor="bes-to">Every email is sent to this address</label>
-          <InputText
+          <Input
             id="bes-to"
             value={toAddress}
             placeholder="name@example.com"
             onChange={(e) => setToAddress(e.target.value)}
-            className={!toAddress || validEmail ? '' : 'p-invalid'}
+            className={!toAddress || validEmail ? '' : 'border-destructive'}
           />
           {!!toAddress && !validEmail && <small className="bes-err">Enter a valid email address.</small>}
         </div>
@@ -245,11 +248,12 @@ const BulkEmailSend = () => {
           </div>
           {fileName && (
             <Button
-              label="Remove"
-              icon="pi pi-times"
-              className="p-button-text p-button-sm"
+              variant="ghost"
+              size="sm"
               onClick={(e) => { e.stopPropagation(); clearFile(); }}
-            />
+            >
+              <i className="pi pi-times" style={{ marginRight: 4 }} /> Remove
+            </Button>
           )}
           <input
             ref={fileInputRef}
@@ -288,13 +292,11 @@ const BulkEmailSend = () => {
 
       {/* Step 3 — send */}
       <div className="bes-actions">
-        <Button
-          label={sending ? `Sending… ` : `Send ${emails.length || ''} email${emails.length === 1 ? '' : 's'}`}
-          icon={sending ? 'pi pi-spin pi-spinner' : 'pi pi-send'}
-          className="bes-btn-theme"
-          onClick={onSend}
-          disabled={!canSend}
-        />
+        <Button className="bes-btn-theme" onClick={onSend} disabled={!canSend}>
+          {sending
+            ? <><i className="pi pi-spin pi-spinner" style={{ marginRight: 6 }} />Sending…</>
+            : <><Send size={14} style={{ marginRight: 6 }} />{`Send ${emails.length || ''} email${emails.length === 1 ? '' : 's'}`}</>}
+        </Button>
         {!fromAccount && <span className="bes-hint">Select or connect a sending account first.</span>}
       </div>
 

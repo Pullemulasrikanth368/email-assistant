@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Button } from 'primereact/button';
-import { Dropdown } from 'primereact/dropdown';
-import { classNames } from 'primereact/utils';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import moment from 'moment';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
@@ -202,7 +202,7 @@ const OperationsReport = () => {
     return (
       <div
         key={r._id}
-        className={classNames('orm-daycard', { active })}
+        className={cn('orm-daycard', { active })}
         style={{ borderLeftColor: sev.color }}
         onClick={() => setSelectedId(r._id)}
         role="button"
@@ -228,7 +228,7 @@ const OperationsReport = () => {
       return (
         <div className="orm-state">
           <i className="pi pi-exclamation-triangle" /><span>{listError}</span>
-          <Button label="Retry" className="p-button-sm" onClick={() => fetchReports(false)} />
+          <Button size="sm" variant="outline" onClick={() => fetchReports(false)}>Retry</Button>
         </div>
       );
     }
@@ -262,13 +262,16 @@ const OperationsReport = () => {
         <div className="orm-week-gen">
           <span className="orm-week-pick">
             <label>Week (this month)</label>
-            <Dropdown
-              value={selectedWeekStart}
-              options={monthWeekOptions}
-              onChange={(e) => onPickWeek(e.value)}
-              className="orm-week-dd"
-              placeholder="Select a week"
-            />
+            <Select value={selectedWeekStart || ''} onValueChange={onPickWeek}>
+              <SelectTrigger className="orm-week-dd">
+                <SelectValue placeholder="Select a week" />
+              </SelectTrigger>
+              <SelectContent>
+                {(monthWeekOptions || []).map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </span>
 
           <div className="orm-week-actions">
@@ -312,7 +315,7 @@ const OperationsReport = () => {
               return (
                 <div
                   key={w._id}
-                  className={classNames('orm-daycard', { active: selectedWeekId === w._id })}
+                  className={cn('orm-daycard', { active: selectedWeekId === w._id })}
                   style={{ borderLeftColor: sev.color }}
                   onClick={() => setSelectedWeekId(w._id)}
                   role="button"
@@ -386,7 +389,16 @@ const OperationsReport = () => {
           <span className="orm-meta">{moment().format('ddd D MMM, HH:mm')}</span>
           <span className="orm-time-field">
             <label>Brief at</label>
-            <Dropdown value={briefTime} options={BRIEF_TIMES} onChange={(e) => saveBriefTime(e.value)} />
+            <Select value={briefTime || ''} onValueChange={saveBriefTime}>
+              <SelectTrigger className="orm-brief-time-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(BRIEF_TIMES || []).map((o) => (
+                  <SelectItem key={o.value || o} value={o.value || o}>{o.label || o}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </span>
           <button type="button" className="orm-runbrief-btn" onClick={runBrief} disabled={generating}>
             <i className={generating ? 'pi pi-spin pi-spinner' : 'pi pi-bolt'} />
@@ -397,8 +409,8 @@ const OperationsReport = () => {
 
       {/* Tabs */}
       <div className="orm-tabs">
-        <button className={classNames('orm-tab', { active: tab === 'day' })} onClick={() => setTab('day')}>Day-wise</button>
-        <button className={classNames('orm-tab', { active: tab === 'week' })} onClick={() => setTab('week')}>Weekly-wise</button>
+        <button className={cn('orm-tab', { active: tab === 'day' })} onClick={() => setTab('day')}>Day-wise</button>
+        <button className={cn('orm-tab', { active: tab === 'week' })} onClick={() => setTab('week')}>Weekly-wise</button>
       </div>
 
       {/* Master-detail */}

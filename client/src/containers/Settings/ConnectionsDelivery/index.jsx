@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { InputSwitch } from 'primereact/inputswitch';
-import { ProgressBar } from 'primereact/progressbar';
-import { Dropdown } from 'primereact/dropdown';
-import { Dialog } from 'primereact/dialog';
+import './ConnectionsDelivery.scss';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import fetchMethodRequest from '../../../config/service';
 import config from '../../../config/config';
 import configImages from '../../../config/configImages';
@@ -231,14 +233,12 @@ const ConnectionsDelivery = () => {
       {isGoogleConnected ? (
         <div className="d-flex align-items-center gap-2">
           <StatusPill on>connected</StatusPill>
-          <button type="button" className="btn btn-sm btn-outline-danger" onClick={handleRemoveAccount}>
+          <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" onClick={handleRemoveAccount}>
             Disconnect
-          </button>
+          </Button>
         </div>
       ) : (
-        <button type="button" className="btn btn-sm btn-primary app-btn" onClick={handleGoogleLogin}>
-          Connect
-        </button>
+        <Button size="sm" className="app-btn" onClick={handleGoogleLogin}>Connect</Button>
       )}
     </div>
   );
@@ -252,7 +252,7 @@ const ConnectionsDelivery = () => {
       </div>
       <div className="d-flex align-items-center gap-2">
         <StatusPill on={checked}>{checked ? 'on' : 'off'}</StatusPill>
-        <InputSwitch checked={checked} onChange={(e) => onChange(e.value)} />
+        <Switch checked={checked} onCheckedChange={onChange} />
       </div>
     </div>
   );
@@ -261,64 +261,47 @@ const ConnectionsDelivery = () => {
     <div className="conn-delivery">
       <Loader loader={isLoading} />
 
-      <Dialog
-        header="Remove Google account"
-        visible={removeDialog}
-        modal
-        draggable={false}
-        style={{ width: '480px', maxWidth: '94vw' }}
-        onHide={() => { if (!removing) setRemoveDialog(false); }}
-      >
-        <p className="cd-remove-intro">
-          Choose how you want to remove {adminEmail ? <b>{adminEmail}</b> : 'this account'}.
-        </p>
+      <Dialog open={removeDialog} onOpenChange={(o) => { if (!o && !removing) setRemoveDialog(false); }}>
+        <DialogContent className="max-w-[480px] w-[94vw]">
+          <DialogHeader>
+            <DialogTitle>Remove Google account</DialogTitle>
+          </DialogHeader>
+          <p className="cd-remove-intro">
+            Choose how you want to remove {adminEmail ? <b>{adminEmail}</b> : 'this account'}.
+          </p>
 
-        <div className="cd-remove-option">
-          <div className="cd-remove-option-text">
-            <div className="cd-remove-option-title">Disconnect account only</div>
-            <div className="cd-remove-option-desc">
-              Removes the Google connection. Emails and attachments already synced into the
-              system are kept.
+          <div className="cd-remove-option">
+            <div className="cd-remove-option-text">
+              <div className="cd-remove-option-title">Disconnect account only</div>
+              <div className="cd-remove-option-desc">
+                Removes the Google connection. Emails and attachments already synced into the
+                system are kept.
+              </div>
             </div>
+            <Button variant="outline" size="sm" disabled={removing} onClick={() => acceptRemove(false)}>
+              Disconnect
+            </Button>
           </div>
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-secondary"
-            disabled={removing}
-            onClick={() => acceptRemove(false)}
-          >
-            Disconnect
-          </button>
-        </div>
 
-        <div className="cd-remove-option danger">
-          <div className="cd-remove-option-text">
-            <div className="cd-remove-option-title">Disconnect &amp; delete data</div>
-            <div className="cd-remove-option-desc">
-              Removes the connection and permanently deletes all synced emails and attachments
-              for this account. This cannot be undone.
+          <div className="cd-remove-option danger">
+            <div className="cd-remove-option-text">
+              <div className="cd-remove-option-title">Disconnect &amp; delete data</div>
+              <div className="cd-remove-option-desc">
+                Removes the connection and permanently deletes all synced emails and attachments
+                for this account. This cannot be undone.
+              </div>
             </div>
+            <Button variant="destructive" size="sm" disabled={removing} onClick={() => acceptRemove(true)}>
+              Delete all
+            </Button>
           </div>
-          <button
-            type="button"
-            className="btn btn-sm btn-danger"
-            disabled={removing}
-            onClick={() => acceptRemove(true)}
-          >
-            Delete all
-          </button>
-        </div>
 
-        <div className="cd-remove-footer">
-          <button
-            type="button"
-            className="btn btn-sm btn-link"
-            disabled={removing}
-            onClick={() => setRemoveDialog(false)}
-          >
-            Cancel
-          </button>
-        </div>
+          <div className="cd-remove-footer">
+            <Button variant="ghost" size="sm" disabled={removing} onClick={() => setRemoveDialog(false)}>
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
       </Dialog>
 
       <div className="cd-topbar">
@@ -331,144 +314,151 @@ const ConnectionsDelivery = () => {
         )}
       </div>
 
-      {/* Sources */}
-      <div className="cd-panel">
-        <div className="cd-ph">Sources</div>
-        <SourceRow
-          icon={<img src={configImages.gmailLogo} alt="Gmail" className="cd-logo" />}
-          name="Google Workspace inbox"
-          desc="Reads overnight email for the brief"
-        />
+      <div className="cd-grid">
+        {/* Left column */}
+        <div className="cd-col">
+          {/* Sources */}
+          <div className="cd-panel">
+            <div className="cd-ph">Sources</div>
+            <SourceRow
+              icon={<img src={configImages.gmailLogo} alt="Gmail" className="cd-logo" />}
+              name="Google Workspace inbox"
+              desc="Reads overnight email for the brief"
+            />
 
-        {/* Live sync progress (background workers + manual syncs) */}
-        {isGoogleConnected && syncStatus && (syncStatus.active || syncStatus.phase === 'done' || syncStatus.phase === 'error') && (
-          <div className="cd-syncbar">
-            {syncStatus.active ? (
-              <>
-                <div className="cd-syncbar-head">
-                  <span className="cd-syncbar-label">
-                    {syncStatus.phase === 'saving' && syncStatus.total
-                      ? `Syncing mail… ${syncStatus.processed}/${syncStatus.total}`
-                      : syncStatus.phase === 'fetching' ? 'Fetching messages…' : 'Starting sync…'}
-                  </span>
-                  <span className="cd-syncbar-pct">
-                    {syncStatus.saved ? `${syncStatus.saved} new` : ''}
-                    {syncStatus.total ? `${syncStatus.saved ? ' · ' : ''}${syncStatus.percent}%` : ''}
-                  </span>
-                </div>
-                <ProgressBar
-                  value={syncStatus.total ? syncStatus.percent : 0}
-                  mode={syncStatus.total ? 'determinate' : 'indeterminate'}
-                  showValue={false}
-                  className="cd-progress"
-                />
-              </>
-            ) : syncStatus.phase === 'error' ? (
-              <div className="cd-sync-note err"><i className="pi pi-exclamation-triangle" /> Sync error: {syncStatus.error}</div>
-            ) : (
-              <div className="cd-sync-note ok"><i className="pi pi-check-circle" /> Synced — last run added {syncStatus.saved || 0} new email(s)</div>
+            {/* Live sync progress */}
+            {isGoogleConnected && syncStatus && (syncStatus.active || syncStatus.phase === 'done' || syncStatus.phase === 'error') && (
+              <div className="cd-syncbar">
+                {syncStatus.active ? (
+                  <>
+                    <div className="cd-syncbar-head">
+                      <span className="cd-syncbar-label">
+                        {syncStatus.phase === 'saving' && syncStatus.total
+                          ? `Syncing mail… ${syncStatus.processed}/${syncStatus.total}`
+                          : syncStatus.phase === 'fetching' ? 'Fetching messages…' : 'Starting sync…'}
+                      </span>
+                      <span className="cd-syncbar-pct">
+                        {syncStatus.saved ? `${syncStatus.saved} new` : ''}
+                        {syncStatus.total ? `${syncStatus.saved ? ' · ' : ''}${syncStatus.percent}%` : ''}
+                      </span>
+                    </div>
+                    <Progress
+                      value={syncStatus.total ? syncStatus.percent : undefined}
+                      className="cd-progress"
+                    />
+                  </>
+                ) : syncStatus.phase === 'error' ? (
+                  <div className="cd-sync-note err"><i className="pi pi-exclamation-triangle" /> Sync error: {syncStatus.error}</div>
+                ) : (
+                  <div className="cd-sync-note ok"><i className="pi pi-check-circle" /> Synced — last run added {syncStatus.saved || 0} new email(s)</div>
+                )}
+              </div>
             )}
+
+            <DeliveryRow
+              icon={<span className="cd-ic-text">!</span>}
+              name="Include spam"
+              desc="Also read Spam mail when syncing (shows as Junk in analytics)"
+              checked={includeSpam}
+              onChange={toggleIncludeSpam}
+            />
           </div>
-        )}
 
-        <DeliveryRow
-          icon={<span className="cd-ic-text">!</span>}
-          name="Include spam"
-          desc="Also read Spam mail when syncing (shows as Junk in analytics)"
-          checked={includeSpam}
-          onChange={toggleIncludeSpam}
-        />
-      </div>
+          {/* Delivery */}
+          <div className="cd-panel">
+            <div className="cd-ph">Delivery</div>
+            <DeliveryRow
+              icon={<span className="cd-ic-text">@</span>}
+              name={`Email brief at ${briefTime}`}
+              desc="Formatted brief to your inbox"
+              checked={emailBrief}
+              onChange={setEmailBrief}
+            />
+            {/* Microsoft Teams */}
+            <div className="cd-conn">
+              <div className="cd-ic"><span className="cd-ic-text">TM</span></div>
+              <div className="cd-conn-text">
+                <div className="cd-nm">Microsoft Teams</div>
+                <div className="cd-ds">
+                  {msConnected
+                    ? `Connected as ${msEmail || 'Microsoft account'} — posts the brief to your channel`
+                    : 'Sign in with Microsoft to post the brief to a Teams channel'}
+                </div>
+              </div>
+              {msConnected ? (
+                <div className="d-flex align-items-center gap-2">
+                  <StatusPill on={teamsBrief}>{teamsBrief ? 'on' : 'off'}</StatusPill>
+                  <Switch checked={teamsBrief} onCheckedChange={setTeamsBrief} />
+                  <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" onClick={disconnectMicrosoft}>
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <Button size="sm" className="app-btn" onClick={handleMicrosoftLogin}>Connect</Button>
+              )}
+            </div>
+            <DeliveryRow
+              icon={<span className="cd-ic-text">!</span>}
+              name="Escalation alerts"
+              desc="Immediate ping when a risk scores ≥ 16"
+              checked={escalationAlerts}
+              onChange={setEscalationAlerts}
+            />
+          </div>
+        </div>
 
-      {/* Delivery */}
-      <div className="cd-panel">
-        <div className="cd-ph">Delivery</div>
-        <DeliveryRow
-          icon={<span className="cd-ic-text">@</span>}
-          name={`Email brief at ${briefTime}`}
-          desc="Formatted brief to your inbox"
-          checked={emailBrief}
-          onChange={setEmailBrief}
-        />
-        {/* Microsoft Teams: connect the account, then toggle brief delivery */}
-        <div className="cd-conn">
-          <div className="cd-ic"><span className="cd-ic-text">TM</span></div>
-          <div className="cd-conn-text">
-            <div className="cd-nm">Microsoft Teams</div>
-            <div className="cd-ds">
-              {msConnected
-                ? `Connected as ${msEmail || 'Microsoft account'} — posts the brief to your channel`
-                : 'Sign in with Microsoft to post the brief to a Teams channel'}
+        {/* Right column */}
+        <div className="cd-col">
+          {/* Tools */}
+          <div className="cd-panel">
+            <div className="cd-ph">Tools</div>
+            <div className="cd-conn">
+              <div className="cd-ic"><span className="cd-ic-text">↑</span></div>
+              <div className="cd-conn-text">
+                <div className="cd-nm">Bulk email send</div>
+                <div className="cd-ds">Upload a .js file of emails and send them through this account</div>
+              </div>
+              <Button size="sm" className="app-btn" disabled={!isGoogleConnected} onClick={() => navigate('/bulkEmailSend')}>
+                Open
+              </Button>
             </div>
           </div>
-          {msConnected ? (
-            <div className="d-flex align-items-center gap-2">
-              <StatusPill on={teamsBrief}>{teamsBrief ? 'on' : 'off'}</StatusPill>
-              <InputSwitch checked={teamsBrief} onChange={(e) => setTeamsBrief(e.value)} />
-              <button type="button" className="btn btn-sm btn-outline-danger" onClick={disconnectMicrosoft}>
-                Disconnect
-              </button>
+
+          {/* AI engine */}
+          <div className="cd-panel">
+            <div className="cd-ph">AI engine</div>
+            <div className="cd-field">
+              <label>Model used to analyze, prioritize &amp; draft replies</label>
+              <Select value={aiModel || ''} onValueChange={changeAiModel}>
+                <SelectTrigger className="cd-time-dropdown">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(AI_MODEL_OPTIONS || []).map((o) => (
+                    <SelectItem key={o.value || o} value={o.value || o}>{o.label || o}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <button type="button" className="btn btn-sm btn-primary app-btn" onClick={handleMicrosoftLogin}>
-              Connect
-            </button>
-          )}
-        </div>
-        <DeliveryRow
-          icon={<span className="cd-ic-text">!</span>}
-          name="Escalation alerts"
-          desc="Immediate ping when a risk scores ≥ 16"
-          checked={escalationAlerts}
-          onChange={setEscalationAlerts}
-        />
-      </div>
-
-      {/* Tools */}
-      <div className="cd-panel">
-        <div className="cd-ph">Tools</div>
-        <div className="cd-conn">
-          <div className="cd-ic"><span className="cd-ic-text">↑</span></div>
-          <div className="cd-conn-text">
-            <div className="cd-nm">Bulk email send</div>
-            <div className="cd-ds">Upload a .js file of emails and send them through this account</div>
           </div>
-          <button
-            type="button"
-            className="btn btn-sm btn-primary app-btn"
-            disabled={!isGoogleConnected}
-            onClick={() => navigate('/bulkEmailSend')}
-          >
-            Open
-          </button>
-        </div>
-      </div>
 
-      {/* AI engine */}
-      <div className="cd-panel">
-        <div className="cd-ph">AI engine</div>
-        <div className="cd-field">
-          <label>Model used to analyze, prioritize &amp; draft replies</label>
-          <Dropdown
-            value={aiModel}
-            options={AI_MODEL_OPTIONS}
-            onChange={(e) => changeAiModel(e.value)}
-            className="cd-time-dropdown"
-          />
-        </div>
-      </div>
-
-      {/* Schedule */}
-      <div className="cd-panel">
-        <div className="cd-ph">Schedule</div>
-        <div className="cd-field">
-          <label>Brief generated at</label>
-          <Dropdown
-            value={briefTime}
-            options={BRIEF_TIMES}
-            onChange={(e) => setBriefTime(e.value)}
-            className="cd-time-dropdown"
-          />
+          {/* Schedule */}
+          <div className="cd-panel">
+            <div className="cd-ph">Schedule</div>
+            <div className="cd-field">
+              <label>Brief generated at</label>
+              <Select value={briefTime || ''} onValueChange={setBriefTime}>
+                <SelectTrigger className="cd-time-dropdown">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BRIEF_TIMES.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -2,19 +2,21 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 
-export const ProtectedRoute = ({ children }) => {
+export const ProtectedRoute = ({ condition, errorComponent: ErrorComponent, children }) => {
   const navigate = useNavigate();
   const isLoggedIn = useAuth();
   const location = useLocation();
 
   useEffect(() => {
+    const redirectPath = `${location.pathname}${location.search}`
     if (!isLoggedIn) {
-      const redirectPath = `${location.pathname}${location.search}`;
-      navigate("/login", { replace: true, state: { redirectPath } });
+      navigate("/login-request", { state: { redirectPath } });
+    } else if (!condition) {
+      navigate("/no-permission");
     }
-  }, [isLoggedIn, navigate, location]);
+  }, [isLoggedIn, condition, navigate]);
 
-  if (!isLoggedIn) return null;
+  if (!isLoggedIn || !condition) return null; 
 
   return children;
 };

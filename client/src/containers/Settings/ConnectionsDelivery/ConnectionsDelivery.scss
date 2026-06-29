@@ -1,0 +1,300 @@
+/* Connections & Delivery — executive light theme */
+
+.conn-delivery {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+/* ── Two-column grid ── */
+.cd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cd-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Top bar ── */
+.cd-topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.cd-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9CA3AF;
+  margin-bottom: 4px;
+}
+
+.cd-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.cd-account {
+  font-size: 13px;
+  color: #6B7280;
+  background: #F4F5F7;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  padding: 5px 12px;
+}
+
+/* ── Panel (white card) ── */
+.cd-panel {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
+}
+
+.cd-ph {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #9CA3AF;
+  margin-bottom: 14px;
+}
+
+/* ── Connection row ── */
+.cd-conn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+
+  & + .cd-conn {
+    border-top: 1px solid #F3F4F6;
+  }
+
+  & + .cd-syncbar {
+    padding-top: 10px;
+    border-top: 1px solid #F3F4F6;
+    margin-top: 2px;
+  }
+}
+
+/* ── Icon ── */
+.cd-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #F4F5F7;
+  border: 1px solid #E5E7EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cd-ic-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4B5563;
+}
+
+.cd-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+/* ── Row text ── */
+.cd-conn-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.cd-nm {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cd-ds {
+  font-size: 12.5px;
+  color: #6B7280;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* ── Status pill ── */
+.cd-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+
+  &.ok {
+    background: #ECFDF5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+  }
+
+  &.off {
+    background: #F9FAFB;
+    color: #6B7280;
+    border: 1px solid #E5E7EB;
+  }
+}
+
+/* ── Sync progress bar ── */
+.cd-syncbar {
+  padding-bottom: 10px;
+}
+
+.cd-syncbar-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.cd-syncbar-label {
+  font-size: 12px;
+  color: #4B5563;
+}
+
+.cd-syncbar-pct {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+.cd-progress {
+  height: 5px;
+  border-radius: 3px;
+  background: #E5E7EB;
+
+  > div {
+    background: #111827;
+    border-radius: 3px;
+  }
+}
+
+.cd-sync-note {
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &.ok { color: #065F46; }
+  &.err { color: #DC2626; }
+}
+
+/* ── Field (label + select) ── */
+.cd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  label {
+    font-size: 13px;
+    color: #4B5563;
+  }
+}
+
+.cd-time-dropdown {
+  width: 100%;
+  max-width: 280px;
+  background: #ffffff;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #111827;
+  height: 36px;
+
+  &:focus-within {
+    border-color: #111827;
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+  }
+}
+
+/* ── Primary action button override ── */
+.app-btn,
+button.app-btn {
+  background: #111827 !important;
+  color: #ffffff !important;
+  border-color: #111827 !important;
+
+  &:hover:not(:disabled) {
+    background: #1F2937 !important;
+    border-color: #1F2937 !important;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+/* ── Remove account dialog ── */
+.cd-remove-intro {
+  font-size: 13.5px;
+  color: #4B5563;
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.cd-remove-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  margin-bottom: 10px;
+
+  &.danger {
+    border-color: #FCA5A5;
+    background: #FFF5F5;
+  }
+}
+
+.cd-remove-option-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.cd-remove-option-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 3px;
+}
+
+.cd-remove-option-desc {
+  font-size: 12px;
+  color: #6B7280;
+  line-height: 1.4;
+}
+
+.cd-remove-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}

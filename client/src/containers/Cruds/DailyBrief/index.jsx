@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { Button } from 'primereact/button';
 import { Calendar } from 'primereact/calendar';
-import { Sidebar } from 'primereact/sidebar';
 import DOMPurify from 'dompurify';
+import { FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import moment from 'moment';
 import fetchMethodRequest from '../../../config/service';
 import config from '../../../config/config';
@@ -134,7 +135,7 @@ const DailyBrief = () => {
       return (
         <div className="orm-state">
           <i className="pi pi-exclamation-triangle" /><span>{error}</span>
-          <Button label="Retry" className="p-button-sm" onClick={() => fetchReport(date)} />
+          <Button size="sm" variant="outline" onClick={() => fetchReport(date)}>Retry</Button>
         </div>
       );
     }
@@ -162,7 +163,6 @@ const DailyBrief = () => {
       <div className="operations-report orm-drawer">
         <div className="orm-drawer-head">
           <span className="eyebrow">Email detail</span>
-          {sourceId && <span className="orm-chip">{sourceId}</span>}
         </div>
         {dl ? (
           <div className="orm-state"><i className="pi pi-spin pi-spinner" /><span>Loading email…</span></div>
@@ -220,30 +220,30 @@ const DailyBrief = () => {
     const r = riskDrawer.risk;
     if (!r) return null;
     return (
-      <div className="operations-report orm-drawer">
+      <div className="operations-report orm-drawer bg-white">
         <div className="orm-drawer-head">
-          <span className="eyebrow">Risk detail</span>
           {r.trend && <span className={`orm-chip ${r.trend === 'Escalating' ? 'esc' : r.trend === 'New' ? 'new' : ''}`}>{r.trend}</span>}
+          <span className="eyebrow">Risk detail</span>
         </div>
         <div className="orm-risk-head">
-          <div className="orm-score" style={{ background: scoreColor(r.riskScore), width: 64, fontSize: 22 }}>
+          <div className="orm-score" style={{ background: scoreColor(r.riskScore), width: 56, fontSize: 15 }}>
             {r.riskScore}<small>{r.likelihood}×{r.impact}</small>
           </div>
           <div>
-            <div className="orm-detail-title" style={{ fontSize: 16 }}>{r.summary}</div>
+            <div className="orm-detail-title" style={{ fontSize: 13 }}>{r.summary}</div>
             <div className="reason">{r.category}{r.affectedArea ? ` · ${r.affectedArea}` : ''}</div>
           </div>
         </div>
         <div className="orm-statgrid" style={{ gridTemplateColumns: 'repeat(2,1fr)' }}>
           <div className="orm-stat"><div className="l">Likelihood</div><div className="v">{r.likelihood} / 5</div></div>
           <div className="orm-stat"><div className="l">Impact</div><div className="v">{r.impact} / 5</div></div>
-          <div className="orm-stat"><div className="l">Clock</div><div className="v" style={{ fontSize: 14 }}>{r.clock || '—'}</div></div>
-          <div className="orm-stat"><div className="l">Trend</div><div className="v" style={{ fontSize: 14 }}>{r.trend || '—'}</div></div>
+          <div className="orm-stat"><div className="l">Clock</div><div className="v" style={{ fontSize: 12 }}>{r.clock || '—'}</div></div>
+          <div className="orm-stat"><div className="l">Trend</div><div className="v" style={{ fontSize: 12 }}>{r.trend || '—'}</div></div>
         </div>
         {r.mitigation && (
           <div className="orm-panel" style={{ marginTop: 14 }}>
             <div className="orm-ph">Recommended mitigation</div>
-            <div style={{ fontSize: 14, lineHeight: 1.6 }}>{r.mitigation}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.6 }}>{r.mitigation}</div>
           </div>
         )}
         {r.sourceId && (
@@ -261,7 +261,7 @@ const DailyBrief = () => {
   };
 
   return (
-    <div className="operations-report daily-brief">
+    <div className="operations-report daily-brief bg-white" >
       <div className="orm-header">
         <div className="orm-title">
           <div className="eyebrow">Operations command center</div>
@@ -288,7 +288,7 @@ const DailyBrief = () => {
             </span>
           )}
           {report && (
-            <Button icon="pi pi-file" className="p-button-text" tooltip="Open .md" tooltipOptions={{ position: 'bottom' }} onClick={downloadMd} />
+            <Button variant="ghost" size="icon" title="Open .md" onClick={downloadMd}><FileText size={15} /></Button>
           )}
           <button type="button" className="orm-runbrief-btn" onClick={runBrief} disabled={generating}>
             <i className={generating ? 'pi pi-spin pi-spinner' : 'pi pi-bolt'} />
@@ -299,23 +299,17 @@ const DailyBrief = () => {
 
       <div className="orm-single-body">{renderBody()}</div>
 
-      <Sidebar
-        visible={emailDrawer.visible}
-        position="right"
-        style={{ width: '620px', maxWidth: '96vw' }}
-        onHide={() => setEmailDrawer((p) => ({ ...p, visible: false }))}
-      >
-        {renderEmailDrawer()}
-      </Sidebar>
+      <Sheet open={emailDrawer.visible} onOpenChange={(o) => !o && setEmailDrawer((p) => ({ ...p, visible: false }))}>
+        <SheetContent side="right" className="min-w-[30vw] max-w-[96vw] overflow-y-auto bg-white">
+          {renderEmailDrawer()}
+        </SheetContent>
+      </Sheet>
 
-      <Sidebar
-        visible={riskDrawer.visible}
-        position="right"
-        style={{ width: '520px', maxWidth: '96vw' }}
-        onHide={() => setRiskDrawer({ visible: false, risk: null })}
-      >
-        {renderRiskDrawer()}
-      </Sidebar>
+      <Sheet open={riskDrawer.visible} onOpenChange={(o) => !o && setRiskDrawer({ visible: false, risk: null })}>
+        <SheetContent side="right" className="min-w-[30vw] max-w-[96vw] overflow-y-auto bg-white">
+          {renderRiskDrawer()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

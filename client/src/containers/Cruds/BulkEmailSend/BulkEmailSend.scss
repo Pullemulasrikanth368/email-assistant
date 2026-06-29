@@ -99,7 +99,7 @@
     color: #5f6368;
   }
 
-  // Buttons use the template's main theme color (#0e4768).
+  // Buttons use the executive theme color (#111827).
   .bes-btn-theme.p-button {
     display: inline-flex;
     align-items: center;
@@ -107,14 +107,14 @@
     gap: 6px;
     width: auto;            // size to the text, never clip it
     min-width: 0;
-    background: #0e4768;
-    border-color: #0e4768;
+    background: #111827;
+    border-color: #111827;
     color: #fff;
     white-space: nowrap;
     padding: 8px 16px;
     &:enabled:hover,
-    &:enabled:focus { background: #0c3a55; border-color: #0c3a55; box-shadow: none; }
-    &:disabled { background: #0e4768; border-color: #0e4768; opacity: 0.5; }
+    &:enabled:focus { background: #1F2937; border-color: #1F2937; box-shadow: none; }
+    &:disabled { background: #111827; border-color: #111827; opacity: 0.5; }
     .p-button-icon {
       color: #fff;
       margin: 0;          // gap handles spacing; avoids the icon drifting
@@ -146,9 +146,9 @@
     align-items: center;
     gap: 8px;
 
-    &:hover { border-color: #1a73e8; background: #f8fbff; }
+    &:hover { border-color: #9CA3AF; background: #F4F5F7; }
 
-    .pi-upload { font-size: 22px; color: #1a73e8; }
+    .pi-upload { font-size: 22px; color: #4B5563; }
     .bes-drop-text { font-size: 13px; color: #5f6368; b { color: #202124; } }
   }
 
@@ -184,7 +184,7 @@
     .bes-pr-type {
       flex: 0 0 auto; font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
       padding: 1px 6px; border-radius: 4px;
-      &.html { color: #1a73e8; background: #e8f0fe; }
+      &.html { color: #4B5563; background: #E5E7EB; }
       &.text { color: #5f6368; background: #eef0f2; }
     }
   }
