@@ -1,0 +1,485 @@
+/* Operations Report — control-room theme (tokens from the approved wireframe) */
+.operations-report {
+  --ink: #14181f;
+  --ink2: #2a3340;
+  --paper: #f4f5f3;
+  --panel: #fff;
+  --line: #d9dcd6;
+  --muted: #687180;
+  --accent: #1f6f6b;
+  --accent-soft: #e4efed;
+  --crit: #b3261e;
+  --high: #c4631a;
+  --med: #c9a227;
+  --low: #4f7a3f;
+  --crit-bg: #fbe9e7;
+  --high-bg: #fbeee2;
+  --med-bg: #faf6e2;
+  --low-bg: #ecf3e8;
+  --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 16px 30px;
+  width: 100%;
+  color: var(--ink);
+  font-family: Inter, system-ui, "Segoe UI", Roboto, sans-serif;
+
+  .eyebrow { font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+
+  /* Header */
+  .orm-header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; gap: 16px; flex-wrap: wrap;
+    .orm-title h1 { font-size: 21px; font-weight: 700; margin: 3px 0 0; }
+  }
+  .orm-header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+  .orm-header-actions .p-button { white-space: nowrap; flex: none; }
+  .orm-header-actions .p-button .p-button-icon { font-size: 14px; }
+
+  /* Solid dark "Run brief" button (wireframe style) — guarantees visibility
+     regardless of the app's themed button colours. !important + high
+     specificity so the box renders behind the (white) label. */
+  .orm-run-btn.p-button,
+  &.operations-report .orm-run-btn.p-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    min-width: 0 !important;
+    background: var(--ink) !important;
+    border: 1px solid var(--ink) !important;
+    color: #fff !important;
+    font-weight: 600;
+    line-height: 1.2 !important;
+    border-radius: 3px;
+    padding: 8px 14px !important;
+
+    text-align: center !important;
+
+    // Use the icon's own margin for spacing (don't fight PrimeReact with gap),
+    // and keep the label on one line, fully inside the button.
+    .p-button-icon { color: #fff !important; display: inline-flex !important; align-items: center !important; line-height: 1 !important; }
+    .p-button-icon-left { margin: 0 6px 0 0 !important; }
+    .p-button-icon-right { margin: 0 0 0 6px !important; }
+    .p-button-label {
+      color: #fff !important;
+      flex: 0 0 auto !important;
+      margin: 0 !important;
+      white-space: nowrap !important;
+      transition: none !important;
+    }
+    &:enabled:hover { background: #000 !important; border-color: #000 !important; color: #fff !important; }
+    &:disabled { opacity: .6; }
+  }
+  .orm-meta { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .orm-time-field {
+    display: flex; align-items: center; gap: 8px;
+    label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .p-dropdown { height: 34px; }
+  }
+
+  /* Tabs */
+  .orm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: 16px; }
+  .orm-tab {
+    font-size: 13px; font-weight: 600; background: none; border: none;
+    border-bottom: 2px solid transparent; color: var(--muted);
+    padding: 10px 16px; cursor: pointer; margin-bottom: -1px;
+    &.active { color: var(--ink); border-bottom-color: var(--ink); }
+  }
+
+  /* Master-detail */
+  .orm-body { display: grid; grid-template-columns: 320px 1fr; gap: 18px; margin-top: 20px; }
+  .orm-list-pane { min-width: 0; }
+  .orm-detail-pane {
+    min-width: 0; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 18px; max-height: calc(100vh - 240px); overflow-y: auto;
+  }
+
+  /* Weekly generate bar — dropdown on top, action row on the next line */
+  .orm-week-gen {
+    display: flex; flex-direction: column; align-items: stretch; gap: 10px;
+    padding: 8px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 10px;
+    .p-button { margin: 0 !important; flex: 0 0 auto; }
+  }
+  .orm-week-pick {
+    display: flex; flex-direction: column; gap: 4px;
+    width: 100%; min-width: 0;
+    label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .orm-week-dd { width: 100%; }
+    // Match the dropdown text to the rest of the UI (13px).
+    .orm-week-dd .p-dropdown-label { font-size: 13px; padding: 6px 8px; }
+    .orm-week-dd .p-dropdown-trigger { width: 30px; }
+  }
+  .orm-week-actions {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+  }
+  // ✓ stays on the left; the button is pushed to the right (works whether or
+  // not the ✓ is present).
+  .orm-week-actions .orm-week-done { margin-right: auto; }
+
+  .orm-week-done {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: var(--low); font-weight: 600;
+    i { font-size: 14px; }
+  }
+
+  // The week button (Generate / Regenerate): one tidy inline-flex box that
+  // keeps the icon + label together on a single line, pinned to the right.
+  .orm-week-actions .orm-week-btn.p-button,
+  &.operations-report .orm-week-actions .orm-week-btn.p-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    margin-left: auto !important;        // push to the right
+    font-size: 12px !important;
+    font-weight: 600;
+    line-height: 1.2 !important;
+    padding: 6px 12px !important;
+    border-radius: 3px;
+    white-space: nowrap !important;
+
+    .p-button-label {
+      font-size: 12px !important;
+      flex: 0 0 auto !important;
+      margin: 0 !important;
+      white-space: nowrap !important;
+    }
+    .p-button-icon { font-size: 12px !important; }
+    .p-button-icon-left { margin: 0 6px 0 0 !important; }
+
+    // Outlined-accent look for the text-variant (Regenerate); the solid
+    // .orm-run-btn rule handles the Generate variant.
+    &.p-button-text {
+      color: var(--accent) !important;
+      background: transparent !important;
+      border: 1px solid var(--accent) !important;
+      .p-button-label, .p-button-icon { color: var(--accent) !important; }
+      &:enabled:hover { background: var(--accent-soft) !important; }
+    }
+  }
+
+  /* Day / week cards */
+  .orm-daylist { display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 300px); overflow-y: auto; }
+  .orm-daycard {
+    border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: 4px;
+    padding: 11px 13px; cursor: pointer; background: #fff; transition: background .12s;
+    &:hover { background: var(--accent-soft); }
+    &.active { background: var(--accent-soft); border-color: var(--accent); }
+    .orm-daycard-top { display: flex; justify-content: space-between; align-items: baseline; }
+    .wd { font-weight: 650; font-size: 14px; }
+    .sev { font-family: var(--mono); font-size: 11px; }
+    .orm-daycard-stats { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+  }
+
+  /* Detail head */
+  .orm-detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .orm-detail-title { font-size: 17px; font-weight: 700; margin: 0; }
+  .orm-badge {
+    font-family: var(--mono); font-size: 11px; padding: 3px 9px; border-radius: 3px;
+    &.live { background: var(--low-bg); color: var(--low); border: 1px solid var(--low); }
+    &.sample { background: var(--med-bg); color: var(--med); border: 1px solid var(--med); }
+  }
+
+  /* Dashboard pieces */
+  .orm-narr { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 14px 16px; margin: 14px 0 18px;
+    p { font-size: 14.5px; line-height: 1.6; margin: 0; } }
+
+  // Give the left section (decisions + risk radar) more room; keep the
+  // matrix/collisions/to-do column compact on the right.
+  .orm-grid2 { display: grid; grid-template-columns: 1.9fr 320px; gap: 16px; align-items: start; }
+  @media (max-width: 1100px) { .orm-grid2 { grid-template-columns: 1fr; } }
+
+  .orm-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 16px; }
+  .orm-panel-amber { border-color: var(--high); background: var(--high-bg); }
+  .orm-ph {
+    font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink2);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    .n { margin-left: auto; font-family: var(--mono); color: var(--muted); }
+  }
+
+  .orm-dec {
+    border: 1px solid var(--line); border-left: 4px solid var(--crit); border-radius: 3px;
+    padding: 11px 13px; margin-bottom: 10px; cursor: pointer;
+    .t { font-weight: 650; font-size: 14.5px; }
+    .w { color: var(--muted); font-size: 13px; margin: 3px 0 6px; }
+    .due { font-family: var(--mono); font-size: 12px; color: var(--crit); }
+    &:hover { background: var(--crit-bg); }
+  }
+
+  .orm-risk {
+    display: grid; grid-template-columns: 46px 1fr; gap: 12px; padding: 11px 0;
+    border-top: 1px solid var(--line); cursor: pointer;
+    &:first-of-type { border-top: none; }
+    .s { font-size: 14px; font-weight: 550; line-height: 1.35; }
+  }
+  .orm-score {
+    font-family: var(--mono); font-weight: 700; font-size: 18px; color: #fff; text-align: center;
+    border-radius: 3px; padding: 9px 0; line-height: 1; height: fit-content;
+    small { display: block; font-size: 9px; font-weight: 500; opacity: .85; margin-top: 3px; }
+  }
+  .orm-rrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .orm-chip {
+    font-family: var(--mono); font-size: 11px; padding: 2px 8px; border: 1px solid var(--line);
+    border-radius: 3px; color: var(--ink2); background: var(--paper);
+    &.clock { background: #fff4e6; border-color: var(--high); color: var(--high); }
+    &.esc { background: var(--crit-bg); border-color: var(--crit); color: var(--crit); }
+    &.new { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  }
+  .orm-mit { font-size: 12.5px; color: var(--muted); b { color: var(--ink2); } }
+
+  /* Risk matrix */
+  .orm-matrix-wrap { display: flex; gap: 8px; }
+  .orm-axis-y { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; }
+  .orm-axis-x { text-align: center; margin-top: 5px; font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; }
+  .orm-matrix { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+  .orm-cell { aspect-ratio: 1; border-radius: 2px; display: flex; align-items: center; justify-content: center; }
+  .orm-dot {
+    min-width: 12px; height: 12px; padding: 0 3px; border-radius: 7px; background: var(--ink); border: 2px solid #fff;
+    color: #fff; font-size: 9px; font-family: var(--mono); display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Collisions */
+  .orm-coll {
+    border: 1px solid var(--high); background: #fff; border-radius: 3px; padding: 11px; margin-bottom: 10px;
+    .ct { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--high); }
+    .cs { font-weight: 600; font-size: 13.5px; margin: 4px 0; }
+    .cg { font-size: 12.5px; color: var(--ink2); b { color: var(--accent); } }
+  }
+
+  /* To-do */
+  .orm-todo {
+    display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line);
+    font-size: 14px; cursor: pointer;
+    &:first-of-type { border-top: none; }
+    .orm-box {
+      width: 16px; height: 16px; border: 1.5px solid var(--accent); border-radius: 3px;
+      margin-top: 2px; flex: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+      &:hover { border-color: var(--crit); background: rgba(0,0,0,0.04); }
+      &.checked { background: #188038; border-color: #188038; }
+      .pi { font-size: 10px; color: #fff; }
+    }
+    .orm-todo-task { flex: 1; }
+    .d { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--crit); white-space: nowrap; }
+    &.done {
+      .orm-todo-task { text-decoration: line-through; color: var(--muted); }
+      .d { color: var(--muted); }
+    }
+  }
+
+  .orm-pattern { font-size: 13.5px; color: var(--ink2); padding: 6px 0; border-top: 1px solid var(--line); &:first-of-type { border-top: none; } }
+
+  /* Triage */
+  .orm-tier { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; margin: 13px 0 5px;
+    &.critical { color: var(--crit); } &.important { color: var(--high); } &.low { color: var(--muted); } }
+  .orm-trow { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; align-items: flex-start; cursor: pointer; }
+  .orm-dotm { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; }
+  .reason { color: var(--muted); }
+
+  /* Actions table */
+  .orm-actions { width: 100%; border-collapse: collapse;
+    td { padding: 8px 6px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: top; }
+    tr { cursor: pointer; &:hover td { background: var(--paper); } }
+    td.owner { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+    td.due { font-family: var(--mono); font-size: 12px; color: var(--crit); white-space: nowrap; text-align: right; }
+  }
+
+  /* Stat grid (weekly) */
+  .orm-statgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0; }
+  .orm-stat { background: var(--paper); border-radius: 5px; padding: 14px;
+    .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .v { font-family: var(--mono); font-size: 24px; font-weight: 700; } }
+
+  /* Quiet / states */
+  .orm-empty-quiet { text-align: center; padding: 24px; }
+  .orm-quiet-badge { font-family: var(--mono); font-size: 14px; color: var(--low); background: var(--low-bg); display: inline-block; padding: 8px 16px; border-radius: 4px; border: 1px solid var(--low); }
+
+  .orm-state, .orm-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 48px 20px; text-align: center; color: var(--muted);
+    i { font-size: 30px; color: #c3c5bf; }
+    h3 { font-size: 16px; font-weight: 600; color: var(--ink); margin: 4px 0 0; }
+    p { font-size: 13px; color: var(--muted); margin: 0 0 6px; max-width: 320px; }
+  }
+
+  @media (max-width: 900px) {
+    .orm-body { grid-template-columns: 1fr; }
+    .orm-statgrid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Daily-brief single-column body + date field */
+  .orm-single-body { margin-top: 18px; }
+  .orm-datefield {
+    display: flex; align-items: center; gap: 8px;
+    label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+
+    // Calendar = input + trigger button as one joined control (no overlap).
+    .p-calendar { display: inline-flex; align-items: stretch; width: auto; }
+    .p-calendar .p-inputtext {
+      height: 36px; width: 140px; font-size: 13px;
+      border-right: 0;
+      border-top-right-radius: 0; border-bottom-right-radius: 0;
+    }
+    .p-calendar .p-datepicker-trigger {
+      height: 36px; width: 36px; flex: 0 0 36px; padding: 0;
+      border-top-left-radius: 0; border-bottom-left-radius: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+  }
+
+  /* Risk-detail head (drawer + detail) */
+  .orm-risk-head { display: flex; gap: 14px; align-items: center; margin: 6px 0 14px; }
+}
+
+/* ---- Drill-down drawers (rendered in a portal; wrapped in .operations-report) ---- */
+.operations-report.orm-drawer {
+  background: transparent; border: 0; border-radius: 0; padding: 4px 2px;
+
+  .orm-drawer-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 14px; }
+  .orm-email-from { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .orm-email-subject { font-size: 18px; font-weight: 700; margin: 6px 0 4px; }
+  .orm-email-meta { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+
+  .orm-mail-frame { width: 100%; border: 0; min-height: 200px; background: #fff; border: 1px solid var(--line); border-radius: 4px; margin-top: 10px; }
+
+  /* AI flag callout (screen 04) */
+  .orm-flag {
+    background: var(--crit-bg); border: 1px solid var(--crit); border-radius: 4px; padding: 12px; margin-top: 14px;
+    .ft { font-family: var(--mono); font-size: 11px; text-transform: uppercase; color: var(--crit); }
+    .fs { font-size: 14px; font-weight: 600; margin: 6px 0; }
+    .fd { font-size: 13px; color: var(--ink2); line-height: 1.5; }
+    &.soft { background: var(--med-bg); border-color: var(--med); .ft { color: var(--med); } }
+  }
+
+  .orm-att-list { margin-top: 16px; }
+  .orm-att {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px;
+    .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dl { color: var(--accent); } .muted { color: var(--muted); font-size: 12px; }
+  }
+}
+
+/* Empty-state actions — stacked so "Run brief" sits on its own line below
+   the Connections button (no overlap). */
+.orm-empty-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* "Connections" — plain outlined <button> */
+.orm-connect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  background: #fff;
+  color: #14181f;
+  border: 1px solid #d9dcd6;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  &:hover { background: #f4f5f3; border-color: #c3c7bf; }
+  .pi { font-size: 13px; }
+}
+
+/* "Run brief" — plain <button> so the label always fits (header + empty state) */
+.orm-runbrief-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  background: #14181f;
+  color: #fff;
+  border: 1px solid #14181f;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  &:hover:not(:disabled) { background: #000; border-color: #000; }
+  &:disabled { opacity: 0.6; cursor: default; }
+  .pi { font-size: 13px; }
+}
+
+/* "Regenerate" — plain <button>, outlined accent variant */
+.orm-week-regen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  background: transparent;
+  color: #1f6f6b;
+  border: 1px solid #1f6f6b;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  &:hover:not(:disabled) { background: #e4efed; }
+  &:disabled { opacity: 0.6; cursor: default; }
+  .pi { font-size: 12px; }
+}
+
+/* Push the week action button to the right of the row */
+.orm-week-actions .orm-week-run,
+.orm-week-actions .orm-week-regen { margin-left: auto; }
+
+/* Completion confirm-dialog buttons.
+   PrimeReact Dialog content is portaled to <body>, so these are top-level
+   (NOT nested under .operations-report). */
+.orm-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+
+  .p-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    border-radius: 4px;
+    white-space: nowrap !important;
+    .p-button-label { flex: 0 0 auto !important; margin: 0 !important; white-space: nowrap !important; font-weight: 500; }
+    .p-button-icon { display: inline-flex !important; align-items: center !important; line-height: 1 !important; }
+    .p-button-icon-left { margin: 0 6px 0 0 !important; }
+  }
+
+  .orm-confirm-cancel.p-button {
+    background: #fff !important;
+    border: 1px solid #d0d5dd !important;
+    color: #3c4043 !important;
+    .p-button-label { color: #3c4043 !important; }
+    &:enabled:hover, &:enabled:focus { background: #f3f4f6 !important; border-color: #c0c5cd !important; color: #3c4043 !important; box-shadow: none !important; }
+  }
+
+  .orm-confirm-send.p-button {
+    background: #0e4768 !important;
+    border: 1px solid #0e4768 !important;
+    color: #fff !important;
+    .p-button-label, .p-button-icon { color: #fff !important; }
+    &:enabled:hover, &:enabled:focus { background: #0c3a55 !important; border-color: #0c3a55 !important; box-shadow: none !important; }
+    &:disabled { background: #0e4768 !important; border-color: #0e4768 !important; opacity: 0.6; }
+  }
+}

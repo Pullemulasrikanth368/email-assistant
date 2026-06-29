@@ -1,0 +1,136 @@
+.ops-cc {
+  --occ-bg: #f5f7fa;
+  --occ-panel: #ffffff;
+  --occ-panel2: #f1f3f5;
+  --occ-border: #e3e6ea;
+  --occ-text: #202124;
+  --occ-muted: #5f6368;
+  --occ-hint: #80868b;
+  --occ-blue: #378add;
+  --occ-teal: #1d9e75;
+  --occ-crit: #e24b4a;
+
+  background: var(--occ-bg);
+  color: var(--occ-text);
+  padding: 24px;
+  min-height: calc(100vh - 60px);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  .occ-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .occ-title {
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--occ-blue); }
+  }
+  .occ-sub { font-size: 13px; color: var(--occ-muted); margin-top: 2px; }
+
+  .occ-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    span { font-size: 13px; color: var(--occ-muted); }
+  }
+  .occ-select.p-dropdown {
+    background: var(--occ-panel);
+    border: 1px solid var(--occ-border);
+    border-radius: 8px;
+    .p-dropdown-label { color: var(--occ-text); font-size: 13px; padding: 8px 12px; }
+    .p-dropdown-trigger { color: var(--occ-muted); }
+  }
+
+  .occ-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .occ-kpi {
+    background: var(--occ-panel);
+    border: 1px solid var(--occ-border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    .label { font-size: 13px; color: var(--occ-muted); }
+    .val { font-size: 26px; font-weight: 600; margin-top: 6px; }
+    .val.green { color: var(--occ-teal); }
+    .val.blue { color: var(--occ-blue); }
+    .val.red { color: var(--occ-crit); }
+    .val.purple { color: #6f42c1; }
+    .delta { font-size: 12px; color: var(--occ-muted); margin-left: 6px; }
+  }
+
+  .occ-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .occ-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 5px 12px; border-radius: 8px;
+    .pd { width: 7px; height: 7px; border-radius: 50%; }
+  }
+
+  .occ-panel {
+    background: var(--occ-panel);
+    border: 1px solid var(--occ-border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    h3 { font-size: 14px; font-weight: 600; margin: 0 0 12px; color: var(--occ-text); }
+  }
+  .occ-panel-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+    h3 { margin: 0; }
+  }
+  .occ-tag { font-size: 11px; color: var(--occ-muted); background: var(--occ-panel2); padding: 3px 10px; border-radius: 8px; }
+
+  .occ-legend {
+    display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; font-size: 12px; color: var(--occ-muted);
+    span { display: flex; align-items: center; gap: 5px; }
+    .sw { width: 10px; height: 10px; border-radius: 2px; }
+    .ln { width: 16px; height: 0; border-top: 2px solid; }
+  }
+
+  /* risk matrix */
+  .occ-risk-empty { font-size: 13px; color: var(--occ-muted); padding: 8px 0; }
+  .occ-matrix-wrap { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+  .occ-matrix-col { display: flex; gap: 6px; }
+  .occ-axis-v { display: flex; align-items: center;
+    span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; color: var(--occ-muted); }
+  }
+  .occ-matrix-grid { display: grid; grid-template-columns: repeat(5, 46px); grid-template-rows: repeat(5, 46px); gap: 4px; }
+  .occ-mcell { border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px; }
+  .occ-mdot {
+    width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; cursor: default;
+  }
+  .occ-axis-h { text-align: center; font-size: 11px; color: var(--occ-muted); margin-top: 6px; width: 238px; }
+  .occ-rlegend { flex: 1; min-width: 230px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .occ-rrow { display: flex; align-items: center; gap: 8px; }
+  .occ-rnum { width: 16px; height: 16px; border-radius: 50%; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .occ-rname { color: var(--occ-text); }
+  .occ-rscore { margin-left: auto; color: var(--occ-muted); }
+
+  .occ-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 14px; }
+  .occ-chart { position: relative; width: 100%; }
+
+  .occ-footer { font-size: 12px; color: var(--occ-hint); text-align: center; margin-top: 24px; }
+}
+
+/* Dropdown panel is portaled to <body>, so this rule is top-level (not nested
+   under .ops-cc). Matches the 13px dashboard text. */
+.occ-dropdown-panel.p-dropdown-panel {
+  .p-dropdown-items .p-dropdown-item {
+    font-size: 13px;
+    padding: 6px 12px;
+    color: #202124;
+  }
+  .p-dropdown-item.p-highlight { color: #1a4f8a; }
+}

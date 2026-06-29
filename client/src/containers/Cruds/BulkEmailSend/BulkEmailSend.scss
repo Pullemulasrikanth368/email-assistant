@@ -1,0 +1,223 @@
+.bulk-email-send {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+
+  code {
+    background: #eef0f2;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: #b3261e;
+  }
+
+  .bes-topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .bes-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    color: #80868b;
+    font-weight: 600;
+  }
+
+  .bes-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 2px 0 6px;
+    color: #202124;
+  }
+
+  .bes-sub {
+    color: #5f6368;
+    font-size: 13px;
+    max-width: 520px;
+    margin: 0;
+  }
+
+  .bes-pill {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    white-space: nowrap;
+
+    &.ok { background: #e6f4ea; color: #188038; }
+    &.off { background: #fce8e6; color: #c5221f; cursor: pointer; }
+  }
+
+  .bes-panel {
+    background: #fff;
+    border: 1px solid #e3e6ea;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+
+  .bes-ph {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #5f6368;
+    margin-bottom: 14px;
+  }
+
+  .bes-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    label { font-size: 13px; color: #3c4043; }
+    .p-inputtext { max-width: 360px; }
+  }
+
+  .bes-err { color: #c5221f; font-size: 12px; }
+  .bes-hint-muted { color: #80868b; font-size: 12px; }
+
+  .bes-from-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    .bes-account-dd { min-width: 320px; max-width: 420px; }
+  }
+  .bes-from-action { display: inline-flex; }
+  .bes-noacct {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    color: #5f6368;
+  }
+
+  // Buttons use the template's main theme color (#0e4768).
+  .bes-btn-theme.p-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;            // size to the text, never clip it
+    min-width: 0;
+    background: #0e4768;
+    border-color: #0e4768;
+    color: #fff;
+    white-space: nowrap;
+    padding: 8px 16px;
+    &:enabled:hover,
+    &:enabled:focus { background: #0c3a55; border-color: #0c3a55; box-shadow: none; }
+    &:disabled { background: #0e4768; border-color: #0e4768; opacity: 0.5; }
+    .p-button-icon {
+      color: #fff;
+      margin: 0;          // gap handles spacing; avoids the icon drifting
+      font-size: 13px;
+      line-height: 1;
+    }
+    .p-button-label {
+      color: #fff;
+      display: inline-block;
+      flex: 0 0 auto;
+      width: auto;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: visible;
+      text-overflow: clip;
+    }
+  }
+
+  /* dropzone */
+  .bes-drop {
+    border: 2px dashed #c5cbd3;
+    border-radius: 10px;
+    padding: 26px 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+
+    &:hover { border-color: #1a73e8; background: #f8fbff; }
+
+    .pi-upload { font-size: 22px; color: #1a73e8; }
+    .bes-drop-text { font-size: 13px; color: #5f6368; b { color: #202124; } }
+  }
+
+  .bes-parse-err {
+    margin-top: 12px;
+    color: #c5221f;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* preview */
+  .bes-preview { margin-top: 16px; }
+  .bes-preview-head { font-size: 13px; font-weight: 600; color: #188038; margin-bottom: 8px; }
+  .bes-preview-sub { font-weight: 500; color: #5f6368; }
+  .bes-preview-list {
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid #eceff1;
+    border-radius: 8px;
+  }
+  .bes-preview-row {
+    display: flex;
+    gap: 12px;
+    padding: 7px 12px;
+    border-bottom: 1px solid #f1f3f4;
+    font-size: 13px;
+
+    &:last-child { border-bottom: none; }
+    .bes-pr-from { flex: 0 0 180px; color: #3c4043; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bes-pr-subj { flex: 1; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bes-pr-type {
+      flex: 0 0 auto; font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+      padding: 1px 6px; border-radius: 4px;
+      &.html { color: #1a73e8; background: #e8f0fe; }
+      &.text { color: #5f6368; background: #eef0f2; }
+    }
+  }
+  .bes-preview-more { padding: 8px 12px; font-size: 12px; color: #80868b; }
+
+  /* actions */
+  .bes-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .bes-hint { font-size: 12px; color: #c5221f; }
+
+  /* summary */
+  .bes-summary-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 14px;
+    color: #3c4043;
+
+    .bes-stat b { font-size: 18px; margin-right: 4px; }
+    .bes-stat.ok b { color: #188038; }
+    .bes-stat.fail b { color: #c5221f; }
+  }
+  .bes-fail-list { margin-top: 14px; border-top: 1px solid #f1f3f4; padding-top: 10px; }
+  .bes-fail-row {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    padding: 4px 0;
+    .bes-fail-label { flex: 0 0 220px; color: #3c4043; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bes-fail-msg { flex: 1; color: #c5221f; }
+  }
+}

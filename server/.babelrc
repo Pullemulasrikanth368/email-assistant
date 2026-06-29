@@ -1,0 +1,19 @@
+{
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "node": "current"
+        }
+      }
+    ]
+  ],
+  "plugins": [
+    "@babel/plugin-proposal-object-rest-spread",
+    "@babel/plugin-proposal-private-methods",
+    "@babel/plugin-transform-destructuring",
+    "@babel/plugin-transform-optional-chaining",
+    "@babel/plugin-transform-private-property-in-object"
+  ]
+}

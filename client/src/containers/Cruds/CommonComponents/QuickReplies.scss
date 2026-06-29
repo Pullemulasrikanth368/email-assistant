@@ -1,0 +1,30 @@
+/* Shared one-click quick-reply bar. Top-level (used inside portaled dialogs). */
+.qr-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e8eaed;
+}
+.qr-label { font-size: 12px; color: #5f6368; font-weight: 600; }
+.qr-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.qr-btn {
+  border: 1px solid #0e4768;
+  background: #fff;
+  color: #0e4768;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  &:hover:not(:disabled) { background: #0e4768; color: #fff; }
+  &:disabled { opacity: 0.55; cursor: default; }
+}
+.qr-loading,
+.qr-sent { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.qr-loading { color: #5f6368; }
+.qr-sent { color: #188038; font-weight: 600; }
+.qr-spin { color: #0e4768; }
