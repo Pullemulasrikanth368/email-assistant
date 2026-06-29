@@ -23,4 +23,8 @@ import microsoftRoutes from "../microsoft/routes/microsoft.route";
 // mount Microsoft Teams data + delivery routes at /microsoft
 router.use("/microsoft", microsoftRoutes);
 
+import settingsRoutes from "./settings.route";
+// mount settings routes at /settings
+router.use("/settings", settingsRoutes);
+
 export default router;

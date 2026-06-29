@@ -1,7 +1,8 @@
 import express from 'express';
+import asyncHandler from 'express-async-handler';
 import emailAnalysisCtrl from '../emailAnalysis/controllers/emailAnalysis.controller';
 import microsoftCtrl from '../microsoft/controllers/microsoft.controller';
-import asyncHandler from 'express-async-handler';
+import authCtrl from '../controllers/auth.controller';
 
 const router = express.Router(); // eslint-disable-line new-cap
 
@@ -27,17 +28,13 @@ router.get("/microsoft/teams/webhook", asyncHandler(microsoftCtrl.microsoftWebho
 router.get("/microsoft/teams/status", asyncHandler(microsoftCtrl.microsoftStatus));
 router.post("/microsoft/teams/disconnect", asyncHandler(microsoftCtrl.disconnectMicrosoftAccount));
 
-/**
- * /me endpoint — returns minimal user info based on token.
- * In this standalone app the token is a simple JWT; return the decoded payload.
- */
-router.get("/me", (req, res) => {
-  // The token is decoded by the auth middleware when a protected route hits this.
-  // For auth routes (not protected), just return a 200 with empty data.
-  if (req.tokenInfo) {
-    return res.json({ respCode: 200, details: req.tokenInfo });
-  }
-  return res.json({ respCode: 200, details: null });
-});
+/** POST /api/auth/login — employee email/password login, returns JWT */
+router.post("/login", asyncHandler(authCtrl.login));
 
-module.exports = router;
+/** POST /api/auth/logout — client-side token invalidation */
+router.post("/logout", asyncHandler(authCtrl.logout));
+
+/** GET /api/auth/me — return current user from token */
+router.get("/me", asyncHandler(authCtrl.me));
+
+export default router;
