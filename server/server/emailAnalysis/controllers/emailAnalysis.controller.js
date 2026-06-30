@@ -29,6 +29,7 @@ import Settings from "../../models/settings.model";
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
 import EmailAnalysisReport from "../models/emailAnalysisReport.model";
+import OutlookUser from "../../microsoft/models/outlookUser.model";
 
 /**@KB + ReportConfig services */
 import kbService from "../services/knowledgeBase.service";
@@ -359,8 +360,14 @@ async function disconnectEmailAnalysisAccount(req, res) {
 async function syncEmailAnalysisMails(req, res) {
   let email = req.body?.email;
   if (!email) {
-    const user = await EmailAnalysisUser.findOne({ active: true }).sort({ updatedAt: -1 });
-    email = user?.email;
+    // Check EmailAnalysisUser first, then fall back to OutlookUser
+    const eaUser = await EmailAnalysisUser.findOne({ active: true }).sort({ updatedAt: -1 });
+    email = eaUser?.email;
+    if (!email) {
+      const OutlookUser = (await import("../microsoft/models/outlookUser.model")).default;
+      const msUser = await OutlookUser.findOne({ active: true }).sort({ updatedAt: -1 });
+      email = msUser?.email;
+    }
   }
   if (!email) {
     return res.json({ errorCode: 9001, errorMessage: "No connected account to sync." });
@@ -368,6 +375,11 @@ async function syncEmailAnalysisMails(req, res) {
 
   const service = await createMailService(email);
   const result = await service.syncForUser();
+
+  // Prioritize any newly synced emails (best-effort, non-blocking for the response)
+  prioritizeService.prioritizePendingForAccount(email, { force: false })
+    .catch((err) => console.error(`[EmailAnalysis] Post-sync prioritize failed for ${email}:`, err.message));
+
   return res.json({ respCode: 200, respMessage: "Sync completed.", result });
 }
 
@@ -667,7 +679,16 @@ async function resolveAccount(email, loginUserEmailId, provider) {
     if (own?.email) return own.email;
   }
   const user = await EmailAnalysisUser.findOne(base).sort({ updatedAt: -1 }).lean();
-  return user?.email || null;
+  if (user?.email) return user.email;
+
+  // Fallback: check OutlookUser collection (emails synced via microsoft.controller)
+  if (!provider || provider === "outlook" || provider === "microsoft") {
+    const outlookUser = await OutlookUser.findOne({ active: true, purpose: { $ne: "send" } })
+      .sort({ updatedAt: -1 }).lean();
+    if (outlookUser?.email) return outlookUser.email;
+  }
+
+  return null;
 }
 
 /**
@@ -946,8 +967,16 @@ function escapeHtmlText(s = "") {
 
 /** Resolve a mail for the account by sourceId (providerMessageId) or _id. */
 async function findAccountMail(email, { sourceId, id }) {
-  if (sourceId) return EmailAnalysisMail.findOne({ email, providerMessageId: sourceId, active: true }).lean();
-  if (id) return EmailAnalysisMail.findOne({ _id: id, active: true }).lean();
+  const query = { active: true };
+  if (email) query.email = email;
+  if (sourceId) {
+    query.providerMessageId = sourceId;
+    return EmailAnalysisMail.findOne(query).lean();
+  }
+  if (id) {
+    query._id = id;
+    return EmailAnalysisMail.findOne(query).lean();
+  }
   return null;
 }
 
@@ -964,8 +993,8 @@ async function generateQuickReplies(mail) {
     `RULES:\n` +
     `- eligible = true ONLY if the email expects a short answer: a yes/no question, a scheduling/availability ask, ` +
     `a "please confirm"/"is this correct?" check, a request needing acknowledgement, or a thanks that warrants a brief reply.\n` +
-    `- Give 3-5 options that MATCH what THIS email is actually asking. Examples (do NOT just copy): ` +
-    `a scheduling question -> "Yes" / "No" / "Maybe"; a "please confirm" -> "Correct" / "Not correct"; ` +
+    `- Give 3-5 options that MATCH what THIS email is actually asking. Examples (do NOT just copy):\n` +
+    `a scheduling question -> "Yes" / "No" / "Maybe"; a "please confirm" -> "Correct" / "Not correct";\n` +
     `an FYI needing acknowledgement -> "Got it" / "Thanks".\n` +
     `- "label": 1-2 words for the button. "reply": a natural one-line message to actually send ` +
     `(e.g. label "Yes" -> reply "Yes, that works for me.").\n` +
@@ -986,11 +1015,12 @@ async function generateQuickReplies(mail) {
  * Quick-reply options for an email. Body: { sourceId? , id?, email? }.
  */
 async function getQuickReplies(req, res) {
-  const email = await resolveAccount(req.body?.email);
-  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
-
-  const mail = await findAccountMail(email, { sourceId: req.body?.sourceId, id: req.body?.id });
+  const mail = await findAccountMail(req.body?.email, { sourceId: req.body?.sourceId, id: req.body?.id });
   if (!mail) return res.json({ errorCode: 9210, errorMessage: "Email not found." });
+
+  // Resolve the account from the email document itself
+  const email = mail.email;
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account associated with this email." });
 
   try {
     const { eligible, options } = await generateQuickReplies(mail);
@@ -1009,11 +1039,11 @@ async function sendQuickReply(req, res) {
   const reply = String(req.body?.reply || "").trim();
   if (!reply) return res.json({ errorCode: 9211, errorMessage: "reply is required." });
 
-  const email = await resolveAccount(req.body?.email);
-  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
-
-  const mail = await findAccountMail(email, { sourceId: req.body?.sourceId, id: req.body?.id });
+  const mail = await findAccountMail(req.body?.email, { sourceId: req.body?.sourceId, id: req.body?.id });
   if (!mail) return res.json({ errorCode: 9210, errorMessage: "Email not found." });
+
+  const email = mail.email;
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account associated with this email." });
 
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;line-height:1.5"><p>${escapeHtmlText(reply)}</p></div>`;
 

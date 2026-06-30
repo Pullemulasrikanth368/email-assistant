@@ -16,9 +16,9 @@ const bcrypt = require('bcryptjs');
 // ── MongoDB connection ────────────────────────────────────────────────────────
 const env = process.env.ENVIRONMENT || 'local';
 const MONGO_URI =
-  process.env[`${env.toUpperCase()}_MONGO_HOST`] ||
-  process.env.MONGO_URI ||
-  'mongodb://localhost:27017/executive_email_assistant';
+  // process.env[`${env.toUpperCase()}_MONGO_HOST`] ||
+  // process.env.MONGO_URI ||
+  'mongodb://localhost:27017/executive_email_assistant_dev';
 
 const FRESH = process.argv.includes('--fresh');
 

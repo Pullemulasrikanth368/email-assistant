@@ -20,14 +20,18 @@ router.post("/google/email-analysis/sync", asyncHandler(emailAnalysisCtrl.syncEm
 
 /**
  * Email-analysis Outlook connection (Microsoft Graph mail).
- * Register the webhook URL in Azure as a Web redirect URI:
+ * Register this webhook URL in Azure as a Web redirect URI:
  * <serverUrl>/api/auth/microsoft/outlook/webhook
+ *
+ * Uses the separate outlook_users collection (OutlookUser model) and
+ * OutlookMessagesService. These are intentionally different from the
+ * emailAnalysis.controller handlers which use EmailAnalysisUser.
  */
-router.get("/microsoft/outlook", asyncHandler(emailAnalysisCtrl.emailAnalysisOutlookLogin));
-router.get("/microsoft/outlook/webhook", asyncHandler(emailAnalysisCtrl.emailAnalysisOutlookWebhook));
-router.get("/microsoft/outlook/status", asyncHandler(emailAnalysisCtrl.emailAnalysisProviderStatus));
-router.post("/microsoft/outlook/disconnect", asyncHandler(emailAnalysisCtrl.disconnectEmailAnalysisAccount));
-router.post("/microsoft/outlook/sync", asyncHandler(emailAnalysisCtrl.syncEmailAnalysisMails));
+router.get("/microsoft/outlook", asyncHandler(microsoftCtrl.outlookLogin));
+router.get("/microsoft/outlook/webhook", asyncHandler(microsoftCtrl.outlookWebhook));
+router.get("/microsoft/outlook/status", asyncHandler(microsoftCtrl.outlookStatus));
+router.post("/microsoft/outlook/disconnect", asyncHandler(microsoftCtrl.disconnectOutlook));
+router.post("/microsoft/outlook/sync", asyncHandler(microsoftCtrl.syncOutlook));
 
 /**
  * Microsoft (Entra ID) Teams connection (separate, isolated flow).

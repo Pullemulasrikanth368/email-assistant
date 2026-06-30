@@ -47,7 +47,7 @@ const config = {
     host: getRequiredEnv(`${PREFIX}MONGO_HOST`),
     dmsHost: getRequiredEnv(`${PREFIX}DMS_MONGO_HOST`),
     port: 27017,
-    test: "mongodb://localhost:27017/executive_email_assistant",
+    test: "mongodb://localhost:27017/executive_email_assistant_dev",
   },
   projectName: "executive-email-assistant",
   isLoggerValidEnable: false,
@@ -75,6 +75,11 @@ const config = {
     process.env.MS_TEAMS_REDIRECT_URI ||
     `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/microsoft/teams/webhook`,
   microsoftOutlookRedirectUri:
+    process.env.MS_OUTLOOK_REDIRECT_URI ||
+    `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/microsoft/outlook/webhook`,
+
+  // Alias used by microsoft/services/outlookAuth.service.js
+  outlookRedirectUri:
     process.env.MS_OUTLOOK_REDIRECT_URI ||
     `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/microsoft/outlook/webhook`,
 

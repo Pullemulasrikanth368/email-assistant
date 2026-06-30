@@ -5,6 +5,7 @@ import path from "path";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
 import EmailAnalysisReport from "../models/emailAnalysisReport.model";
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
+import OutlookUser from "../../microsoft/models/outlookUser.model";
 import MicrosoftUser from "../../microsoft/models/microsoftUser.model";
 import MicrosoftTeamsService from "../../microsoft/services/microsoftTeams.service";
 import { createMailService } from "./mailProvider.service";
@@ -325,8 +326,13 @@ export async function generateWeeklyReport(email, opts = {}) {
 export async function generateReportForLatestAccount(email) {
   let target = email;
   if (!target) {
-    const user = await EmailAnalysisUser.findOne({ active: true }).sort({ updatedAt: -1 }).lean();
-    target = user?.email;
+    // Check EmailAnalysisUser first, then fall back to OutlookUser
+    const eaUser = await EmailAnalysisUser.findOne({ active: true }).sort({ updatedAt: -1 }).lean();
+    target = eaUser?.email;
+    if (!target) {
+      const msUser = await OutlookUser.findOne({ active: true }).sort({ updatedAt: -1 }).lean();
+      target = msUser?.email;
+    }
   }
   if (!target) return null;
   return generateDailyReport(target, { force: true });

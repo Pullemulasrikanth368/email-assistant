@@ -10,7 +10,9 @@
 import cron from "node-cron";
 
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
+import OutlookUser from "../../microsoft/models/outlookUser.model";
 import { createMailService } from "../services/mailProvider.service";
+import OutlookMessagesService from "../../microsoft/services/outlookMessages.service";
 import reportService from "../services/report.service";
 import prioritizeService from "../services/prioritize.service";
 
@@ -43,16 +45,52 @@ async function forEachAccount(label, fn) {
 
 /** Incremental sync + prioritize for all accounts (frequent, lightweight). */
 async function syncAllAccounts() {
+  // Gmail / EmailAnalysisUser accounts
   await forEachAccount("Incremental sync", (email) => reportService.syncAndPrioritize(email));
+
+  // Outlook / OutlookUser accounts
+  let outlookUsers = [];
+  try {
+    outlookUsers = await OutlookUser.find({ active: true, purpose: { $ne: "send" } }).select("email").lean();
+  } catch (err) {
+    console.error("[EmailAnalysis] Incremental sync: could not list Outlook accounts:", err.message);
+  }
+  for (const u of outlookUsers) {
+    if (!u.email) continue;
+    try {
+      await new OutlookMessagesService(u.email).syncForUser();
+      await prioritizeService.prioritizePendingForAccount(u.email);
+    } catch (err) {
+      console.error(`[EmailAnalysis] Outlook incremental sync failed for ${u.email}:`, err.message);
+    }
+  }
 }
 
 /** 1-month backfill + prioritize for all accounts (recovers any gaps). */
 async function backfillAllAccounts(days = BACKFILL_DAYS) {
+  // Gmail backfill
   await forEachAccount("Backfill", async (email) => {
     const service = await createMailService(email);
     await service.backfillRecent(days);
     await prioritizeService.prioritizePendingForAccount(email);
   });
+
+  // Outlook backfill
+  let outlookUsers = [];
+  try {
+    outlookUsers = await OutlookUser.find({ active: true, purpose: { $ne: "send" } }).select("email").lean();
+  } catch (err) {
+    console.error("[EmailAnalysis] Backfill: could not list Outlook accounts:", err.message);
+  }
+  for (const u of outlookUsers) {
+    if (!u.email) continue;
+    try {
+      await new OutlookMessagesService(u.email).backfillRecent(days);
+      await prioritizeService.prioritizePendingForAccount(u.email);
+    } catch (err) {
+      console.error(`[EmailAnalysis] Outlook backfill failed for ${u.email}:`, err.message);
+    }
+  }
 }
 
 /** Start the background sync workers on boot. */

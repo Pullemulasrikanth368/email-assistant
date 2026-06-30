@@ -45,6 +45,10 @@ const ConnectionsDelivery = () => {
   const [msConnected, setMsConnected] = useState(false);
   const [msEmail, setMsEmail] = useState('');
 
+  // Outlook (email reading) connection — separate from Teams
+  const [outlookConnected, setOutlookConnected] = useState(false);
+  const [outlookEmail, setOutlookEmail] = useState('');
+
   // Gmail read options (persisted in DB)
   const [includeSpam, setIncludeSpam] = useState(false);
 
@@ -58,6 +62,7 @@ const ConnectionsDelivery = () => {
   // Remove-account dialog
   const [removeDialog, setRemoveDialog] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [removeProvider, setRemoveProvider] = useState('google'); // 'google' | 'outlook'
 
   useEffect(() => {
     // Show a toast for the result of either OAuth round-trip, then clean the URL.
@@ -93,6 +98,7 @@ const ConnectionsDelivery = () => {
 
     getConnectionStatus();
     getMicrosoftStatus();
+    getOutlookStatus();
     getIncludeSpam();
     getAiModel();
 
@@ -160,6 +166,17 @@ const ConnectionsDelivery = () => {
     }
   };
 
+  const getOutlookStatus = async () => {
+    const resp = await apiRequest('GET', 'auth/microsoft/outlook/status');
+    if (resp?.connected) {
+      setOutlookConnected(true);
+      setOutlookEmail(resp.email || '');
+    } else {
+      setOutlookConnected(false);
+      setOutlookEmail('');
+    }
+  };
+
   const handleMicrosoftLogin = () => {
     window.location.href = config.apiUrl + 'auth/microsoft/teams';
   };
@@ -213,14 +230,30 @@ const ConnectionsDelivery = () => {
   const acceptRemove = async (purgeData) => {
     setRemoving(true);
     try {
-      const resp = await apiRequest('POST', 'auth/google/email-analysis/disconnect', {
-        email: adminEmail,
-        provider: connectedProvider,
-        purgeData,
-      });
+      let resp;
+      if (removeProvider === 'outlook') {
+        // Outlook accounts are stored in OutlookUser — use the microsoft endpoint
+        resp = await apiRequest('POST', 'auth/microsoft/outlook/disconnect', {
+          email: outlookEmail,
+          purgeData,
+        });
+        if (resp?.respCode) {
+          setOutlookConnected(false);
+          setOutlookEmail('');
+        }
+      } else {
+        // Google accounts use the emailAnalysis endpoint
+        resp = await apiRequest('POST', 'auth/google/email-analysis/disconnect', {
+          email: adminEmail,
+          provider: connectedProvider,
+          purgeData,
+        });
+        if (resp?.respCode) {
+          setConnectedProvider(null);
+          setAdminEmail('');
+        }
+      }
       if (resp?.respCode) {
-        setConnectedProvider(null);
-        setAdminEmail('');
         setRemoveDialog(false);
         showToasterMessage(resp?.respMessage || 'Account removed successfully', 'success');
       } else {
@@ -233,11 +266,14 @@ const ConnectionsDelivery = () => {
     }
   };
 
-  const handleRemoveAccount = () => setRemoveDialog(true);
+  const handleRemoveAccount = (provider = 'google') => {
+    setRemoveProvider(provider);
+    setRemoveDialog(true);
+  };
 
   const isGoogleConnected = sourceAccounts.some((a) => a.provider === 'google');
-  const isOutlookConnected = sourceAccounts.some((a) => a.provider === 'outlook' || a.provider === 'microsoft');
-  const hasSourceAccount = sourceAccounts.length > 0;
+  const isOutlookConnected = outlookConnected || sourceAccounts.some((a) => a.provider === 'outlook' || a.provider === 'microsoft');
+  const hasSourceAccount = sourceAccounts.length > 0 || outlookConnected;
 
   const changeActiveSource = (email) => {
     const account = sourceAccounts.find((a) => a.email === email);
@@ -249,7 +285,7 @@ const ConnectionsDelivery = () => {
     <span className={`cd-pill ${on ? 'ok' : 'off'}`}>{children}</span>
   );
 
-  const SourceRow = ({ icon, name, desc, connected, account, onConnect }) => (
+  const SourceRow = ({ icon, name, desc, connected, account, onConnect, onDisconnect }) => (
     <div className="cd-conn">
       <div className="cd-ic">{icon}</div>
       <div className="cd-conn-text">
@@ -259,12 +295,12 @@ const ConnectionsDelivery = () => {
       {connected ? (
         <div className="d-flex align-items-center gap-2">
           <StatusPill on>connected</StatusPill>
-          <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" onClick={handleRemoveAccount}>
+          <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" onClick={onDisconnect}>
             Disconnect
           </Button>
         </div>
       ) : (
-        <Button size="sm" className="app-btn" onClick={handleGoogleLogin}>Connect</Button>
+        <Button size="sm" className="app-btn" onClick={onConnect}>Connect</Button>
       )}
     </div>
   );
@@ -290,17 +326,17 @@ const ConnectionsDelivery = () => {
       <Dialog open={removeDialog} onOpenChange={(o) => { if (!o && !removing) setRemoveDialog(false); }}>
         <DialogContent className="max-w-[480px] w-[94vw]">
           <DialogHeader>
-            <DialogTitle>Remove Google account</DialogTitle>
+            <DialogTitle>Remove {removeProvider === 'outlook' ? 'Outlook' : 'Google'} account</DialogTitle>
           </DialogHeader>
           <p className="cd-remove-intro">
-            Choose how you want to remove {adminEmail ? <b>{adminEmail}</b> : 'this account'}.
+            Choose how you want to remove {removeProvider === 'outlook' ? <b>{outlookEmail}</b> : adminEmail ? <b>{adminEmail}</b> : 'this account'}.
           </p>
 
           <div className="cd-remove-option">
             <div className="cd-remove-option-text">
               <div className="cd-remove-option-title">Disconnect account only</div>
               <div className="cd-remove-option-desc">
-                Removes the Google connection. Emails and attachments already synced into the
+                Removes the {removeProvider === 'outlook' ? 'Outlook' : 'Google'} connection. Emails and attachments already synced into the
                 system are kept.
               </div>
             </div>
@@ -350,7 +386,40 @@ const ConnectionsDelivery = () => {
               icon={<img src={configImages.gmailLogo} alt="Gmail" className="cd-logo" />}
               name="Google Workspace inbox"
               desc="Reads overnight email for the brief"
+              connected={isGoogleConnected}
+              account={sourceAccounts.find((a) => a.provider === 'google')}
+              onConnect={handleGoogleLogin}
+              onDisconnect={() => handleRemoveAccount('google')}
             />
+            <SourceRow
+              icon={<img src={configImages.outlookLogo} alt="Outlook" className="cd-logo" />}
+              name="Microsoft 365 Outlook"
+              desc={isOutlookConnected && outlookEmail
+                ? `Connected as ${outlookEmail} — reads Outlook mail through Microsoft Graph`
+                : 'Reads Outlook mail through Microsoft Graph'}
+              connected={isOutlookConnected}
+              account={outlookConnected ? { email: outlookEmail, provider: 'outlook' } : sourceAccounts.find((a) => a.provider === 'outlook' || a.provider === 'microsoft')}
+              onConnect={handleOutlookLogin}
+              onDisconnect={() => handleRemoveAccount('outlook')}
+            />
+
+            {sourceAccounts.length > 1 && (
+              <div className="cd-field">
+                <label>Active inbox</label>
+                <Select value={adminEmail || ''} onValueChange={changeActiveSource}>
+                  <SelectTrigger className="cd-time-dropdown">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sourceAccounts.map((a) => (
+                      <SelectItem key={`${a.provider}-${a.email}`} value={a.email}>
+                        {(a.provider === 'outlook' ? 'Outlook' : 'Gmail')} · {a.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Live sync progress */}
             {isGoogleConnected && syncStatus && (syncStatus.active || syncStatus.phase === 'done' || syncStatus.phase === 'error') && (

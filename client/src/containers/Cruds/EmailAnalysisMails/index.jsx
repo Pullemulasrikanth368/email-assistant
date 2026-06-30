@@ -335,7 +335,15 @@ const EmailAnalysisMails = () => {
   const onSyncNow = async () => {
     setSyncing(true);
     try {
-      const res = await fetchMethodRequest('POST', 'auth/google/email-analysis/sync', {});
+      // Detect active provider: try Outlook first, fall back to Google
+      const outlookStatus = await fetchMethodRequest('GET', 'auth/microsoft/outlook/status');
+      const isOutlook = outlookStatus?.connected;
+
+      const endpoint = isOutlook
+        ? 'auth/microsoft/outlook/sync'
+        : 'auth/google/email-analysis/sync';
+
+      const res = await fetchMethodRequest('POST', endpoint, {});
       if (res?.respCode) {
         showToasterMessage(
           res?.result?.saved ? `Synced ${res.result.saved} new email(s)` : 'Inbox is up to date',
@@ -623,7 +631,7 @@ const EmailAnalysisMails = () => {
           <p>
             {appliedSearch
               ? 'Try a different keyword.'
-              : 'Connect a Google account and sync to start reading your inbox here.'}
+              : 'Connect a Google or Outlook account and sync to start reading your inbox here.'}
           </p>
           {!appliedSearch && (
             <Button size="sm" variant="outline" onClick={() => navigate('/connectionsDelivery')}>
