@@ -259,13 +259,12 @@ const ConnectionsDelivery = () => {
       {connected ? (
         <div className="d-flex align-items-center gap-2">
           <StatusPill on>connected</StatusPill>
-          {account?.email && <span className="cd-account-inline">{account.email}</span>}
           <Button variant="outline" size="sm" className="border-destructive text-destructive hover:bg-destructive/10" onClick={handleRemoveAccount}>
             Disconnect
           </Button>
         </div>
       ) : (
-        <Button size="sm" className="app-btn" onClick={onConnect}>Connect</Button>
+        <Button size="sm" className="app-btn" onClick={handleGoogleLogin}>Connect</Button>
       )}
     </div>
   );
@@ -291,7 +290,7 @@ const ConnectionsDelivery = () => {
       <Dialog open={removeDialog} onOpenChange={(o) => { if (!o && !removing) setRemoveDialog(false); }}>
         <DialogContent className="max-w-[480px] w-[94vw]">
           <DialogHeader>
-            <DialogTitle>Remove {connectedProvider === 'outlook' ? 'Outlook' : 'Google'} account</DialogTitle>
+            <DialogTitle>Remove Google account</DialogTitle>
           </DialogHeader>
           <p className="cd-remove-intro">
             Choose how you want to remove {adminEmail ? <b>{adminEmail}</b> : 'this account'}.
@@ -301,7 +300,7 @@ const ConnectionsDelivery = () => {
             <div className="cd-remove-option-text">
               <div className="cd-remove-option-title">Disconnect account only</div>
               <div className="cd-remove-option-desc">
-                Removes the mailbox connection. Emails and attachments already synced into the
+                Removes the Google connection. Emails and attachments already synced into the
                 system are kept.
               </div>
             </div>
@@ -351,39 +350,10 @@ const ConnectionsDelivery = () => {
               icon={<img src={configImages.gmailLogo} alt="Gmail" className="cd-logo" />}
               name="Google Workspace inbox"
               desc="Reads overnight email for the brief"
-              connected={isGoogleConnected}
-              account={sourceAccounts.find((a) => a.provider === 'google')}
-              onConnect={handleGoogleLogin}
             />
-            <SourceRow
-              icon={<img src={configImages.outlookLogo} alt="Outlook" className="cd-logo" />}
-              name="Microsoft 365 Outlook"
-              desc="Reads Outlook mail through Microsoft Graph"
-              connected={isOutlookConnected}
-              account={sourceAccounts.find((a) => a.provider === 'outlook' || a.provider === 'microsoft')}
-              onConnect={handleOutlookLogin}
-            />
-
-            {sourceAccounts.length > 1 && (
-              <div className="cd-field">
-                <label>Active inbox</label>
-                <Select value={adminEmail || ''} onValueChange={changeActiveSource}>
-                  <SelectTrigger className="cd-time-dropdown">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sourceAccounts.map((a) => (
-                      <SelectItem key={`${a.provider}-${a.email}`} value={a.email}>
-                        {(a.provider === 'outlook' ? 'Outlook' : 'Gmail')} · {a.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             {/* Live sync progress */}
-            {hasSourceAccount && syncStatus && (syncStatus.active || syncStatus.phase === 'done' || syncStatus.phase === 'error') && (
+            {isGoogleConnected && syncStatus && (syncStatus.active || syncStatus.phase === 'done' || syncStatus.phase === 'error') && (
               <div className="cd-syncbar">
                 {syncStatus.active ? (
                   <>
@@ -474,7 +444,7 @@ const ConnectionsDelivery = () => {
                 <div className="cd-nm">Bulk email send</div>
                 <div className="cd-ds">Upload a .js file of emails and send them through this account</div>
               </div>
-              <Button size="sm" className="app-btn" disabled={!hasSourceAccount} onClick={() => navigate('/bulkEmailSend')}>
+              <Button size="sm" className="app-btn" disabled={!isGoogleConnected} onClick={() => navigate('/bulkEmailSend')}>
                 Open
               </Button>
             </div>

@@ -2,3 +2,9 @@ node_modules/
 dist/
 uploads/
 **/.env
+server/package-lock.json
+server/logs/
+server/server/upload/
+server/server/emailAnalysis/
+client/dist/
+server/.env

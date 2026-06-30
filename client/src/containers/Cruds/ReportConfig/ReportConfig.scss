@@ -1,0 +1,47 @@
+.rc-page {
+  background: #fff;
+  border: 1px solid #d9dcd6;
+  border-radius: 10px;
+  padding: 24px 20px 40px;
+  min-height: calc(100vh - 20px);
+  font-family: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: #14181f;
+
+  .rc-page-header {
+    margin-bottom: 24px;
+    border-bottom: 1px solid #eaecee;
+    padding-bottom: 18px;
+  }
+
+  .rc-page-eyebrow {
+    font-size: 11px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: #687180;
+    margin-bottom: 4px;
+  }
+
+  .rc-page-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: #14181f;
+  }
+
+  .rc-page-sub {
+    font-size: 13px;
+    color: #687180;
+    margin: 0;
+    max-width: 560px;
+  }
+
+  .rc-page-body {
+    max-width: 700px;
+
+    // override sheet-mode padding since this is a full page
+    .rc-panel,
+    .rc-form {
+      padding: 0;
+    }
+  }
+}

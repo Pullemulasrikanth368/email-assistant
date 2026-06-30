@@ -1,12 +1,17 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import moment from 'moment';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
+import QuickReplies from '../CommonComponents/QuickReplies';
 import { BriefDashboard } from './BriefDashboard';
+import KnowledgeBaseSettings from './KnowledgeBaseSettings';
+import ReportConfigPanel from './ReportConfigPanel';
 import './OperationsReport.scss';
 
 /* ------------------------------------------------------------------ */
@@ -30,6 +35,51 @@ const BRIEF_TIMES = [
   { label: '09:00 AM', value: '09:00' },
 ];
 
+const MailFrame = ({ body, snippet }) => {
+  const ref = useRef(null);
+  const srcDoc = useMemo(() => {
+    const raw = (body || snippet || '').trim();
+    const head = '<meta charset="utf-8"><base target="_blank"><style>html{padding:12px;box-sizing:border-box}body{margin:0;font-family:Roboto,Arial,sans-serif;color:#202124;font-size:14px;line-height:1.6;word-break:break-word;overflow-wrap:anywhere}img{max-width:100%;height:auto}a{color:#1a73e8}table{max-width:100%}</style>';
+    if (!raw) return `<!doctype html><html><head>${head}</head><body><p style="color:#80868b">No content.</p></body></html>`;
+    if (!/<[a-z][\s\S]*>/i.test(raw)) {
+      const escaped = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<!doctype html><html><head>${head}</head><body><pre style="white-space:pre-wrap;font-family:inherit;margin:0">${escaped}</pre></body></html>`;
+    }
+    const clean = DOMPurify.sanitize(raw, { WHOLE_DOCUMENT: true, ADD_ATTR: ['target'] });
+    if (/<head[^>]*>/i.test(clean)) return clean.replace(/<head([^>]*)>/i, `<head$1>${head}`);
+    if (/<html[^>]*>/i.test(clean)) return clean.replace(/<html([^>]*)>/i, `<html$1><head>${head}</head>`);
+    return `<!doctype html><html><head>${head}</head><body>${clean}</body></html>`;
+  }, [body, snippet]);
+
+  const onLoad = useCallback(() => {
+    const frame = ref.current;
+    if (!frame) return;
+
+    const setHeight = () => {
+      try {
+        const doc = frame.contentDocument || frame.contentWindow.document;
+        frame.style.height = `${Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight) + 8}px`;
+      } catch {
+        frame.style.height = '420px';
+      }
+    };
+
+    setHeight();
+    [150, 500, 1200].forEach((t) => setTimeout(setHeight, t));
+  }, []);
+
+  return (
+    <iframe
+      ref={ref}
+      title="source-email"
+      className="orm-mail-frame"
+      sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+      srcDoc={srcDoc}
+      onLoad={onLoad}
+    />
+  );
+};
+
 /* ------------------------------------------------------------------ */
 /* Main screen                                                        */
 /* ------------------------------------------------------------------ */
@@ -45,8 +95,22 @@ const OperationsReport = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  /* ---------------- weekly reports (server-generated, idempotent) ---------------- */
+  const [weekReports, setWeekReports] = useState([]);
+  const [selectedWeekId, setSelectedWeekId] = useState(null);
+  const [selectedWeekReport, setSelectedWeekReport] = useState(null);
+  const [weekDetailLoading, setWeekDetailLoading] = useState(false);
+  const [genWeekly, setGenWeekly] = useState(false);
+
+  const activeReport = tab === 'week' ? selectedWeekReport : selectedReport;
+
   const [generating, setGenerating] = useState(false);
   const [briefTime, setBriefTime] = useState('06:00');
+  const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
+
+  // Settings panels
+  const [kbSheetOpen, setKbSheetOpen] = useState(false);
+  const [rcSheetOpen, setRcSheetOpen] = useState(false);
 
   /* ---------------- fetch list ---------------- */
   const fetchReports = useCallback(async (preserveSelection) => {
@@ -116,18 +180,24 @@ const OperationsReport = () => {
     }
   };
 
-  // Drill-down: open the source email in the mail reader (best-effort).
-  const onOpenSource = (sourceId) => {
-    if (!sourceId) return;
-    navigate(`/emailAnalysisMails?source=${encodeURIComponent(sourceId)}`);
-  };
+  const findAiFlag = useCallback((sourceId) => {
+    const brief = activeReport?.brief || {};
+    const risk = (brief.risks || []).find((r) => r.sourceId === sourceId);
+    const triage = (brief.triage || []).find((t) => t.sourceId === sourceId);
+    return { risk, triage };
+  }, [activeReport]);
 
-  /* ---------------- weekly reports (server-generated, idempotent) ---------------- */
-  const [weekReports, setWeekReports] = useState([]);
-  const [selectedWeekId, setSelectedWeekId] = useState(null);
-  const [selectedWeekReport, setSelectedWeekReport] = useState(null);
-  const [weekDetailLoading, setWeekDetailLoading] = useState(false);
-  const [genWeekly, setGenWeekly] = useState(false);
+  // Drill-down: open the source email beside the report, without leaving it.
+  const onOpenSource = useCallback(async (sourceId) => {
+    if (!sourceId) return;
+    setEmailDrawer({ visible: true, loading: true, mail: null, sourceId });
+    try {
+      const res = await fetchMethodRequest('GET', `email-analysis/mails/by-source/${encodeURIComponent(sourceId)}`);
+      setEmailDrawer({ visible: true, loading: false, mail: res?.mail || null, sourceId });
+    } catch {
+      setEmailDrawer({ visible: true, loading: false, mail: null, sourceId });
+    }
+  }, []);
 
   const fetchWeekReports = useCallback(async (preserveSelection) => {
     try {
@@ -180,7 +250,8 @@ const OperationsReport = () => {
   const generateWeekly = async (force) => {
     setGenWeekly(true);
     try {
-      const res = await fetchMethodRequest('POST', 'email-analysis/reports/generate', { type: 'week', date: selectedWeekStart, force: !!force });
+      const body = { type: 'week', date: selectedWeekStart, force: !!force };
+      const res = await fetchMethodRequest('POST', 'email-analysis/reports/generate', body);
       if (res?.respCode && res.report) {
         showToasterMessage(res.created ? 'Weekly report generated' : 'Selected week is already generated', res.created ? 'success' : 'info');
         await fetchWeekReports(true);
@@ -377,6 +448,63 @@ const OperationsReport = () => {
     );
   };
 
+  const renderEmailDrawer = () => {
+    const { loading: drawerLoading, mail, sourceId } = emailDrawer;
+    const { risk, triage } = findAiFlag(sourceId);
+
+    return (
+      <div className="operations-report orm-drawer">
+        <div className="orm-drawer-head">
+          <span className="eyebrow">Email detail</span>
+        </div>
+        {drawerLoading ? (
+          <div className="orm-state"><i className="pi pi-spin pi-spinner" /><span>Loading email…</span></div>
+        ) : !mail ? (
+          <div className="orm-state"><i className="pi pi-inbox" /><span>Source email not found in synced mail.</span></div>
+        ) : (
+          <>
+            <div className="orm-email-from">{mail.from}</div>
+            <h3 className="orm-email-subject">{mail.subject || '(no subject)'}</h3>
+            <div className="orm-email-meta">{mail.receivedAt ? moment(mail.receivedAt).format('ddd, MMM D, YYYY h:mm A') : ''}</div>
+
+            {risk && (
+              <div className="orm-flag">
+                <div className="ft">AI flagged - high operational risk</div>
+                <div className="fs">{risk.summary}</div>
+                <div className="fd">
+                  Likelihood {risk.likelihood} x Impact {risk.impact} = score {risk.riskScore}.
+                  {risk.mitigation ? ` ${risk.mitigation}` : ''}
+                </div>
+              </div>
+            )}
+            {!risk && triage && (
+              <div className="orm-flag soft">
+                <div className="ft">{triage.tier} - AI triage</div>
+                <div className="fd">{triage.reason}</div>
+              </div>
+            )}
+
+            <MailFrame body={mail.body} snippet={mail.snippet} />
+            <QuickReplies sourceId={mail.providerMessageId || sourceId} />
+
+            {mail.attachments?.length > 0 && (
+              <div className="orm-att-list">
+                <div className="orm-ph">Attachments<span className="n">{mail.attachments.length}</span></div>
+                {mail.attachments.map((a, i) => (
+                  <div className="orm-att" key={`${a.filename || 'attachment'}-${i}`}>
+                    <i className="pi pi-paperclip" />
+                    <span className="nm">{a.filename}</span>
+                    {a.url ? <a href={a.url} target="_blank" rel="noreferrer" className="dl"><i className="pi pi-download" /></a> : <span className="muted">n/a</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="operations-report">
       {/* Header */}
@@ -400,6 +528,14 @@ const OperationsReport = () => {
               </SelectContent>
             </Select>
           </span>
+          <button type="button" className="orm-settings-btn" onClick={() => setKbSheetOpen(true)} title="Knowledge Base Settings">
+            <i className="pi pi-book" />
+            <span>KB</span>
+          </button>
+          <button type="button" className="orm-settings-btn" onClick={() => setRcSheetOpen(true)} title="Report Requirements">
+            <i className="pi pi-sliders-h" />
+            <span>Requirements</span>
+          </button>
           <button type="button" className="orm-runbrief-btn" onClick={runBrief} disabled={generating}>
             <i className={generating ? 'pi pi-spin pi-spinner' : 'pi pi-bolt'} />
             <span>Run brief</span>
@@ -418,6 +554,34 @@ const OperationsReport = () => {
         <div className="orm-list-pane">{renderListPanel()}</div>
         <div className="orm-detail-pane">{renderDetailPanel()}</div>
       </div>
+
+      <Sheet open={emailDrawer.visible} onOpenChange={(o) => !o && setEmailDrawer((p) => ({ ...p, visible: false }))}>
+        <SheetContent side="right" className="min-w-[30vw] w-[720px] !max-w-[96vw] sm:!max-w-[720px] overflow-y-auto bg-white">
+          {renderEmailDrawer()}
+        </SheetContent>
+      </Sheet>
+
+      {/* Knowledge Base Settings sheet */}
+      <Sheet open={kbSheetOpen} onOpenChange={setKbSheetOpen}>
+        <SheetContent side="right" className="w-[520px] !max-w-[96vw] overflow-y-auto bg-white">
+          <div className="orm-sheet-head">
+            <h3>Knowledge Base</h3>
+            <p className="orm-sheet-sub">Configure how AI analyzes emails: categorization, priority rules, risk scoring, routing, and domain terms.</p>
+          </div>
+          <KnowledgeBaseSettings onClose={() => setKbSheetOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      {/* Report Requirements sheet */}
+      <Sheet open={rcSheetOpen} onOpenChange={setRcSheetOpen}>
+        <SheetContent side="right" className="w-[560px] !max-w-[96vw] overflow-y-auto bg-white">
+          <div className="orm-sheet-head">
+            <h3>Report Requirements</h3>
+            <p className="orm-sheet-sub">Choose what the generated report should show. Email analysis rules stay in Knowledge Base.</p>
+          </div>
+          <ReportConfigPanel onClose={() => setRcSheetOpen(false)} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

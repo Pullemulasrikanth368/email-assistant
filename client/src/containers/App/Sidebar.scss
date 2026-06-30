@@ -69,21 +69,38 @@ $sb-collapsed: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: none;
-  color: $sb-muted;
+  background: #ffffff;
+  border: 1px solid $sb-border;
+  color: $sb-text;
   cursor: pointer;
-  padding: 5px;
-  border-radius: 4px;
+  padding: 0;
+  border-radius: 8px;
   flex-shrink: 0;
-  transition: color 0.15s, background 0.15s;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, .06);
+  transition: color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
   margin-left: auto;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 
   &:hover {
-    color: $sb-text;
-    background: $sb-hover;
+    color: $sb-accent;
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+    box-shadow: 0 2px 7px rgba(17, 24, 39, .1);
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(17, 24, 39, .08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(17, 24, 39, .22);
+    outline-offset: 2px;
+  }
+
+  svg {
+    stroke-width: 2.2;
   }
 
   // Collapsed state: button is the only child — centre it
@@ -149,6 +166,7 @@ $sb-collapsed: 52px;
 .ea-sidebar__item-icon {
   flex-shrink: 0;
   opacity: 0.75;
+  stroke-width: 2.1;
 
   .ea-sidebar__item--active & {
     opacity: 1;
@@ -181,6 +199,27 @@ $sb-collapsed: 52px;
   display: flex;
   align-items: center;
   gap: 9px;
+
+  button {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    border: 1px solid transparent !important;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s !important;
+
+    &:hover {
+      border-color: #FECACA !important;
+      box-shadow: 0 2px 7px rgba(127, 29, 29, .08) !important;
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+
+    svg {
+      stroke-width: 2.2;
+    }
+  }
 }
 
 .ea-sidebar__avatar {

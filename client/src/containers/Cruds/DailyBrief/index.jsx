@@ -300,13 +300,13 @@ const DailyBrief = () => {
       <div className="orm-single-body">{renderBody()}</div>
 
       <Sheet open={emailDrawer.visible} onOpenChange={(o) => !o && setEmailDrawer((p) => ({ ...p, visible: false }))}>
-        <SheetContent side="right" className="min-w-[30vw] max-w-[96vw] overflow-y-auto bg-white">
+        <SheetContent side="right" className="min-w-[30vw] max-w-[98vw] overflow-y-auto bg-white">
           {renderEmailDrawer()}
         </SheetContent>
       </Sheet>
 
       <Sheet open={riskDrawer.visible} onOpenChange={(o) => !o && setRiskDrawer({ visible: false, risk: null })}>
-        <SheetContent side="right" className="min-w-[30vw] max-w-[96vw] overflow-y-auto bg-white">
+        <SheetContent side="right" className="min-w-[30vw] max-w-[98vw] overflow-y-auto bg-white">
           {renderRiskDrawer()}
         </SheetContent>
       </Sheet>

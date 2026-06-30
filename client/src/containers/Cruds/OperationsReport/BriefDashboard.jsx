@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import fetchMethodRequest from '../../../config/service';
+import { url } from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 
 const todoKey = (t) => `${t.sourceId || ''}::${t.task || ''}`;
@@ -17,6 +20,35 @@ export const scoreColor = (score) => {
 };
 
 const TREND_LABEL = { New: 'new', Escalating: 'escalating', Cooling: 'cooling', Stable: 'stable' };
+
+const TRIAGE_MATRIX_POSITION = {
+  Critical: { likelihood: 4, impact: 4 },
+  Important: { likelihood: 3, impact: 2 },
+  Low: { likelihood: 1, impact: 1 },
+};
+
+const triageToMatrixRisk = (item = {}) => {
+  const pos = TRIAGE_MATRIX_POSITION[item.tier] || TRIAGE_MATRIX_POSITION.Low;
+  return {
+    category: item.tier || 'Low',
+    summary: item.reason || `${item.tier || 'Low'} priority email`,
+    likelihood: pos.likelihood,
+    impact: pos.impact,
+    riskScore: pos.likelihood * pos.impact,
+    clock: item.tier === 'Low' ? 'low' : 'triage',
+    trend: 'Stable',
+    sourceId: item.sourceId,
+    fromTriage: true,
+  };
+};
+
+const buildRiskMatrixItems = (risks = [], triage = []) => {
+  const usedSourceIds = new Set(risks.map((r) => r.sourceId).filter(Boolean));
+  const triagePoints = triage
+    .filter((t) => t?.sourceId && !usedSourceIds.has(t.sourceId))
+    .map(triageToMatrixRisk);
+  return [...risks, ...triagePoints];
+};
 
 /* The signature 5x5 likelihood × impact matrix. */
 export const RiskMatrix = ({ risks = [], onPick }) => {
@@ -33,7 +65,7 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
           title={here.length ? here.map((h) => h.summary).join(', ') : `L${likelihood} × I${impact}`}
           onClick={() => here.length && onPick && onPick(here[0])}
         >
-          {here.length > 0 && <span className="orm-dot">{here.length > 1 ? here.length : ''}</span>}
+          {here.length > 0 && <span className="orm-dot">{here.length > 1 ? here.length : '1'}</span>}
         </div>
       );
     }
@@ -51,12 +83,21 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
 
 /**
  * Render a single brief.
- * @param report       stored report ({ brief, ... })
+ * @param report       stored report ({ brief, reportConfigSnapshot, ... })
  * @param onOpenSource (sourceId) => void  — open the source email
  * @param onOpenRisk   (risk) => void      — open risk detail (falls back to onOpenSource)
  */
-export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) => {
+export const BriefDashboard = ({ report, onOpenSource = () => { }, onOpenRisk }) => {
   const brief = report?.brief || {};
+
+  // Use report config snapshot if present; fall back to showing everything.
+  const rcSnap = report?.reportConfigSnapshot || null;
+  const enabledSections = rcSnap?.enabledSections || null; // null = show all
+  const selectedFields = rcSnap?.selectedFields || null;   // null = show all
+
+  const sectionEnabled = (key) => !enabledSections || enabledSections.includes(key);
+  const fieldEnabled = (key) => !selectedFields || selectedFields.includes(key);
+
   const risks = [...(brief.risks || [])].sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
   const decisions = brief.decisionQueue || [];
   const collisions = brief.collisions || [];
@@ -64,8 +105,30 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
   const patterns = brief.patterns || [];
   const triage = brief.triage || [];
   const actions = brief.actions || [];
+  const events = brief.events || [];
+  const riskMatrixItems = buildRiskMatrixItems(risks, triage);
 
   const openRisk = (r) => (onOpenRisk ? onOpenRisk(r) : onOpenSource(r.sourceId));
+
+  /* -------- markdown file viewer -------- */
+  const [mdDialog, setMdDialog] = useState({ visible: false, loading: false, content: '' });
+
+  const openMd = async () => {
+    if (!report?._id) return;
+    setMdDialog({ visible: true, loading: true, content: '' });
+    try {
+      const creds = JSON.parse(localStorage.getItem('loginCredentials') || '{}');
+      const res = await fetch(`${url}api/email-analysis/reports/${report._id}/md`, {
+        headers: creds.accessToken ? { Authorization: `Bearer ${creds.accessToken}` } : {},
+      });
+      if (!res.ok) throw new Error('Failed');
+      const text = await res.text();
+      setMdDialog({ visible: true, loading: false, content: text });
+    } catch {
+      showToasterMessage('Could not load markdown file', 'error');
+      setMdDialog({ visible: false, loading: false, content: '' });
+    }
+  };
 
   /* -------- action/todo completion (sends an AI reply on the email thread) -------- */
   const [confirm, setConfirm] = useState({ visible: false, todo: null });
@@ -116,7 +179,20 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
 
   return (
     <div className="orm-dash">
-      {brief.narrative && <div className="orm-narr"><p>{brief.narrative}</p></div>}
+      {report?.mdPath && (
+        <div className="orm-md-bar">
+          <Button
+            label="View Report File"
+            icon="pi pi-file"
+            className="p-button-sm p-button-outlined orm-md-btn"
+            onClick={openMd}
+          />
+        </div>
+      )}
+
+      {sectionEnabled('narrativeSummary') && brief.narrative && (
+        <div className="orm-narr"><p>{brief.narrative}</p></div>
+      )}
 
       {isQuiet && (
         <div className="orm-empty-quiet">
@@ -124,54 +200,120 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
         </div>
       )}
 
+      {/* Matched keywords summary badge (shown when snapshot present and matchedKeywords field enabled) */}
+      {report?.matchedKeywordsSummary && fieldEnabled('matchedKeywords') && (
+        (() => {
+          const mks = report.matchedKeywordsSummary;
+          const hasMk = (mks.critical?.length || mks.important?.length || mks.low?.length);
+          return hasMk ? (
+            <div className="orm-mks-row">
+              {mks.critical?.length > 0 && <span className="orm-chip crit-chip">{mks.critical.join(', ')}</span>}
+              {mks.important?.length > 0 && <span className="orm-chip imp-chip">{mks.important.join(', ')}</span>}
+            </div>
+          ) : null;
+        })()
+      )}
+
       <div className="orm-grid2">
         <div>
-          {decisions.length > 0 && (
+          {sectionEnabled('decisionQueue') && decisions.length > 0 && (
             <div className="orm-panel">
               <div className="orm-ph">Decisions needed today<span className="n">{decisions.length}</span></div>
               {decisions.map((d, i) => (
                 <div className="orm-dec" key={i} onClick={() => onOpenSource(d.sourceId)} role="button" tabIndex={0}>
                   <div className="t">{d.title}</div>
                   {d.why && <div className="w">{d.why}</div>}
-                  {d.deadline && <span className="due">DUE: {d.deadline}</span>}
+                  {d.deadline && fieldEnabled('deadline') && <span className="due">DUE: {d.deadline}</span>}
                 </div>
               ))}
             </div>
           )}
 
-          {risks.length > 0 && (
-            <div className="orm-panel" style={{ marginTop: 18 }}>
+          {sectionEnabled('riskRadar') && risks.length > 0 && (
+            <div className="orm-panel">
               <div className="orm-ph">Risk radar<span className="n">{risks.length}</span></div>
               {risks.map((r, i) => (
                 <div className="orm-risk" key={i} onClick={() => openRisk(r)} role="button" tabIndex={0}>
-                  <div className="orm-score" style={{ background: scoreColor(r.riskScore) }}>
-                    {r.riskScore}<small>{r.likelihood}×{r.impact}</small>
-                  </div>
+                  {fieldEnabled('riskScore') && (
+                    <div className="orm-score" style={{ background: scoreColor(r.riskScore) }}>
+                      {r.riskScore}<small>{r.likelihood}×{r.impact}</small>
+                    </div>
+                  )}
                   <div>
                     <div className="s">{r.summary}</div>
                     <div className="orm-rrow">
-                      {r.category && <span className="orm-chip">{r.category}</span>}
-                      {r.clock && <span className="orm-chip clock">{r.clock}</span>}
-                      {r.trend && <span className={`orm-chip ${r.trend === 'Escalating' ? 'esc' : r.trend === 'New' ? 'new' : ''}`}>{TREND_LABEL[r.trend] || r.trend}</span>}
+                      {fieldEnabled('category') && r.category && <span className="orm-chip">{r.category}</span>}
+                      {fieldEnabled('clock') && r.clock && <span className="orm-chip clock">{r.clock}</span>}
+                      {fieldEnabled('trend') && r.trend && <span className={`orm-chip ${r.trend === 'Escalating' ? 'esc' : r.trend === 'New' ? 'new' : ''}`}>{TREND_LABEL[r.trend] || r.trend}</span>}
+                      {fieldEnabled('matchedKeywords') && r.matchedKeywords?.length > 0 && (
+                        <span className="orm-chip kw">{r.matchedKeywords.join(', ')}</span>
+                      )}
                     </div>
                     {r.mitigation && <div className="orm-mit"><b>Mitigate:</b> {r.mitigation}</div>}
+                    {fieldEnabled('reason') && r.reason && <div className="orm-reason"><b>Reason:</b> {r.reason}</div>}
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {sectionEnabled('patterns') && patterns.length > 0 && (
+            <div className="orm-panel">
+              <div className="orm-ph">Patterns</div>
+              {patterns.map((p, i) => <div className="orm-pattern" key={i}>{p}</div>)}
+            </div>
+          )}
+
+          {sectionEnabled('inboxTriage') && triage.length > 0 && (
+            <div className="orm-panel">
+              <div className="orm-ph">Inbox triage<span className="n">{triage.length}</span></div>
+              {['Critical', 'Important', 'Low'].map((tier) => (
+                tierGroups[tier].length > 0 && (
+                  <div key={tier}>
+                    <div className={`orm-tier ${tier.toLowerCase()}`}>{tier} · {tierGroups[tier].length}</div>
+                    {tierGroups[tier].map((t, i) => (
+                      <div className="orm-trow" key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
+                        <span className="orm-dotm" style={{ background: tier === 'Critical' ? 'var(--crit)' : tier === 'Important' ? 'var(--high)' : 'var(--muted)' }} />
+                        <span className="reason">{t.reason}</span>
+                        {fieldEnabled('matchedKeywords') && t.matchedKeywords?.length > 0 && (
+                          <span className="orm-chip kw" style={{ marginLeft: 6 }}>{t.matchedKeywords.join(', ')}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              ))}
+            </div>
+          )}
+
+          {sectionEnabled('actionRegister') && actions.length > 0 && (
+            <div className="orm-panel">
+              <div className="orm-ph">Action register<span className="n">{actions.length}</span></div>
+              <table className="orm-actions">
+                <tbody>
+                  {actions.map((a, i) => (
+                    <tr key={i} onClick={() => onOpenSource(a.sourceId)}>
+                      <td className="task">{a.task}</td>
+                      {fieldEnabled('owner') && <td className="owner">{a.owner || '-'}</td>}
+                      {fieldEnabled('deadline') && <td className="due">{a.deadline || ''}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
 
         <div>
-          {risks.length > 0 && (
-            <div className="orm-panel" style={{ marginBottom: 18 }}>
-              <div className="orm-ph">Risk matrix</div>
-              <RiskMatrix risks={risks} onPick={openRisk} />
+          {sectionEnabled('riskRadar') && riskMatrixItems.length > 0 && (
+            <div className="orm-panel">
+              <div className="orm-ph">Risk matrix<span className="n">{riskMatrixItems.length}</span></div>
+              <RiskMatrix risks={riskMatrixItems} onPick={openRisk} />
             </div>
           )}
 
-          {collisions.length > 0 && (
-            <div className="orm-panel orm-panel-amber" style={{ marginBottom: 18 }}>
+          {sectionEnabled('calendarConflicts') && collisions.length > 0 && (
+            <div className="orm-panel orm-panel-amber">
               <div className="orm-ph" style={{ color: 'var(--high)' }}>Schedule collisions<span className="n">{collisions.length}</span></div>
               {collisions.map((c, i) => (
                 <div className="orm-coll" key={i}>
@@ -183,7 +325,7 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
             </div>
           )}
 
-          {todos.length > 0 && (
+          {sectionEnabled('todoList') && todos.length > 0 && (
             <div className="orm-panel">
               <div className="orm-ph">Your to-do<span className="n">{todos.length}</span></div>
               {todos.map((t, i) => {
@@ -202,57 +344,48 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
                       {done && <i className="pi pi-check" />}
                     </span>
                     <span className="orm-todo-task">{t.task}</span>
-                    {t.deadline && <span className="d">{t.deadline}</span>}
+                    {fieldEnabled('deadline') && t.deadline && <span className="d">{t.deadline}</span>}
                   </div>
                 );
               })}
             </div>
           )}
+
+          {sectionEnabled('events') && events.length > 0 && (
+            <div className="orm-panel">
+              <div className="orm-ph">Events mentioned<span className="n">{events.length}</span></div>
+              {events.map((event, i) => (
+                <div className="orm-event" key={i} onClick={() => onOpenSource(event.sourceId)} role="button" tabIndex={0}>
+                  <div className="et">{event.title}</div>
+                  <div className="em">
+                    {event.when && <span>{event.when}</span>}
+                    {event.type && <span>{event.type}</span>}
+                    {event.owner && <span>{event.owner}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {patterns.length > 0 && (
-        <div className="orm-panel" style={{ marginTop: 18 }}>
-          <div className="orm-ph">Patterns</div>
-          {patterns.map((p, i) => <div className="orm-pattern" key={i}>{p}</div>)}
-        </div>
-      )}
-
-      {triage.length > 0 && (
-        <div className="orm-panel" style={{ marginTop: 18 }}>
-          <div className="orm-ph">Inbox triage<span className="n">{triage.length}</span></div>
-          {['Critical', 'Important', 'Low'].map((tier) => (
-            tierGroups[tier].length > 0 && (
-              <div key={tier}>
-                <div className={`orm-tier ${tier.toLowerCase()}`}>{tier} · {tierGroups[tier].length}</div>
-                {tierGroups[tier].map((t, i) => (
-                  <div className="orm-trow" key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
-                    <span className="orm-dotm" style={{ background: tier === 'Critical' ? 'var(--crit)' : tier === 'Important' ? 'var(--high)' : 'var(--muted)' }} />
-                    <span className="reason">{t.reason}</span>
-                  </div>
-                ))}
-              </div>
-            )
-          ))}
-        </div>
-      )}
-
-      {actions.length > 0 && (
-        <div className="orm-panel" style={{ marginTop: 18 }}>
-          <div className="orm-ph">Action register<span className="n">{actions.length}</span></div>
-          <table className="orm-actions">
-            <tbody>
-              {actions.map((a, i) => (
-                <tr key={i} onClick={() => onOpenSource(a.sourceId)}>
-                  <td className="task">{a.task}</td>
-                  <td className="owner">{a.owner || '—'}</td>
-                  <td className="due">{a.deadline || ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Markdown file viewer */}
+      <Dialog
+        header="Report File"
+        visible={mdDialog.visible}
+        modal
+        draggable={false}
+        style={{ maxWidth: '100vw' }}
+        onHide={() => setMdDialog({ visible: false, loading: false, content: '' })}
+      >
+        {mdDialog.loading ? (
+          <div style={{ padding: 24, textAlign: 'center' }}><i className="pi pi-spin pi-spinner" style={{ fontSize: 22 }} /></div>
+        ) : (
+          <div className="orm-md-content">
+            <ReactMarkdown rehypePlugins={[rehypeRaw]}>{mdDialog.content}</ReactMarkdown>
+          </div>
+        )}
+      </Dialog>
 
       {/* Confirm "is this completed?" before sending an AI reply */}
       <Dialog

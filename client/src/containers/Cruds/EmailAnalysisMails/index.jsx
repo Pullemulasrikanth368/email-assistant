@@ -431,7 +431,7 @@ const EmailAnalysisMails = () => {
   const prioritizeNow = async () => {
     setPrioritizing(true);
     try {
-      const res = await fetchMethodRequest('POST', 'email-analysis/mails/prioritize', {});
+      const res = await fetchMethodRequest('POST', 'email-analysis/mails/prioritize', { force: true });
       if (res?.respCode) {
         showToasterMessage(`Prioritized ${res.count || 0} email(s)`, 'success');
         refresh();
@@ -524,12 +524,13 @@ const EmailAnalysisMails = () => {
       <div className="ea-reader">
         <div className="ea-reader-toolbar">
           <Button
-            icon="pi pi-arrow-left"
-            className="ea-back-btn p-button-text"
+            size="icon"
+            className="ea-back-btn"
             onClick={() => setShowReadingPaneMobile(false)}
             aria-label="Back"
-          />
-          <h2 className="ea-reader-subject">{selectedMail.subject || '(no subject)'}</h2>
+          >
+          </Button>
+          <p className="ea-reader-subject">{selectedMail.subject || '(no subject)'}</p>
         </div>
 
         <div className="ea-reader-meta">
@@ -548,6 +549,8 @@ const EmailAnalysisMails = () => {
           </div>
           <div className="ea-meta-date">{formatFullDate(selectedMail.receivedAt)}</div>
         </div>
+
+
 
         <MailBody body={selectedMail.body} snippet={selectedMail.snippet} />
 
@@ -749,7 +752,7 @@ const EmailAnalysisMails = () => {
               className="ea-prioritize-btn"
               onClick={prioritizeNow}
               disabled={prioritizing}
-              title="Re-score this inbox by intent"
+              title="Re-score this inbox using the latest Knowledge Base"
             >
               <Flag size={14} />
               <span>Prioritize</span>

@@ -1,15 +1,23 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import React, { Suspense } from 'react';
 import Wrapper from './Wrapper.jsx';
 import { ProtectedRoute } from './ProtectedRoute.jsx';
 
-// Lazy-load only the email analysis screens
-const EmailAnalysisMails = React.lazy(() => import('../Cruds/EmailAnalysisMails/index.jsx'));
-const OperationsReport   = React.lazy(() => import('../Cruds/OperationsReport/index.jsx'));
-const DailyBrief         = React.lazy(() => import('../Cruds/DailyBrief/index.jsx'));
-const BulkEmailSend      = React.lazy(() => import('../Cruds/BulkEmailSend/index.jsx'));
+// Auth screens (public — rendered without sidebar)
+import Login from '../Auth/Login.jsx';
+import Register from '../Auth/Register.jsx';
+
+// Lazy-load app screens
+const Users                   = React.lazy(() => import('../Admin/Users/index.jsx'));
+const Roles                   = React.lazy(() => import('../Admin/Roles/index.jsx'));
+const EmailAnalysisMails      = React.lazy(() => import('../Cruds/EmailAnalysisMails/index.jsx'));
+const OperationsReport        = React.lazy(() => import('../Cruds/OperationsReport/index.jsx'));
+const DailyBrief              = React.lazy(() => import('../Cruds/DailyBrief/index.jsx'));
+const BulkEmailSend           = React.lazy(() => import('../Cruds/BulkEmailSend/index.jsx'));
 const OperationsCommandCenter = React.lazy(() => import('../Cruds/OperationsCommandCenter/index.jsx'));
-const ConnectionsDelivery = React.lazy(() => import('../Settings/ConnectionsDelivery/index.jsx'));
+const KnowledgeBase           = React.lazy(() => import('../Cruds/KnowledgeBase/index.jsx'));
+const ConnectionsDelivery     = React.lazy(() => import('../Settings/ConnectionsDelivery/index.jsx'));
+const Settings                = React.lazy(() => import('../Settings/index.jsx'));
 
 const Loading = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -24,42 +32,34 @@ const S = (Component) => (
   </Suspense>
 );
 
+const P = (Component) => (
+  <ProtectedRoute>
+    {S(Component)}
+  </ProtectedRoute>
+);
+
 const router = createBrowserRouter([
+  // ── Auth routes (no sidebar) ──────────────────────────────────────────────
+  { path: '/login',    Component: Login },
+  { path: '/register', Component: Register },
+
+  // ── App routes (with Sidebar via Wrapper) ─────────────────────────────────
   {
     path: '/',
     Component: Wrapper,
     children: [
-      {
-        index: true,
-        Component: () => {
-          window.location.replace('/emailAnalysisMails');
-          return null;
-        },
-      },
-      {
-        path: '/emailAnalysisMails',
-        Component: () => S(EmailAnalysisMails),
-      },
-      {
-        path: '/operationsReport',
-        Component: () => S(OperationsReport),
-      },
-      {
-        path: '/dailyBrief',
-        Component: () => S(DailyBrief),
-      },
-      {
-        path: '/bulkEmailSend',
-        Component: () => S(BulkEmailSend),
-      },
-      {
-        path: '/operationsCommandCenter',
-        Component: () => S(OperationsCommandCenter),
-      },
-      {
-        path: '/connectionsDelivery',
-        Component: () => S(ConnectionsDelivery),
-      },
+      { index: true, Component: () => <Navigate to="/emailAnalysisMails" replace /> },
+      { path: '/emailAnalysisMails',       Component: () => P(EmailAnalysisMails) },
+      { path: '/operationsReport',         Component: () => P(OperationsReport) },
+      { path: '/dailyBrief',               Component: () => P(DailyBrief) },
+      { path: '/bulkEmailSend',            Component: () => P(BulkEmailSend) },
+      { path: '/operationsCommandCenter',  Component: () => P(OperationsCommandCenter) },
+      { path: '/knowledgeBase',            Component: () => P(KnowledgeBase) },
+      { path: '/connectionsDelivery',      Component: () => P(ConnectionsDelivery) },
+      { path: '/settings',                 Component: () => P(Settings) },
+      { path: '/users',                    Component: () => P(Users) },
+      { path: '/roles',                    Component: () => P(Roles) },
+      { path: '*',                         Component: () => <Navigate to="/emailAnalysisMails" replace /> },
     ],
   },
 ]);

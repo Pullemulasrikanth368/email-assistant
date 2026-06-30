@@ -11,6 +11,8 @@ import { createMailService } from "./mailProvider.service";
 import prioritizeService from "./prioritize.service";
 import { generateBrief } from "./briefEngine";
 import { renderBriefMarkdown } from "./renderMd";
+import { getActiveKnowledgeBaseConfig } from "./knowledgeBase.service";
+import { getReportConfig } from "./reportConfig.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const OUTPUT_DIR = path.resolve(__dirname, "../output");
@@ -124,6 +126,13 @@ function toEmailShape(mail) {
     subject: mail.subject || "",
     body: mail.body || mail.snippet || "",
     receivedAt: mail.receivedAt,
+    labels: mail.labels || [],
+    hasAttachments: !!mail.hasAttachments || (mail.attachments || []).length > 0,
+    isRepliedMail: !!mail.isRepliedMail,
+    priority: mail.priority || "",
+    priorityScore: mail.priorityScore || null,
+    intent: mail.intent || "",
+    priorityReason: mail.priorityReason || "",
   };
 }
 
@@ -178,8 +187,14 @@ export async function generateDailyReport(email, opts = {}) {
   }).sort({ periodStart: -1 }).lean();
   const yesterdayRisks = prevReport?.brief?.risks || [];
 
-  const { brief, source } = await generateBrief(emails, yesterdayRisks, {
+  // Load KB config and report config for this account.
+  const knowledgeBaseConfig = await getActiveKnowledgeBaseConfig(email);
+  const reportConfig = await getReportConfig(email);
+
+  const { brief, source, matchedKeywordsSummary } = await generateBrief(emails, yesterdayRisks, {
     periodLabel: dayLabel(targetDay),
+    knowledgeBaseConfig,
+    reportConfig,
   });
 
   const counts = briefCounts(brief);
@@ -194,6 +209,25 @@ export async function generateDailyReport(email, opts = {}) {
   report.generatedAt = new Date();
   report.counts = counts;
   report.active = true;
+
+  // Store config snapshots and matched keywords summary for audit trail.
+  report.knowledgeBaseSnapshot = {
+    keywords: knowledgeBaseConfig.keywords,
+    filters: knowledgeBaseConfig.filters,
+    thresholds: knowledgeBaseConfig.thresholds,
+    glossary: knowledgeBaseConfig.glossary,
+    promptInstruction: knowledgeBaseConfig.promptInstruction,
+  };
+  report.reportConfigSnapshot = {
+    reportName: reportConfig.reportName,
+    enabledSections: reportConfig.enabledSections,
+    selectedFields: reportConfig.selectedFields,
+    outputStyle: reportConfig.outputStyle,
+    promptInstruction: reportConfig.promptInstruction,
+  };
+  report.matchedKeywordsSummary = matchedKeywordsSummary;
+  report.reportSectionsUsed = reportConfig.enabledSections || [];
+  report.selectedFieldsUsed = reportConfig.selectedFields || [];
 
   // Render the self-contained .md dashboard from the analysis.
   report.mdPath = writeBriefMarkdown(report);
@@ -242,7 +276,15 @@ export async function generateWeeklyReport(email, opts = {}) {
   }).sort({ periodStart: -1 }).lean();
   const prevRisks = prev?.brief?.risks || [];
 
-  const { brief, source } = await generateBrief(emails, prevRisks, { periodLabel: weekLabel(start) });
+  // Load KB config and report config for this account.
+  const knowledgeBaseConfig = await getActiveKnowledgeBaseConfig(email);
+  const reportConfig = await getReportConfig(email);
+
+  const { brief, source, matchedKeywordsSummary } = await generateBrief(emails, prevRisks, {
+    periodLabel: weekLabel(start),
+    knowledgeBaseConfig,
+    reportConfig,
+  });
 
   let report = existing || new EmailAnalysisReport({ email, reportType: "week", periodStart: start });
   report.periodEnd = end;
@@ -253,6 +295,24 @@ export async function generateWeeklyReport(email, opts = {}) {
   report.counts = briefCounts(brief);
   report.active = true;
   report.mdPath = writeBriefMarkdown(report);
+
+  report.knowledgeBaseSnapshot = {
+    keywords: knowledgeBaseConfig.keywords,
+    filters: knowledgeBaseConfig.filters,
+    thresholds: knowledgeBaseConfig.thresholds,
+    glossary: knowledgeBaseConfig.glossary,
+    promptInstruction: knowledgeBaseConfig.promptInstruction,
+  };
+  report.reportConfigSnapshot = {
+    reportName: reportConfig.reportName,
+    enabledSections: reportConfig.enabledSections,
+    selectedFields: reportConfig.selectedFields,
+    outputStyle: reportConfig.outputStyle,
+    promptInstruction: reportConfig.promptInstruction,
+  };
+  report.matchedKeywordsSummary = matchedKeywordsSummary;
+  report.reportSectionsUsed = reportConfig.enabledSections || [];
+  report.selectedFieldsUsed = reportConfig.selectedFields || [];
 
   const saved = await EmailAnalysisReport.saveData(report);
   return { report: saved, created: true };
@@ -301,6 +361,7 @@ export async function generateDailyReportWithSync(email, opts = {}) {
   await syncAndPrioritize(email);
   return generateDailyReport(email, { force: true, ...opts });
 }
+
 
 export default {
   generateDailyReport,

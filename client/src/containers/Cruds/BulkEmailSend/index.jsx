@@ -189,18 +189,15 @@ const BulkEmailSend = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.map((a) => (
-                    <SelectItem key={`${a.provider}-${a.email}`} value={a.email}>
-                      {a.name ? `${a.name} · ${a.email}` : a.email} ({a.provider === 'outlook' ? 'Outlook' : 'Gmail'})
+                    <SelectItem key={a.email} value={a.email}>
+                      {a.name ? `${a.name} · ${a.email}` : a.email}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <div className="bes-from-action">
                 <Button size="sm" className="bes-btn-theme" onClick={connectNewAccount}>
-                  <Plus size={14} /> Gmail
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => connectNewAccount('outlook')}>
-                  <Plus size={14} /> Outlook
+                  <Plus size={14} /> Connect
                 </Button>
               </div>
             </div>
