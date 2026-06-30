@@ -14,6 +14,17 @@ const KnowledgeBaseConfigSchema = new mongoose.Schema({
     categories: { type: mongoose.Schema.Types.Mixed, default: {} }, // { "Quality": ["OOS","deviation"], ... }
   },
 
+  filters: {
+    senderEmail: { type: [String], default: [] },
+    senderDomain: { type: [String], default: [] },
+    priority: { type: [String], default: [] },
+    hasAttachments: { type: Boolean, default: false },
+    unreadOnly: { type: Boolean, default: false },
+    requiresReply: { type: Boolean, default: false },
+    containsKbKeywords: { type: Boolean, default: false },
+    escalationRequired: { type: Boolean, default: false },
+  },
+
   thresholds: {
     criticalScore: { type: Number, default: 80 },
     elevatedScore: { type: Number, default: 50 },

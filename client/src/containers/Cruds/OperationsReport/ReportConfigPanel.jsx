@@ -1,7 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
@@ -71,16 +69,6 @@ const emptyConfig = () => ({
   promptInstruction: '',
   outputStyle: 'detailed',
   isDefault: true,
-  filters: {
-    senderEmail: '',
-    senderDomain: '',
-    priority: '',
-    hasAttachments: false,
-    unreadOnly: false,
-    requiresReply: false,
-    containsKbKeywords: false,
-    escalationRequired: false,
-  },
 });
 
 function normalizeConfig(cfg = {}) {
@@ -92,16 +80,6 @@ function normalizeConfig(cfg = {}) {
     promptInstruction: cfg.promptInstruction || '',
     outputStyle: cfg.outputStyle || 'detailed',
     isDefault: true,
-    filters: {
-      senderEmail: (cfg.filters?.senderEmail || []).join(', '),
-      senderDomain: (cfg.filters?.senderDomain || []).join(', '),
-      priority: (cfg.filters?.priority || []).join(', '),
-      hasAttachments: !!cfg.filters?.hasAttachments,
-      unreadOnly: !!cfg.filters?.unreadOnly,
-      requiresReply: !!cfg.filters?.requiresReply,
-      containsKbKeywords: !!cfg.filters?.containsKbKeywords,
-      escalationRequired: !!cfg.filters?.escalationRequired,
-    },
   };
 }
 
@@ -147,7 +125,6 @@ export default function ReportConfigPanel({ onClose }) {
   useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
   const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const setFilter = (key, value) => setForm((current) => ({ ...current, filters: { ...current.filters, [key]: value } }));
 
   const saveConfig = async () => {
     setSaving(true);
@@ -156,12 +133,6 @@ export default function ReportConfigPanel({ onClose }) {
         ...form,
         reportName: form.reportName.trim() || 'Default Report Requirements',
         isDefault: true,
-        filters: {
-          ...form.filters,
-          senderEmail: form.filters.senderEmail.split(',').map((s) => s.trim()).filter(Boolean),
-          senderDomain: form.filters.senderDomain.split(',').map((s) => s.trim()).filter(Boolean),
-          priority: form.filters.priority.split(',').map((s) => s.trim()).filter(Boolean),
-        },
       };
 
       const res = form._id
@@ -228,36 +199,6 @@ export default function ReportConfigPanel({ onClose }) {
       <div className="rc-field">
         <label>Details to show inside report sections</label>
         <CheckGrid items={ALL_FIELDS} selected={form.selectedFields} onChange={(value) => setField('selectedFields', value)} />
-      </div>
-
-      <div className="rc-field">
-        <label>Report scope filters</label>
-        <div className="rc-filters">
-          <div className="rc-filter-row">
-            <label>Sender emails (comma)</label>
-            <Input value={form.filters.senderEmail} onChange={(event) => setFilter('senderEmail', event.target.value)} placeholder="user@example.com, ..." />
-          </div>
-          <div className="rc-filter-row">
-            <label>Sender domains (comma)</label>
-            <Input value={form.filters.senderDomain} onChange={(event) => setFilter('senderDomain', event.target.value)} placeholder="fda.gov, ..." />
-          </div>
-          <div className="rc-filter-row">
-            <label>Priority (comma)</label>
-            <Input value={form.filters.priority} onChange={(event) => setFilter('priority', event.target.value)} placeholder="Critical, High, Medium" />
-          </div>
-          {[
-            ['hasAttachments', 'Has attachments'],
-            ['unreadOnly', 'Unread only'],
-            ['requiresReply', 'Requires reply'],
-            ['containsKbKeywords', 'Contains KB keywords'],
-            ['escalationRequired', 'Escalation required'],
-          ].map(([key, label]) => (
-            <label key={key} className="rc-switch-label" style={{ marginTop: 6 }}>
-              <Switch checked={!!form.filters[key]} onCheckedChange={(value) => setFilter(key, value)} />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
       </div>
 
       <div className="rc-footer">

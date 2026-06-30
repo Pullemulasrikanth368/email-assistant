@@ -41,22 +41,6 @@ const ReportConfigSchema = new mongoose.Schema({
    */
   promptInstruction: { type: String, default: '' },
 
-  filters: {
-    dateRange: {
-      from: { type: String, default: '' },
-      to: { type: String, default: '' },
-    },
-    senderEmail: { type: [String], default: [] },
-    senderDomain: { type: [String], default: [] },
-    department: { type: [String], default: [] },
-    priority: { type: [String], default: [] },
-    hasAttachments: { type: Boolean, default: false },
-    unreadOnly: { type: Boolean, default: false },
-    requiresReply: { type: Boolean, default: false },
-    containsKbKeywords: { type: Boolean, default: false },
-    escalationRequired: { type: Boolean, default: false },
-  },
-
   // 'short' | 'detailed' | 'bullet' | 'executive' | 'department' | 'daily' | 'weekly'
   outputStyle: { type: String, default: 'detailed' },
 

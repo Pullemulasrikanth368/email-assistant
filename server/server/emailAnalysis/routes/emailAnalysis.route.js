@@ -53,7 +53,7 @@ router.patch("/knowledge-base/keywords", asyncHandler(emailAnalysisCtrl.patchKbK
 router.patch("/knowledge-base/glossary", asyncHandler(emailAnalysisCtrl.patchKbGlossary));
 
 /**
- * Report configuration (sections, fields, filters, output style).
+ * Report configuration (sections, fields, output style).
  * Specific paths before the :id catch-all.
  */
 router.get("/report-configs", asyncHandler(emailAnalysisCtrl.listReportConfigs));

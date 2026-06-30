@@ -528,8 +528,9 @@ const EmailAnalysisMails = () => {
             className="ea-back-btn"
             onClick={() => setShowReadingPaneMobile(false)}
             aria-label="Back"
-          >heloo
+          >
           </Button>
+          <p className="ea-reader-subject">{selectedMail.subject || '(no subject)'}</p>
         </div>
 
         <div className="ea-reader-meta">
@@ -544,7 +545,6 @@ const EmailAnalysisMails = () => {
             <div className="ea-meta-sub">
               to {to.name || to.email || 'me'}
               {(selectedMail.cc || []).length > 0 && `, cc: ${selectedMail.cc.join(', ')}`}
-              <p className="ea-reader-subject"><b>Subject:</b> {selectedMail.subject || '(no subject)'}</p>
             </div>
           </div>
           <div className="ea-meta-date">{formatFullDate(selectedMail.receivedAt)}</div>

@@ -126,6 +126,13 @@ function toEmailShape(mail) {
     subject: mail.subject || "",
     body: mail.body || mail.snippet || "",
     receivedAt: mail.receivedAt,
+    labels: mail.labels || [],
+    hasAttachments: !!mail.hasAttachments || (mail.attachments || []).length > 0,
+    isRepliedMail: !!mail.isRepliedMail,
+    priority: mail.priority || "",
+    priorityScore: mail.priorityScore || null,
+    intent: mail.intent || "",
+    priorityReason: mail.priorityReason || "",
   };
 }
 
@@ -206,6 +213,7 @@ export async function generateDailyReport(email, opts = {}) {
   // Store config snapshots and matched keywords summary for audit trail.
   report.knowledgeBaseSnapshot = {
     keywords: knowledgeBaseConfig.keywords,
+    filters: knowledgeBaseConfig.filters,
     thresholds: knowledgeBaseConfig.thresholds,
     glossary: knowledgeBaseConfig.glossary,
     promptInstruction: knowledgeBaseConfig.promptInstruction,
@@ -290,6 +298,7 @@ export async function generateWeeklyReport(email, opts = {}) {
 
   report.knowledgeBaseSnapshot = {
     keywords: knowledgeBaseConfig.keywords,
+    filters: knowledgeBaseConfig.filters,
     thresholds: knowledgeBaseConfig.thresholds,
     glossary: knowledgeBaseConfig.glossary,
     promptInstruction: knowledgeBaseConfig.promptInstruction,

@@ -244,6 +244,7 @@
     display: flex;
     flex: 1;
     min-height: 0;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif
   }
 
   .ea-list-pane {
@@ -601,6 +602,7 @@
     align-items: center;
     gap: 8px;
     padding: 14px 20px 6px;
+    border-bottom: 1px solid var(--ea-line);
 
     .ea-back-btn {
       display: none;
@@ -623,8 +625,7 @@
     }
 
     .ea-reader-subject {
-      font-size: 15px;
-      font-weight: 500;
+      font-weight: 700;
       color: var(--ea-ink);
       margin: 0;
       line-height: 1.4;
@@ -633,10 +634,11 @@
   }
 
   .ea-reader-meta {
+
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 0 12px;
+    padding: 12px;
     border-bottom: 1px solid var(--ea-line);
 
     .ea-meta-text {
@@ -663,7 +665,7 @@
     }
 
     .ea-meta-sub {
-      font-size: 12.5px;
+      font-size: 11px;
       color: var(--ea-muted);
       margin-top: 2px;
     }

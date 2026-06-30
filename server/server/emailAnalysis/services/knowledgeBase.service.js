@@ -11,6 +11,16 @@ const DEFAULT_KB = {
     low: ['FYI', 'newsletter', 'update', 'automated'],
     categories: {},
   },
+  filters: {
+    senderEmail: [],
+    senderDomain: [],
+    priority: [],
+    hasAttachments: false,
+    unreadOnly: false,
+    requiresReply: false,
+    containsKbKeywords: false,
+    escalationRequired: false,
+  },
   thresholds: {
     criticalScore: 80,
     elevatedScore: 50,
@@ -39,12 +49,14 @@ export async function saveKnowledgeBaseConfig(email, data) {
   if (!doc) doc = new KnowledgeBaseConfig({ email });
 
   if (data.keywords !== undefined) doc.keywords = data.keywords;
+  if (data.filters !== undefined) doc.filters = data.filters;
   if (data.thresholds !== undefined) doc.thresholds = data.thresholds;
   if (data.glossary !== undefined) doc.glossary = data.glossary;
   if (data.promptInstruction !== undefined) doc.promptInstruction = data.promptInstruction;
   doc.isActive = true;
 
   doc.markModified('keywords');
+  doc.markModified('filters');
   doc.markModified('glossary');
 
   return KnowledgeBaseConfig.saveData(doc);

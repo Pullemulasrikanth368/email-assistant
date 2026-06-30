@@ -95,6 +95,15 @@ const OperationsReport = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  /* ---------------- weekly reports (server-generated, idempotent) ---------------- */
+  const [weekReports, setWeekReports] = useState([]);
+  const [selectedWeekId, setSelectedWeekId] = useState(null);
+  const [selectedWeekReport, setSelectedWeekReport] = useState(null);
+  const [weekDetailLoading, setWeekDetailLoading] = useState(false);
+  const [genWeekly, setGenWeekly] = useState(false);
+
+  const activeReport = tab === 'week' ? selectedWeekReport : selectedReport;
+
   const [generating, setGenerating] = useState(false);
   const [briefTime, setBriefTime] = useState('06:00');
   const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
@@ -171,8 +180,6 @@ const OperationsReport = () => {
     }
   };
 
-  const activeReport = tab === 'week' ? selectedWeekReport : selectedReport;
-
   const findAiFlag = useCallback((sourceId) => {
     const brief = activeReport?.brief || {};
     const risk = (brief.risks || []).find((r) => r.sourceId === sourceId);
@@ -191,13 +198,6 @@ const OperationsReport = () => {
       setEmailDrawer({ visible: true, loading: false, mail: null, sourceId });
     }
   }, []);
-
-  /* ---------------- weekly reports (server-generated, idempotent) ---------------- */
-  const [weekReports, setWeekReports] = useState([]);
-  const [selectedWeekId, setSelectedWeekId] = useState(null);
-  const [selectedWeekReport, setSelectedWeekReport] = useState(null);
-  const [weekDetailLoading, setWeekDetailLoading] = useState(false);
-  const [genWeekly, setGenWeekly] = useState(false);
 
   const fetchWeekReports = useCallback(async (preserveSelection) => {
     try {

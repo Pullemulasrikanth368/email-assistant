@@ -76,7 +76,7 @@ ${selectedFields.map((f) => `  - ${f}`).join('\n')}\n`
   };
   const styleGuide = styleMap[outputStyle] || styleMap.detailed;
   const reportInstruction = reportPromptInstruction
-    ? `\nREPORT OUTPUT REQUIREMENT FROM REPORT CONFIGURATION:\n${reportPromptInstruction}\nUse this only to decide what should appear in the generated report: sections, detail level, filters, and output emphasis. Do not use it to change email categorization rules; Knowledge Base controls analysis. If the user asks to list events mentioned in emails, populate the "events" array with every meeting, audit, inspection, launch, deadline, travel, outage, shipment, release, campaign, or dated operational event found in the emails.\n`
+    ? `\nREPORT OUTPUT REQUIREMENT FROM REPORT CONFIGURATION:\n${reportPromptInstruction}\nUse this only to decide what should appear in the generated report: sections, detail level, UI emphasis, and any additional display requirement. Do not use it to change which emails are processed or how emails are categorized; Knowledge Base controls analysis. If the user asks to list events mentioned in emails, populate the "events" array with every meeting, audit, inspection, launch, deadline, travel, outage, shipment, release, campaign, or dated operational event found in the emails.\n`
     : '';
 
   return `You are the analysis engine for an AI Operations Command Center used by a senior operations leader (e.g. a VP or Director of Operations) in ANY industry — manufacturing, healthcare, finance, logistics, IT, retail, customer support, education, etc.

@@ -93,27 +93,70 @@ function buildMatchedKeywordsSummary(emails = [], kb) {
   };
 }
 
+function listContains(values = [], value = "") {
+  const normalized = String(value || "").toLowerCase();
+  return values.some((item) => normalized.includes(String(item || "").toLowerCase()));
+}
+
+function emailMatchesKbKeyword(email = {}, kb) {
+  const kw = kb?.keywords || {};
+  const all = [
+    ...(kw.critical || []),
+    ...(kw.important || []),
+    ...(kw.low || []),
+  ].filter(Boolean);
+  if (!all.length) return true;
+  const hay = `${email.subject || ""} ${String(email.body || "").slice(0, 1200)}`.toLowerCase();
+  return all.some((keyword) => hay.includes(String(keyword).toLowerCase()));
+}
+
+function emailRequiresReply(email = {}) {
+  const intent = String(email.intent || "").toLowerCase();
+  const text = `${email.subject || ""} ${String(email.body || "").slice(0, 500)}`.toLowerCase();
+  return /reply|respond|response|approval|approve|confirm|review|action needed|please|request/.test(`${intent} ${text}`);
+}
+
+function emailNeedsEscalation(email = {}, kb) {
+  const priorityScore = Number(email.priorityScore) || 0;
+  const escalationScore = Number(kb?.thresholds?.escalationScore) || 70;
+  const priority = String(email.priority || "").toLowerCase();
+  const criticalKeywords = kb?.keywords?.critical || [];
+  return priority === "critical" || priorityScore >= escalationScore || listContains(criticalKeywords, `${email.subject || ""} ${email.body || ""}`);
+}
+
 /**
- * Apply report config filters to the email list before building the brief.
- * Filters: senderEmail, senderDomain, priority (from pre-prioritized mail).
- * Non-destructive: returns a filtered copy; original array is untouched.
+ * Apply Knowledge Base processing scope before building the brief.
+ * These rules decide which mails enter analysis; Report Config only decides
+ * what report sections/details are displayed after analysis.
  */
-function applyFilters(emails = [], reportConfig) {
-  const f = reportConfig && reportConfig.filters ? reportConfig.filters : {};
+function applyKnowledgeBaseFilters(emails = [], kb) {
+  const f = kb && kb.filters ? kb.filters : {};
   let out = emails;
 
   if (f.senderEmail && f.senderEmail.length) {
-    const addrs = f.senderEmail.map((s) => s.toLowerCase());
-    out = out.filter((e) => addrs.some((a) => (e.from || '').toLowerCase().includes(a)));
+    out = out.filter((e) => listContains(f.senderEmail, e.from));
   }
   if (f.senderDomain && f.senderDomain.length) {
-    out = out.filter((e) => f.senderDomain.some((d) => (e.from || '').toLowerCase().includes(d.toLowerCase())));
+    out = out.filter((e) => listContains(f.senderDomain, e.from));
   }
   if (f.priority && f.priority.length) {
-    out = out.filter((e) => !e.priority || f.priority.includes(e.priority));
+    const allowed = f.priority.map((p) => String(p).toLowerCase());
+    out = out.filter((e) => allowed.includes(String(e.priority || "").toLowerCase()));
   }
   if (f.hasAttachments) {
     out = out.filter((e) => e.hasAttachments);
+  }
+  if (f.unreadOnly) {
+    out = out.filter((e) => (e.labels || []).map((x) => String(x).toUpperCase()).includes("UNREAD"));
+  }
+  if (f.requiresReply) {
+    out = out.filter((e) => emailRequiresReply(e) && !e.isRepliedMail);
+  }
+  if (f.containsKbKeywords) {
+    out = out.filter((e) => emailMatchesKbKeyword(e, kb));
+  }
+  if (f.escalationRequired) {
+    out = out.filter((e) => emailNeedsEscalation(e, kb));
   }
 
   return out;
@@ -177,10 +220,8 @@ function fallbackBriefFromEmails(emails = [], kb) {
  */
 export async function generateBrief(emails = [], yesterdayRisks = [], meta = {}) {
   const kb = meta.knowledgeBaseConfig || null;
-  const reportConfig = meta.reportConfig || null;
-
-  // Apply report config filters before analysis.
-  const filteredEmails = applyFilters(emails, reportConfig);
+  // Apply Knowledge Base processing scope before analysis.
+  const filteredEmails = applyKnowledgeBaseFilters(emails, kb);
 
   // No emails -> a designed "quiet day", not an error.
   if (!filteredEmails.length) {

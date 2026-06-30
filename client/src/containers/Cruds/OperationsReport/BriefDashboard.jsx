@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import fetchMethodRequest from '../../../config/service';
+import { url } from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 
 const todoKey = (t) => `${t.sourceId || ''}::${t.task || ''}`;
@@ -62,7 +65,7 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
           title={here.length ? here.map((h) => h.summary).join(', ') : `L${likelihood} × I${impact}`}
           onClick={() => here.length && onPick && onPick(here[0])}
         >
-          {here.length > 0 && <span className="orm-dot">{here.length > 1 ? here.length : ''}</span>}
+          {here.length > 0 && <span className="orm-dot">{here.length > 1 ? here.length : '1'}</span>}
         </div>
       );
     }
@@ -84,7 +87,7 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
  * @param onOpenSource (sourceId) => void  — open the source email
  * @param onOpenRisk   (risk) => void      — open risk detail (falls back to onOpenSource)
  */
-export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) => {
+export const BriefDashboard = ({ report, onOpenSource = () => { }, onOpenRisk }) => {
   const brief = report?.brief || {};
 
   // Use report config snapshot if present; fall back to showing everything.
@@ -106,6 +109,26 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
   const riskMatrixItems = buildRiskMatrixItems(risks, triage);
 
   const openRisk = (r) => (onOpenRisk ? onOpenRisk(r) : onOpenSource(r.sourceId));
+
+  /* -------- markdown file viewer -------- */
+  const [mdDialog, setMdDialog] = useState({ visible: false, loading: false, content: '' });
+
+  const openMd = async () => {
+    if (!report?._id) return;
+    setMdDialog({ visible: true, loading: true, content: '' });
+    try {
+      const creds = JSON.parse(localStorage.getItem('loginCredentials') || '{}');
+      const res = await fetch(`${url}api/email-analysis/reports/${report._id}/md`, {
+        headers: creds.accessToken ? { Authorization: `Bearer ${creds.accessToken}` } : {},
+      });
+      if (!res.ok) throw new Error('Failed');
+      const text = await res.text();
+      setMdDialog({ visible: true, loading: false, content: text });
+    } catch {
+      showToasterMessage('Could not load markdown file', 'error');
+      setMdDialog({ visible: false, loading: false, content: '' });
+    }
+  };
 
   /* -------- action/todo completion (sends an AI reply on the email thread) -------- */
   const [confirm, setConfirm] = useState({ visible: false, todo: null });
@@ -156,6 +179,17 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
 
   return (
     <div className="orm-dash">
+      {report?.mdPath && (
+        <div className="orm-md-bar">
+          <Button
+            label="View Report File"
+            icon="pi pi-file"
+            className="p-button-sm p-button-outlined orm-md-btn"
+            onClick={openMd}
+          />
+        </div>
+      )}
+
       {sectionEnabled('narrativeSummary') && brief.narrative && (
         <div className="orm-narr"><p>{brief.narrative}</p></div>
       )}
@@ -334,6 +368,24 @@ export const BriefDashboard = ({ report, onOpenSource = () => {}, onOpenRisk }) 
           )}
         </div>
       </div>
+
+      {/* Markdown file viewer */}
+      <Dialog
+        header="Report File"
+        visible={mdDialog.visible}
+        modal
+        draggable={false}
+        style={{ maxWidth: '100vw' }}
+        onHide={() => setMdDialog({ visible: false, loading: false, content: '' })}
+      >
+        {mdDialog.loading ? (
+          <div style={{ padding: 24, textAlign: 'center' }}><i className="pi pi-spin pi-spinner" style={{ fontSize: 22 }} /></div>
+        ) : (
+          <div className="orm-md-content">
+            <ReactMarkdown rehypePlugins={[rehypeRaw]}>{mdDialog.content}</ReactMarkdown>
+          </div>
+        )}
+      </Dialog>
 
       {/* Confirm "is this completed?" before sending an AI reply */}
       <Dialog

@@ -23,6 +23,16 @@ const DEFAULT_KB = {
     low: ['FYI', 'newsletter', 'update', 'automated'],
     categories: {},
   },
+  filters: {
+    senderEmail: [],
+    senderDomain: [],
+    priority: [],
+    hasAttachments: false,
+    unreadOnly: false,
+    requiresReply: false,
+    containsKbKeywords: false,
+    escalationRequired: false,
+  },
   thresholds: { criticalScore: 80, elevatedScore: 50, escalationScore: 70 },
   glossary: {},
   promptInstruction: '',
@@ -95,6 +105,32 @@ function normalizeThresholds(thresholds = {}) {
     criticalScore: Number.isFinite(Number(thresholds.criticalScore)) ? Number(thresholds.criticalScore) : DEFAULT_KB.thresholds.criticalScore,
     elevatedScore: Number.isFinite(Number(thresholds.elevatedScore)) ? Number(thresholds.elevatedScore) : DEFAULT_KB.thresholds.elevatedScore,
     escalationScore: Number.isFinite(Number(thresholds.escalationScore)) ? Number(thresholds.escalationScore) : DEFAULT_KB.thresholds.escalationScore,
+  };
+}
+
+function normalizeFilters(filters = {}) {
+  return {
+    senderEmail: Array.isArray(filters.senderEmail) ? filters.senderEmail.join(', ') : '',
+    senderDomain: Array.isArray(filters.senderDomain) ? filters.senderDomain.join(', ') : '',
+    priority: Array.isArray(filters.priority) ? filters.priority.join(', ') : '',
+    hasAttachments: !!filters.hasAttachments,
+    unreadOnly: !!filters.unreadOnly,
+    requiresReply: !!filters.requiresReply,
+    containsKbKeywords: !!filters.containsKbKeywords,
+    escalationRequired: !!filters.escalationRequired,
+  };
+}
+
+function serializeFilters(filters = {}) {
+  return {
+    senderEmail: String(filters.senderEmail || '').split(',').map((s) => s.trim()).filter(Boolean),
+    senderDomain: String(filters.senderDomain || '').split(',').map((s) => s.trim()).filter(Boolean),
+    priority: String(filters.priority || '').split(',').map((s) => s.trim()).filter(Boolean),
+    hasAttachments: !!filters.hasAttachments,
+    unreadOnly: !!filters.unreadOnly,
+    requiresReply: !!filters.requiresReply,
+    containsKbKeywords: !!filters.containsKbKeywords,
+    escalationRequired: !!filters.escalationRequired,
   };
 }
 
@@ -218,6 +254,7 @@ export default function KnowledgeBaseSettings({ onClose }) {
   const [saving, setSaving] = useState(false);
   const [keywords, setKeywords] = useState(() => normalizeKeywords(DEFAULT_KB.keywords));
   const [newKeyword, setNewKeyword] = useState({ critical: '', important: '', low: '' });
+  const [filters, setFilters] = useState(() => normalizeFilters(DEFAULT_KB.filters));
   const [thresholds, setThresholds] = useState(() => normalizeThresholds(DEFAULT_KB.thresholds));
   const [glossaryRows, setGlossaryRows] = useState(() => glossaryToRows(DEFAULT_KB.glossary));
   const [promptInstruction, setPromptInstruction] = useState(DEFAULT_KB.promptInstruction);
@@ -234,6 +271,7 @@ export default function KnowledgeBaseSettings({ onClose }) {
       if (res?.config) {
         const nextKeywords = normalizeKeywords(res.config.keywords);
         setKeywords(nextKeywords);
+        setFilters(normalizeFilters(res.config.filters));
         setThresholds(normalizeThresholds(res.config.thresholds));
         setGlossaryRows(glossaryToRows(res.config.glossary || {}));
         setPromptInstruction(res.config.promptInstruction || '');
@@ -250,6 +288,10 @@ export default function KnowledgeBaseSettings({ onClose }) {
   const setThreshold = (key, value) => {
     const next = Number(value);
     setThresholds((current) => ({ ...current, [key]: Number.isNaN(next) ? 0 : next }));
+  };
+
+  const setFilter = (key, value) => {
+    setFilters((current) => ({ ...current, [key]: value }));
   };
 
   const removeKeyword = (tier, keyword) => {
@@ -304,6 +346,7 @@ export default function KnowledgeBaseSettings({ onClose }) {
           low: dedupeKeywordList(keywords.low),
           categories: keywords.categories || {},
         },
+        filters: serializeFilters(filters),
         thresholds,
         glossary: rowsToGlossary(glossaryRows),
         promptInstruction,
@@ -356,6 +399,63 @@ export default function KnowledgeBaseSettings({ onClose }) {
               onRemove={removeKeyword}
             />
           ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        icon={Search}
+        eyebrow="Processing scope"
+        title="Which mails AI should include"
+        subtitle="These controls decide the email set that moves into analysis before priority, risk, and report generation are calculated."
+      >
+        <div className="kb-scope-grid">
+          <label className="kb-scope-field">
+            <span>Include sender emails</span>
+            <Input
+              value={filters.senderEmail}
+              onChange={(event) => setFilter('senderEmail', event.target.value)}
+              placeholder="user@example.com, ..."
+            />
+          </label>
+          <label className="kb-scope-field">
+            <span>Include sender domains</span>
+            <Input
+              value={filters.senderDomain}
+              onChange={(event) => setFilter('senderDomain', event.target.value)}
+              placeholder="fda.gov, vendor.com, ..."
+            />
+          </label>
+          <label className="kb-scope-field">
+            <span>Include priority bands</span>
+            <Input
+              value={filters.priority}
+              onChange={(event) => setFilter('priority', event.target.value)}
+              placeholder="Critical, High, Medium, Low"
+            />
+          </label>
+        </div>
+        <div className="kb-filter-grid kb-filter-grid--scope">
+          {[
+            ['hasAttachments', 'Include mails with attachments'],
+            ['unreadOnly', 'Include unread mails'],
+            ['requiresReply', 'Include mails requiring reply'],
+            ['containsKbKeywords', 'Include mails matching KB keywords'],
+            ['escalationRequired', 'Include escalation-required mails'],
+          ].map(([key, label]) => {
+            const active = !!filters[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`kb-filter ${active ? 'is-on' : ''}`}
+                onClick={() => setFilter(key, !active)}
+              >
+                <span>{label}</span>
+                <em>{active ? 'on' : 'off'}</em>
+                <i aria-hidden="true"><b /></i>
+              </button>
+            );
+          })}
         </div>
       </SectionCard>
 

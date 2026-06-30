@@ -16,8 +16,9 @@ const keepKnown = (values = [], allowed = [], fallback = []) => {
 };
 
 function sanitizeReportConfigData(data = {}) {
+  const { filters, ...rest } = data;
   return {
-    ...data,
+    ...rest,
     enabledSections: keepKnown(data.enabledSections, ALL_SECTIONS, DEFAULT_SECTIONS),
     selectedFields: keepKnown(data.selectedFields, ALL_FIELDS, DEFAULT_FIELDS),
   };
@@ -27,18 +28,6 @@ const DEFAULT_REPORT_CONFIG = {
   reportName: 'Default Config',
   enabledSections: DEFAULT_SECTIONS,
   selectedFields: DEFAULT_FIELDS,
-  filters: {
-    dateRange: { from: '', to: '' },
-    senderEmail: [],
-    senderDomain: [],
-    department: [],
-    priority: [],
-    hasAttachments: false,
-    unreadOnly: false,
-    requiresReply: false,
-    containsKbKeywords: false,
-    escalationRequired: false,
-  },
   promptInstruction: '',
   outputStyle: 'detailed',
   isDefault: true,
