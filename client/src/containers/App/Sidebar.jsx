@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sun, Mail, LayoutDashboard, FileText, Send, Settings,
-  Menu, Users, Shield, LogOut, BookOpen,
+  Menu, Users, Shield, LogOut, BookOpen, PenLine,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { label: 'Command Center', path: '/operationsCommandCenter', icon: LayoutDashboard },
   { label: 'Reports', path: '/operationsReport', icon: FileText },
   { label: 'Knowledge Base', path: '/knowledgeBase', icon: BookOpen },
+  { label: 'Drafts', path: '/drafts', icon: PenLine },
   { label: 'Bulk Email', path: '/bulkEmailSend', icon: Send },
   { label: 'Connections', path: '/connectionsDelivery', icon: Settings },
 ];

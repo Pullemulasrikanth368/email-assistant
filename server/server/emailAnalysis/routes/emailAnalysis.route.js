@@ -35,6 +35,9 @@ router.post("/mail/forward", asyncHandler(emailAnalysisCtrl.forwardMail));
 router.post("/mail/delete", asyncHandler(emailAnalysisCtrl.deleteMails));
 router.post("/mail/mark-read", asyncHandler(emailAnalysisCtrl.markMailReadState));
 
+// AI-generated draft reply for a single email.
+router.post("/mails/:id/generate-reply", asyncHandler(emailAnalysisCtrl.generateAiReply));
+
 /**
  * Reports (the generated "morning brief").
  * Specific paths are declared before the "/reports/:id" catch-all.

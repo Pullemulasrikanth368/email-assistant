@@ -19,6 +19,10 @@ import emailAnalysisRoutes from "../emailAnalysis/routes/emailAnalysis.route";
 // mount email-analysis mail data routes at /email-analysis
 router.use("/email-analysis", emailAnalysisRoutes);
 
+import emailDraftRoutes from "../emailAnalysis/routes/emailDraft.route";
+// mount draft management routes at /email-analysis/drafts
+router.use("/email-analysis/drafts", emailDraftRoutes);
+
 import microsoftRoutes from "../microsoft/routes/microsoft.route";
 // mount Microsoft Teams data + delivery routes at /microsoft
 router.use("/microsoft", microsoftRoutes);

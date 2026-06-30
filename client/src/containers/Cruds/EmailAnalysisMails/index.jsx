@@ -7,6 +7,7 @@ import { RefreshCw, Trash2, Flag, Link } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
+import AiDraftReply from '../CommonComponents/AiDraftReply';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -562,8 +563,14 @@ const EmailAnalysisMails = () => {
 
         <MailBody body={selectedMail.body} snippet={selectedMail.snippet} />
 
-        {/* One-click quick replies (AI-suggested, sent on the thread) */}
-        <QuickReplies sourceId={selectedMail.providerMessageId} />
+        {/* Quick replies + AI draft reply bar */}
+        <div className="ea-reply-section">
+          <QuickReplies sourceId={selectedMail.providerMessageId} />
+          <AiDraftReply
+            mailId={selectedMail._id}
+            sourceId={selectedMail.providerMessageId}
+          />
+        </div>
 
         {attachments.length > 0 && (
           <div className="ea-attachments">

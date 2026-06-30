@@ -16,6 +16,7 @@ const DailyBrief              = React.lazy(() => import('../Cruds/DailyBrief/ind
 const BulkEmailSend           = React.lazy(() => import('../Cruds/BulkEmailSend/index.jsx'));
 const OperationsCommandCenter = React.lazy(() => import('../Cruds/OperationsCommandCenter/index.jsx'));
 const KnowledgeBase           = React.lazy(() => import('../Cruds/KnowledgeBase/index.jsx'));
+const Drafts                  = React.lazy(() => import('../Cruds/Drafts/index.jsx'));
 const ConnectionsDelivery     = React.lazy(() => import('../Settings/ConnectionsDelivery/index.jsx'));
 const Settings                = React.lazy(() => import('../Settings/index.jsx'));
 
@@ -55,6 +56,7 @@ const router = createBrowserRouter([
       { path: '/bulkEmailSend',            Component: () => P(BulkEmailSend) },
       { path: '/operationsCommandCenter',  Component: () => P(OperationsCommandCenter) },
       { path: '/knowledgeBase',            Component: () => P(KnowledgeBase) },
+      { path: '/drafts',                   Component: () => P(Drafts) },
       { path: '/connectionsDelivery',      Component: () => P(ConnectionsDelivery) },
       { path: '/settings',                 Component: () => P(Settings) },
       { path: '/users',                    Component: () => P(Users) },

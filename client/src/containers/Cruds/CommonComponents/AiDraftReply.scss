@@ -1,0 +1,212 @@
+// ── AI Draft Reply trigger row ──────────────────────────────────────────────
+.aidr-trigger-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.aidr-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #1a1f2e;
+  color: #fff;
+  border: none;
+  border-radius: 18px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: #2d3748;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .aidr-trigger-icon {
+    font-size: 12px;
+    color: #7c86f4;
+  }
+
+  .aidr-trigger-arrow {
+    font-size: 11px;
+    color: #a0aec0;
+  }
+}
+
+// ── AI Draft Reply panel ────────────────────────────────────────────────────
+.aidr-panel {
+  margin-top: 14px;
+  border: 1px solid #e8eaed;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+
+  &--loading {
+    padding: 16px;
+  }
+
+  &--sent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #15803d;
+    font-size: 13px;
+    font-weight: 600;
+  }
+}
+
+.aidr-sent-icon {
+  font-size: 16px;
+  color: #16a34a;
+}
+
+// Header label row
+.aidr-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e8eaed;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #5f6368;
+  text-transform: uppercase;
+}
+
+.aidr-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+
+  &--pulse {
+    animation: aidr-pulse 1.2s ease-in-out infinite;
+  }
+}
+
+.aidr-provider-tag {
+  margin-left: auto;
+  background: #e8eaed;
+  color: #3c4043;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+// Loading state
+.aidr-spinner-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 4px;
+  font-size: 13px;
+  color: #5f6368;
+
+  i { font-size: 15px; color: #1a73e8; }
+}
+
+// Error messages
+.aidr-err {
+  font-size: 12px;
+  color: #d93025;
+  flex: 1;
+
+  &--inline {
+    padding: 6px 14px;
+    background: #fce8e6;
+    border-bottom: 1px solid #f5c6c2;
+  }
+}
+
+// Editable reply textarea
+.aidr-textarea {
+  width: 100%;
+  display: block;
+  border: none;
+  outline: none;
+  resize: vertical;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #202124;
+  line-height: 1.65;
+  min-height: 120px;
+  background: #fff;
+
+  &::placeholder { color: #9aa0a6; }
+
+  &:disabled {
+    background: #f8f9fa;
+    color: #5f6368;
+    cursor: not-allowed;
+  }
+}
+
+// Action row
+.aidr-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #e8eaed;
+  background: #f8f9fa;
+}
+
+.aidr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+
+  &:disabled { opacity: 0.55; cursor: default; }
+
+  &--send {
+    background: #1a1f2e;
+    color: #fff;
+    &:hover:not(:disabled) { background: #2d3748; }
+  }
+
+  &--regen {
+    background: transparent;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    &:hover:not(:disabled) { background: #f1f3f4; }
+  }
+
+  &--discard {
+    background: transparent;
+    color: #5f6368;
+    margin-left: auto;
+    padding: 7px 10px;
+    &:hover:not(:disabled) { color: #d93025; }
+  }
+}
+
+@keyframes aidr-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}

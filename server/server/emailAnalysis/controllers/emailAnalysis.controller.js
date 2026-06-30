@@ -35,6 +35,9 @@ import OutlookUser from "../../microsoft/models/outlookUser.model";
 import kbService from "../services/knowledgeBase.service";
 import reportConfigService from "../services/reportConfig.service";
 
+/**@AI Reply */
+import aiReplyService from "../services/aiReply.service";
+
 /**
  * Convert a stored attachment savedPath ("server/upload/email-analysis/<file>")
  * into a public URL. The server serves <server>/server/upload at "/images".
@@ -1364,4 +1367,32 @@ export default {
   createReportConfigCtrl,
   updateReportConfigCtrl,
   deleteReportConfigCtrl,
+  generateAiReply,
 };
+
+/**
+ * Generate an AI-drafted reply for a given email.
+ * GET param :id is the EmailAnalysisMail._id.
+ * Optional body: { tone } — defaults to "professional".
+ *
+ * Response: { respCode, reply, provider, threadCount }
+ */
+async function generateAiReply(req, res) {
+  const mail = await EmailAnalysisMail.findOne({ _id: req.params.id, active: true }).lean();
+  if (!mail) return res.json({ errorCode: 9002, errorMessage: "Email not found." });
+
+  const tone = String(req.body?.tone || req.query?.tone || "professional").trim();
+
+  try {
+    const result = await aiReplyService.generateReply(mail, { tone });
+    return res.json({
+      respCode: 200,
+      reply: result.reply,
+      provider: result.provider,
+      threadCount: result.threadCount,
+    });
+  } catch (err) {
+    console.error("[EmailAnalysis] AI reply generation failed:", err.message);
+    return res.json({ errorCode: 9400, errorMessage: `AI reply failed: ${err.message}` });
+  }
+}
