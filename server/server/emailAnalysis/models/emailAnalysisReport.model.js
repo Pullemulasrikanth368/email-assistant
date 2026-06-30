@@ -38,6 +38,17 @@ const EmailAnalysisReportSchema = new mongoose.Schema({
   },
 
   active: { type: Boolean, default: true },
+
+  // Snapshots of the configs that were active when this report was generated.
+  // Stored so old reports can show exactly what rules/settings produced them.
+  knowledgeBaseSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+  reportConfigSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+
+  // Summary of keywords that were matched across all emails in this report.
+  matchedKeywordsSummary: { type: mongoose.Schema.Types.Mixed, default: null },
+  // Which sections and fields were active at generation time.
+  reportSectionsUsed: { type: [String], default: [] },
+  selectedFieldsUsed: { type: [String], default: [] },
 }, { usePushEach: true, timestamps: true });
 
 EmailAnalysisReportSchema.index({ email: 1, reportType: 1, periodStart: 1 }, { unique: true });

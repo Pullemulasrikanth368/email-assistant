@@ -10,6 +10,7 @@ const BRIEF_ARRAY_KEYS = [
   "risks",
   "todoList",
   "actions",
+  "events",
   "collisions",
   "patterns",
   "deadlines",
@@ -39,19 +40,106 @@ function isUsableBrief(brief) {
   return brief && typeof brief === "object" && typeof brief.narrative === "string";
 }
 
-// Keyword scans for the offline fallback.
-const CRITICAL_RE = /\b(urgent|critical|asap|immediately|outage|down(time)?|breach|recall|escalat\w*|incident|security|legal|deadline|overdue|fail\w*|penalty|fine)\b/i;
-const IMPORTANT_RE = /\b(action|review|approve|approval|sign[- ]?off|please|request|reminder|follow[- ]?up|due|response needed|reply|confirm|pending|invoice|payment)\b/i;
+/**
+ * Build regex patterns from KB keywords for the offline fallback.
+ * Falls back to hardcoded defaults if no KB config is provided.
+ */
+function buildFallbackRegexes(kb) {
+  const kw = kb && kb.keywords ? kb.keywords : {};
+  const critical = [
+    ...(kw.critical || []),
+    'urgent', 'critical', 'asap', 'immediately', 'outage', 'downtime', 'breach',
+    'recall', 'escalat', 'incident', 'security', 'legal', 'deadline', 'overdue',
+    'fail', 'penalty', 'fine',
+  ].filter(Boolean);
+  const important = [
+    ...(kw.important || []),
+    'action', 'review', 'approve', 'approval', 'sign-off', 'please', 'request',
+    'reminder', 'follow-up', 'due', 'response needed', 'reply', 'confirm',
+    'pending', 'invoice', 'payment',
+  ].filter(Boolean);
+
+  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const critRe = new RegExp(`\\b(${critical.map(escapeRe).join('|')})\\b`, 'i');
+  const impRe = new RegExp(`\\b(${important.map(escapeRe).join('|')})\\b`, 'i');
+  return { critRe, impRe };
+}
 
 /**
- * Build a brief from the ACTUAL emails when OpenAI is unavailable, so the
- * report always reflects the saved mail (never unrelated canned data).
+ * Summarise which KB keywords were matched across the email set.
+ * Returns { critical: [...], important: [...], low: [...] } deduped lists.
  */
-function fallbackBriefFromEmails(emails = []) {
+function buildMatchedKeywordsSummary(emails = [], kb) {
+  const kw = (kb && kb.keywords) ? kb.keywords : {};
+  const allCrit = kw.critical || [];
+  const allImp = kw.important || [];
+  const allLow = kw.low || [];
+
+  const matchedCrit = new Set();
+  const matchedImp = new Set();
+  const matchedLow = new Set();
+
+  emails.forEach((e) => {
+    const hay = `${e.subject || ''} ${String(e.body || '').slice(0, 1000)}`.toLowerCase();
+    allCrit.forEach((k) => { if (hay.includes(k.toLowerCase())) matchedCrit.add(k); });
+    allImp.forEach((k) => { if (hay.includes(k.toLowerCase())) matchedImp.add(k); });
+    allLow.forEach((k) => { if (hay.includes(k.toLowerCase())) matchedLow.add(k); });
+  });
+
+  return {
+    critical: [...matchedCrit],
+    important: [...matchedImp],
+    low: [...matchedLow],
+  };
+}
+
+/**
+ * Apply report config filters to the email list before building the brief.
+ * Filters: senderEmail, senderDomain, priority (from pre-prioritized mail).
+ * Non-destructive: returns a filtered copy; original array is untouched.
+ */
+function applyFilters(emails = [], reportConfig) {
+  const f = reportConfig && reportConfig.filters ? reportConfig.filters : {};
+  let out = emails;
+
+  if (f.senderEmail && f.senderEmail.length) {
+    const addrs = f.senderEmail.map((s) => s.toLowerCase());
+    out = out.filter((e) => addrs.some((a) => (e.from || '').toLowerCase().includes(a)));
+  }
+  if (f.senderDomain && f.senderDomain.length) {
+    out = out.filter((e) => f.senderDomain.some((d) => (e.from || '').toLowerCase().includes(d.toLowerCase())));
+  }
+  if (f.priority && f.priority.length) {
+    out = out.filter((e) => !e.priority || f.priority.includes(e.priority));
+  }
+  if (f.hasAttachments) {
+    out = out.filter((e) => e.hasAttachments);
+  }
+
+  return out;
+}
+
+/**
+ * Build a brief from the ACTUAL emails when AI is unavailable, so the
+ * report always reflects the saved mail (never unrelated canned data).
+ * Uses KB keywords when available, hardcoded patterns as fallback.
+ */
+function fallbackBriefFromEmails(emails = [], kb) {
+  const { critRe, impRe } = buildFallbackRegexes(kb);
+
   const triage = emails.map((e) => {
     const hay = `${e.subject || ""} ${String(e.body || "").slice(0, 600)}`;
-    const tier = CRITICAL_RE.test(hay) ? "Critical" : IMPORTANT_RE.test(hay) ? "Important" : "Low";
-    return { sourceId: e.id, tier, reason: e.subject || "(no subject)" };
+
+    const critMatched = (kb && kb.keywords && kb.keywords.critical || []).filter((k) => hay.toLowerCase().includes(k.toLowerCase()));
+    const impMatched = (kb && kb.keywords && kb.keywords.important || []).filter((k) => hay.toLowerCase().includes(k.toLowerCase()));
+
+    const tier = critRe.test(hay) ? "Critical" : impRe.test(hay) ? "Important" : "Low";
+    return {
+      sourceId: e.id,
+      tier,
+      reason: e.subject || "(no subject)",
+      matchedKeywords: tier === "Critical" ? critMatched : tier === "Important" ? impMatched : [],
+    };
   });
 
   const critical = triage.filter((t) => t.tier === "Critical");
@@ -78,48 +166,59 @@ function fallbackBriefFromEmails(emails = []) {
 }
 
 /**
- * Generate a brief from emails. Live mode uses OpenAI (JSON mode, gpt-4o via
- * the shared util). On ANY failure (no key, network, bad JSON) it falls back
- * to the baked-in sample so the demo always works.
+ * Generate a brief from emails. Live mode uses OpenAI/Ollama (JSON mode via
+ * the shared aiClient). On ANY failure it falls back to keyword-based triage
+ * so the report always reflects the real inbox.
  *
  * @param {Array} emails          - mapped email shape (see CONTRACT.md)
  * @param {Array} yesterdayRisks  - previous report's risks (for trend)
- * @param {Object} meta           - { periodLabel }
- * @returns {Promise<{brief, source}>}
+ * @param {Object} meta           - { periodLabel, knowledgeBaseConfig?, reportConfig? }
+ * @returns {Promise<{brief, source, matchedKeywordsSummary}>}
  */
 export async function generateBrief(emails = [], yesterdayRisks = [], meta = {}) {
+  const kb = meta.knowledgeBaseConfig || null;
+  const reportConfig = meta.reportConfig || null;
+
+  // Apply report config filters before analysis.
+  const filteredEmails = applyFilters(emails, reportConfig);
+
   // No emails -> a designed "quiet day", not an error.
-  if (!emails.length) {
+  if (!filteredEmails.length) {
     return {
       brief: normalizeBrief({
         narrative: "Calm period — no emails to analyse in this window.",
       }),
       source: "sample",
+      matchedKeywordsSummary: { critical: [], important: [], low: [] },
     };
   }
 
-  try {
-    const prompt = buildBriefPrompt(emails, yesterdayRisks, meta);
-    const provider = await aiClient.currentProvider();
-    const result = await aiClient.createChat(prompt); // JSON mode, parsed (openai|ollama)
+  const matchedKeywordsSummary = buildMatchedKeywordsSummary(filteredEmails, kb);
 
-    // Log the raw analysis for inspection.
+  try {
+    const prompt = buildBriefPrompt(filteredEmails, yesterdayRisks, meta);
+    const provider = await aiClient.currentProvider();
+    const result = await aiClient.createChat(prompt);
+
     console.log(
-      `[EmailAnalysis] ${provider} response for "${meta.periodLabel || ""}" (${emails.length} emails):`,
+      `[EmailAnalysis] ${provider} response for "${meta.periodLabel || ""}" (${filteredEmails.length} emails):`,
       JSON.stringify(result, null, 2)
     );
 
     if (!isUsableBrief(result)) {
       throw new Error(`${provider} returned an unusable brief`);
     }
-    return { brief: normalizeBrief(result), source: "live" };
+    return { brief: normalizeBrief(result), source: "live", matchedKeywordsSummary };
   } catch (err) {
-    console.error("[EmailAnalysis] Brief engine fell back (OpenAI unavailable):", err.message);
-    // Reflect the real inbox even when AI is down, rather than canned data.
-    if (emails.length) {
-      return { brief: normalizeBrief(fallbackBriefFromEmails(emails)), source: "sample" };
+    console.error("[EmailAnalysis] Brief engine fell back (AI unavailable):", err.message);
+    if (filteredEmails.length) {
+      return {
+        brief: normalizeBrief(fallbackBriefFromEmails(filteredEmails, kb)),
+        source: "sample",
+        matchedKeywordsSummary,
+      };
     }
-    return { brief: normalizeBrief(sampleBrief), source: "sample" };
+    return { brief: normalizeBrief(sampleBrief), source: "sample", matchedKeywordsSummary };
   }
 }
 

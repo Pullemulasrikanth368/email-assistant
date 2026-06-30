@@ -22,6 +22,34 @@ function scoreVar(score) {
 
 const TREND_LABEL = { New: "new", Escalating: "escalating", Cooling: "cooling", Stable: "stable" };
 
+const TRIAGE_MATRIX_POSITION = {
+  Critical: { likelihood: 4, impact: 4 },
+  Important: { likelihood: 3, impact: 2 },
+  Low: { likelihood: 1, impact: 1 },
+};
+
+function triageToMatrixRisk(item = {}) {
+  const pos = TRIAGE_MATRIX_POSITION[item.tier] || TRIAGE_MATRIX_POSITION.Low;
+  return {
+    category: item.tier || "Low",
+    summary: item.reason || `${item.tier || "Low"} priority email`,
+    likelihood: pos.likelihood,
+    impact: pos.impact,
+    riskScore: pos.likelihood * pos.impact,
+    clock: item.tier === "Low" ? "low" : "triage",
+    trend: "Stable",
+    sourceId: item.sourceId,
+  };
+}
+
+function buildRiskMatrixItems(risks = [], triage = []) {
+  const usedSourceIds = new Set(risks.map((r) => r.sourceId).filter(Boolean));
+  const triagePoints = triage
+    .filter((t) => t?.sourceId && !usedSourceIds.has(t.sourceId))
+    .map(triageToMatrixRisk);
+  return [...risks, ...triagePoints];
+}
+
 const STYLE = `<style>
 :root{--ink:#14181f;--ink2:#2a3340;--paper:#f4f5f3;--panel:#fff;--line:#d9dcd6;--muted:#687180;--accent:#1f6f6b;--accent-soft:#e4efed;--crit:#b3261e;--high:#c4631a;--med:#c9a227;--low:#4f7a3f;--crit-bg:#fbe9e7;--high-bg:#fbeee2;--med-bg:#faf6e2;--low-bg:#ecf3e8;--mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;--sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .cc{background:var(--paper);font-family:var(--sans);color:var(--ink);padding:24px;border:1px solid #c3c5bf;border-radius:8px;line-height:1.5}
@@ -60,6 +88,8 @@ const STYLE = `<style>
 .cc .todo:first-child{border-top:none}
 .cc .box{width:16px;height:16px;border:1.5px solid var(--accent);border-radius:3px;flex:none}
 .cc .todo .d{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--crit)}
+.cc .event{border-top:1px solid var(--line);padding:9px 0}
+.cc .event:first-child{border-top:none}.cc .event .et{font-weight:650;font-size:13px}.cc .event .em{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;color:var(--muted);font-family:var(--mono);font-size:11px}
 .cc .tier{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin:13px 0 5px}
 .cc .trow{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13px}
 .cc .dotm{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none}
@@ -100,7 +130,7 @@ function renderMatrix(risks = []) {
       cells += `<div class="cell" style="background:${scoreVar(score)};opacity:${op}">${here.length > 1 ? here.length : ""}</div>`;
     }
   }
-  return `<div class="panel"><div class="ph">Risk matrix</div><div class="matrix">${cells}</div></div>`;
+  return `<div class="panel"><div class="ph">Risk matrix<span class="n">${risks.length}</span></div><div class="matrix">${cells}</div></div>`;
 }
 
 function renderCollisions(list = []) {
@@ -117,6 +147,29 @@ function renderTodo(list = []) {
     `<div class="todo"><span class="box"></span><span>${esc(t.task)}</span>${t.deadline ? `<span class="d">${esc(t.deadline)}</span>` : ""}</div>`
   ).join("");
   return `<div class="panel"><div class="ph">Your to-do<span class="n">${list.length}</span></div>${rows}</div>`;
+}
+
+function renderPatterns(list = []) {
+  if (!list.length) return "";
+  const rows = list.map((p) => `<div class="trow"><span class="reason">${esc(p)}</span></div>`).join("");
+  return `<div class="panel"><div class="ph">Patterns<span class="n">${list.length}</span></div>${rows}</div>`;
+}
+
+function renderActions(list = []) {
+  if (!list.length) return "";
+  const rows = list.map((a) =>
+    `<div class="trow"><span class="reason">${esc(a.task || "")}${a.owner ? ` · ${esc(a.owner)}` : ""}${a.deadline ? ` · ${esc(a.deadline)}` : ""}</span></div>`
+  ).join("");
+  return `<div class="panel"><div class="ph">Action register<span class="n">${list.length}</span></div>${rows}</div>`;
+}
+
+function renderEvents(list = []) {
+  if (!list.length) return "";
+  const rows = list.map((e) => {
+    const meta = [e.when, e.type, e.owner].filter(Boolean).map((v) => `<span>${esc(v)}</span>`).join("");
+    return `<div class="event"><div class="et">${esc(e.title)}</div>${meta ? `<div class="em">${meta}</div>` : ""}</div>`;
+  }).join("");
+  return `<div class="panel"><div class="ph">Events mentioned<span class="n">${list.length}</span></div>${rows}</div>`;
 }
 
 function renderTriage(triage = []) {
@@ -150,21 +203,36 @@ function renderRiskDetail(risks = []) {
 export function renderBriefMarkdown(report) {
   const brief = report?.brief || {};
   const risks = [...(brief.risks || [])].sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
+  const riskMatrixItems = buildRiskMatrixItems(risks, brief.triage || []);
+  const enabledSections = report?.reportConfigSnapshot?.enabledSections || null;
+  const sectionEnabled = (key) => !enabledSections || enabledSections.includes(key);
   const label = report?.periodLabel || "";
   const source = report?.source === "live" ? "live" : "sample";
   const generatedAt = report?.generatedAt ? new Date(report.generatedAt).toISOString() : "";
 
   const frontmatter = `---\ntitle: "Operations Brief — ${label}"\ngeneratedAt: "${generatedAt}"\nsource: "${source}"\n---\n\n`;
+  const leftColumn = [
+    sectionEnabled("decisionQueue") ? renderDecisions(brief.decisionQueue) : "",
+    sectionEnabled("riskRadar") ? renderRadar(risks) : "",
+    sectionEnabled("patterns") ? renderPatterns(brief.patterns) : "",
+    sectionEnabled("actionRegister") ? renderActions(brief.actions) : "",
+  ].join("");
+  const rightColumn = [
+    sectionEnabled("riskRadar") ? renderMatrix(riskMatrixItems) : "",
+    sectionEnabled("calendarConflicts") ? renderCollisions(brief.collisions) : "",
+    sectionEnabled("todoList") ? renderTodo(brief.todoList) : "",
+    sectionEnabled("events") ? renderEvents(brief.events) : "",
+  ].join("");
 
   const body = `<div class="cc">
 <div class="topbar"><div><div class="eyebrow">Operations command center</div><h1>Morning brief — ${esc(label)}</h1></div><div><span class="badge ${source}">${source === "live" ? "LIVE AI" : "SAMPLE"}</span></div></div>
-${brief.narrative ? `<div class="narr"><p>${esc(brief.narrative)}</p></div>` : ""}
+${sectionEnabled("narrativeSummary") && brief.narrative ? `<div class="narr"><p>${esc(brief.narrative)}</p></div>` : ""}
 <div class="grid2">
-<div>${renderDecisions(brief.decisionQueue)}${renderRadar(risks)}</div>
-<div>${renderMatrix(risks)}${renderCollisions(brief.collisions)}${renderTodo(brief.todoList)}</div>
+<div>${leftColumn}</div>
+<div>${rightColumn}</div>
 </div>
-${renderTriage(brief.triage)}
-${renderRiskDetail(risks)}
+${sectionEnabled("inboxTriage") ? renderTriage(brief.triage) : ""}
+${sectionEnabled("riskRadar") ? renderRiskDetail(risks) : ""}
 </div>`;
 
   return `${frontmatter}${STYLE}\n${body}\n`;

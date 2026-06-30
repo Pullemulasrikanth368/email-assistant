@@ -1,16 +1,17 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { InputText } from 'primereact/inputtext';
-import { Button } from 'primereact/button';
 import { Paginator } from 'primereact/paginator';
-import { SelectButton } from 'primereact/selectbutton';
-import { Dialog } from 'primereact/dialog';
-import { classNames } from 'primereact/utils';
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
+import { RefreshCw, Trash2, Flag, Link } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import './EmailAnalysisMails.scss';
 
 /* ------------------------------------------------------------------ */
@@ -430,7 +431,7 @@ const EmailAnalysisMails = () => {
   const prioritizeNow = async () => {
     setPrioritizing(true);
     try {
-      const res = await fetchMethodRequest('POST', 'email-analysis/mails/prioritize', {});
+      const res = await fetchMethodRequest('POST', 'email-analysis/mails/prioritize', { force: true });
       if (res?.respCode) {
         showToasterMessage(`Prioritized ${res.count || 0} email(s)`, 'success');
         refresh();
@@ -454,7 +455,7 @@ const EmailAnalysisMails = () => {
     return (
       <div
         key={mail._id}
-        className={classNames('ea-row', { unread: !isRead, selected: isSelected })}
+        className={cn('ea-row', { unread: !isRead, selected: isSelected })}
         onClick={() => openMail(mail)}
         role="button"
         tabIndex={0}
@@ -523,12 +524,12 @@ const EmailAnalysisMails = () => {
       <div className="ea-reader">
         <div className="ea-reader-toolbar">
           <Button
-            icon="pi pi-arrow-left"
-            className="ea-back-btn p-button-text"
+            size="icon"
+            className="ea-back-btn"
             onClick={() => setShowReadingPaneMobile(false)}
             aria-label="Back"
-          />
-          <h2 className="ea-reader-subject">{selectedMail.subject || '(no subject)'}</h2>
+          >heloo
+          </Button>
         </div>
 
         <div className="ea-reader-meta">
@@ -543,10 +544,13 @@ const EmailAnalysisMails = () => {
             <div className="ea-meta-sub">
               to {to.name || to.email || 'me'}
               {(selectedMail.cc || []).length > 0 && `, cc: ${selectedMail.cc.join(', ')}`}
+              <p className="ea-reader-subject"><b>Subject:</b> {selectedMail.subject || '(no subject)'}</p>
             </div>
           </div>
           <div className="ea-meta-date">{formatFullDate(selectedMail.receivedAt)}</div>
         </div>
+
+
 
         <MailBody body={selectedMail.body} snippet={selectedMail.snippet} />
 
@@ -607,7 +611,7 @@ const EmailAnalysisMails = () => {
         <div className="ea-list-state">
           <i className="pi pi-exclamation-triangle" />
           <span>{error}</span>
-          <Button label="Retry" className="p-button-sm" onClick={refresh} />
+          <Button size="sm" variant="outline" onClick={refresh}>Retry</Button>
         </div>
       );
     }
@@ -622,12 +626,9 @@ const EmailAnalysisMails = () => {
               : 'Connect a Google account and sync to start reading your inbox here.'}
           </p>
           {!appliedSearch && (
-            <Button
-              label="Go to Connections"
-              icon="pi pi-link"
-              className="p-button-sm"
-              onClick={() => navigate('/connectionsDelivery')}
-            />
+            <Button size="sm" variant="outline" onClick={() => navigate('/connectionsDelivery')}>
+              <Link size={14} /> Go to Connections
+            </Button>
           )}
         </div>
       );
@@ -641,7 +642,7 @@ const EmailAnalysisMails = () => {
       return <div className="ea-list-state"><i className="pi pi-spin pi-spinner" /><span>Loading emails…</span></div>;
     }
     if (error) {
-      return <div className="ea-list-state"><i className="pi pi-exclamation-triangle" /><span>{error}</span><Button label="Retry" className="p-button-sm" onClick={refresh} /></div>;
+      return <div className="ea-list-state"><i className="pi pi-exclamation-triangle" /><span>{error}</span><Button size="sm" variant="outline" onClick={refresh}>Retry</Button></div>;
     }
     if (!mails.length) {
       return (
@@ -676,7 +677,7 @@ const EmailAnalysisMails = () => {
                   return (
                     <tr
                       key={mail._id}
-                      className={classNames('ea-prow', { selected: selectedId === mail._id })}
+                      className={cn('ea-prow', { selected: selectedId === mail._id })}
                       onClick={() => openMailPriority(mail)}
                     >
                       <td className="c-prio">
@@ -706,72 +707,87 @@ const EmailAnalysisMails = () => {
   };
 
   return (
-    <div className={classNames('email-analysis-mails', { 'reading-mobile': showReadingPaneMobile, 'priority-mode': viewMode === 'priority' })}>
+    <div className={cn('email-analysis-mails', { 'reading-mobile': showReadingPaneMobile, 'priority-mode': viewMode === 'priority' })}>
       {/* Header */}
       <div className="ea-header">
         <div className="ea-title">
-          <i className="pi pi-envelope" />
+          <i className="pi pi-envelope fw-bold" />
           <span>Inbox</span>
         </div>
         <div className="ea-search">
-          <span className="p-input-icon-left p-input-icon-right">
-            <i className="pi pi-search" />
-            <InputText
+          <span className="ea-search-field">
+            <i className="pi pi-search ea-search-icon" aria-hidden="true" />
+            <Input
               value={search}
               placeholder="Search mail"
               onChange={(e) => onSearchChange(e.target.value)}
+              className="ea-search-input"
             />
-            {search && <i className="pi pi-times ea-clear" onClick={clearSearch} />}
+            {search && (
+              <button
+                type="button"
+                className="ea-clear"
+                onClick={clearSearch}
+                aria-label="Clear search"
+              >
+                <i className="pi pi-times" aria-hidden="true" />
+              </button>
+            )}
           </span>
         </div>
         <div className="ea-actions">
-          <SelectButton
-            value={viewMode}
-            options={VIEW_OPTIONS}
-            onChange={(e) => e.value && setViewMode(e.value)}
-            optionLabel="label"
-            optionValue="value"
-            allowEmpty={false}
-            className="ea-viewtoggle"
-            itemTemplate={(o) => <span><i className={o.icon} style={{ marginRight: 6 }} />{o.label}</span>}
-          />
+          <Tabs value={viewMode} onValueChange={(v) => v && setViewMode(v)} className="ea-viewtoggle">
+            <TabsList>
+              {VIEW_OPTIONS.map((o) => (
+                <TabsTrigger key={o.value} value={o.value}>
+                  <i className={o.icon} style={{ marginRight: 4 }} />{o.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           {viewMode === 'priority' && (
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               className="ea-prioritize-btn"
               onClick={prioritizeNow}
               disabled={prioritizing}
-              title="Re-score this inbox by intent"
+              title="Re-score this inbox using the latest Knowledge Base"
             >
-              <i className={prioritizing ? 'pi pi-spin pi-spinner' : 'pi pi-flag'} />
+              <Flag size={14} />
               <span>Prioritize</span>
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             className="ea-cleanup-btn"
             onClick={openCleanup}
             title="Remove junk, promotional & low-priority mail"
           >
-            <i className="pi pi-trash" />
+            <Trash2 size={14} />
             <span>Clean up</span>
-          </button>
+          </Button>
           <Button
-            icon="pi pi-refresh"
-            className="p-button-text"
+            variant="ghost"
+            size="icon"
             onClick={refresh}
-            tooltip="Refresh"
-            tooltipOptions={{ position: 'bottom' }}
+            title="Refresh"
             disabled={loading}
-          />
+          >
+            <RefreshCw size={15} />
+          </Button>
           <Button
-            label="Sync"
-            icon={syncing ? 'pi pi-spin pi-spinner' : 'pi pi-sync'}
-            className="p-button-sm ea-sync-btn"
+            size="sm"
+            className="ea-sync-btn"
             onClick={onSyncNow}
             disabled={syncing}
-          />
+          >
+            {syncing ? <i className="pi pi-spin pi-spinner" style={{ marginRight: 4 }} /> : null}
+            Sync
+          </Button>
         </div>
+
       </div>
 
       {/* Sub-toolbar: count + paginator */}
@@ -799,84 +815,77 @@ const EmailAnalysisMails = () => {
       )}
 
       {/* Mail viewer for priority mode (no side reading pane there) */}
-      <Dialog
-        visible={mailDialog}
-        onHide={() => setMailDialog(false)}
-        header={null}
-        dismissableMask
-        style={{ width: '720px', maxWidth: '96vw' }}
-        contentClassName="ea-dialog-content"
-      >
-        {renderReadingPane()}
+      <Dialog open={mailDialog} onOpenChange={(o) => !o && setMailDialog(false)}>
+        <DialogContent className="ea-dialog-content max-w-[720px] w-[96vw]">
+          {renderReadingPane()}
+        </DialogContent>
       </Dialog>
 
       {/* One-click cleanup */}
       <Dialog
-        visible={cleanup.visible}
-        onHide={() => { if (!cleanup.removing) setCleanup(c => ({ ...c, visible: false })); }}
-        header={null}
-        dismissableMask
-        showHeader={false}
-        style={{ width: '460px', maxWidth: '94vw' }}
-        contentClassName="ea-clean-dialog"
+        open={cleanup.visible}
+        onOpenChange={(o) => { if (!o && !cleanup.removing) setCleanup(c => ({ ...c, visible: false })); }}
       >
-        <div className="ea-clean-head">
-          <span className="ea-clean-ic"><i className="pi pi-sparkles" /></span>
-          <div>
-            <h2>Clean up inbox</h2>
-            <p>Remove low-value mail after analysis. This only hides it from here — your Gmail is untouched.</p>
+        <DialogContent className="ea-clean-dialog max-w-[460px] w-[94vw]">
+
+          <div className="ea-clean-head">
+            <span className="ea-clean-ic"><i className="pi pi-sparkles" /></span>
+            <div>
+              <h2>Clean up inbox</h2>
+              <p>Remove low-value mail after analysis. This only hides it from here — your Gmail is untouched.</p>
+            </div>
           </div>
-        </div>
 
-        <div className="ea-clean-cats">
-          {CLEANUP_CATS.map((cat) => {
-            const n = cleanup.counts ? (cleanup.counts[cat.key] || 0) : 0;
-            const on = !!cleanup.sel[cat.key];
-            const disabled = !cleanup.loading && n === 0;
-            return (
-              <button
-                type="button"
-                key={cat.key}
-                className={classNames('ea-clean-card', { on: on && !disabled, disabled })}
-                onClick={() => !disabled && toggleCleanup(cat.key)}
-                disabled={disabled}
-              >
-                <span className="ea-clean-card-ic" style={{ color: cat.color, background: `${cat.color}1a` }}>
-                  <i className={cat.icon} />
-                </span>
-                <span className="ea-clean-card-text">
-                  <span className="t">{cat.title}</span>
-                  <span className="d">{cat.desc}</span>
-                </span>
-                <span className="ea-clean-card-n">{cleanup.loading ? '…' : n}</span>
-                <span className={classNames('ea-clean-check', { on: on && !disabled })}>
-                  {on && !disabled && <i className="pi pi-check" />}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+          <div className="ea-clean-cats">
+            {CLEANUP_CATS.map((cat) => {
+              const n = cleanup.counts ? (cleanup.counts[cat.key] || 0) : 0;
+              const on = !!cleanup.sel[cat.key];
+              const disabled = !cleanup.loading && n === 0;
+              return (
+                <button
+                  type="button"
+                  key={cat.key}
+                  className={cn('ea-clean-card', { on: on && !disabled, disabled })}
+                  onClick={() => !disabled && toggleCleanup(cat.key)}
+                  disabled={disabled}
+                >
+                  <span className="ea-clean-card-ic" style={{ color: cat.color, background: `${cat.color}1a` }}>
+                    <i className={cat.icon} />
+                  </span>
+                  <span className="ea-clean-card-text">
+                    <span className="t">{cat.title}</span>
+                    <span className="d">{cat.desc}</span>
+                  </span>
+                  <span className="ea-clean-card-n">{cleanup.loading ? '…' : n}</span>
+                  <span className={cn('ea-clean-check', { on: on && !disabled })}>
+                    {on && !disabled && <i className="pi pi-check" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-        <div className="ea-clean-foot">
-          <button
-            type="button"
-            className="ea-clean-cancel"
-            disabled={cleanup.removing}
-            onClick={() => setCleanup(c => ({ ...c, visible: false }))}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="ea-clean-remove"
-            disabled={cleanup.removing || cleanup.loading || !Object.values(cleanup.sel).some(Boolean) || selectedCleanupTotal === 0}
-            onClick={doCleanup}
-          >
-            {cleanup.removing
-              ? (<><i className="pi pi-spin pi-spinner" /> Removing…</>)
-              : (<><i className="pi pi-trash" /> Remove{selectedCleanupTotal ? ` ${selectedCleanupTotal}` : ''}</>)}
-          </button>
-        </div>
+          <div className="ea-clean-foot">
+            <button
+              type="button"
+              className="ea-clean-cancel"
+              disabled={cleanup.removing}
+              onClick={() => setCleanup(c => ({ ...c, visible: false }))}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="ea-clean-remove"
+              disabled={cleanup.removing || cleanup.loading || !Object.values(cleanup.sel).some(Boolean) || selectedCleanupTotal === 0}
+              onClick={doCleanup}
+            >
+              {cleanup.removing
+                ? (<><i className="pi pi-spin pi-spinner" /> Removing…</>)
+                : (<><i className="pi pi-trash" /> Remove{selectedCleanupTotal ? ` ${selectedCleanupTotal}` : ''}</>)}
+            </button>
+          </div>
+        </DialogContent>
       </Dialog>
     </div>
   );

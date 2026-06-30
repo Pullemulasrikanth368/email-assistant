@@ -1,6 +1,7 @@
 // Image paths as strings (ESM-compatible — no require()).
 // ConnectionsDelivery uses gmailLogo and outlookLogo; others are stubs.
 const configImages = {
+  amnealLogo: '/img/amneal_logo.png',
   gmailLogo: '/img/gmail_logo.png',
   outlookLogo: '/img/outlook_logo.png',
   zohoLogo: '/img/zohoMail_logo.png',

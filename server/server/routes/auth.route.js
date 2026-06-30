@@ -28,6 +28,9 @@ router.get("/microsoft/teams/webhook", asyncHandler(microsoftCtrl.microsoftWebho
 router.get("/microsoft/teams/status", asyncHandler(microsoftCtrl.microsoftStatus));
 router.post("/microsoft/teams/disconnect", asyncHandler(microsoftCtrl.disconnectMicrosoftAccount));
 
+/** POST /api/auth/register — create a new employee account, returns JWT */
+router.post("/register", asyncHandler(authCtrl.register));
+
 /** POST /api/auth/login — employee email/password login, returns JWT */
 router.post("/login", asyncHandler(authCtrl.login));
 

@@ -29,6 +29,10 @@ import EmailAnalysisUser from "../models/emailAnalysisUser.model";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
 import EmailAnalysisReport from "../models/emailAnalysisReport.model";
 
+/**@KB + ReportConfig services */
+import kbService from "../services/knowledgeBase.service";
+import reportConfigService from "../services/reportConfig.service";
+
 /**
  * Convert a stored attachment savedPath ("server/upload/email-analysis/<file>")
  * into a public URL. The server serves <server>/server/upload at "/images".
@@ -1000,6 +1004,76 @@ async function getReportMarkdown(req, res) {
   res.type("text/markdown").send(fs.readFileSync(report.mdPath, "utf8"));
 }
 
+/* ====================== KNOWLEDGE BASE ====================== */
+
+async function getKnowledgeBase(req, res) {
+  const email = await resolveAccount(req.query.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await kbService.getActiveKnowledgeBaseConfig(email);
+  return res.json({ respCode: 200, config });
+}
+
+async function saveKnowledgeBase(req, res) {
+  const email = await resolveAccount(req.body?.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await kbService.saveKnowledgeBaseConfig(email, req.body || {});
+  return res.json({ respCode: 200, respMessage: "Knowledge base saved.", config });
+}
+
+async function patchKbKeywords(req, res) {
+  const email = await resolveAccount(req.body?.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await kbService.patchKeywords(email, req.body?.keywords || {});
+  return res.json({ respCode: 200, respMessage: "Keywords updated.", config });
+}
+
+async function patchKbGlossary(req, res) {
+  const email = await resolveAccount(req.body?.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await kbService.patchGlossary(email, req.body?.glossary || {});
+  return res.json({ respCode: 200, respMessage: "Glossary updated.", config });
+}
+
+/* ====================== REPORT CONFIG ====================== */
+
+async function listReportConfigs(req, res) {
+  const email = await resolveAccount(req.query.email);
+  if (!email) return res.json({ configs: [] });
+  const configs = await reportConfigService.listReportConfigs(email);
+  return res.json({ respCode: 200, configs });
+}
+
+async function getReportConfigById(req, res) {
+  const email = await resolveAccount(req.query.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await reportConfigService.getReportConfig(email, req.params.id);
+  if (!config || !config._id) return res.json({ errorCode: 9002, errorMessage: "Report config not found." });
+  return res.json({ respCode: 200, config });
+}
+
+async function createReportConfigCtrl(req, res) {
+  const email = await resolveAccount(req.body?.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await reportConfigService.createReportConfig(email, req.body || {});
+  return res.json({ respCode: 200, respMessage: "Report config created.", config });
+}
+
+async function updateReportConfigCtrl(req, res) {
+  const email = await resolveAccount(req.body?.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await reportConfigService.updateReportConfig(email, req.params.id, req.body || {});
+  if (!config) return res.json({ errorCode: 9002, errorMessage: "Report config not found." });
+  return res.json({ respCode: 200, respMessage: "Report config updated.", config });
+}
+
+async function deleteReportConfigCtrl(req, res) {
+  const email = await resolveAccount(req.query.email || req.body?.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const ok = await reportConfigService.deleteReportConfig(email, req.params.id);
+  if (!ok) return res.json({ errorCode: 9002, errorMessage: "Report config not found." });
+  return res.json({ respCode: 200, respMessage: "Report config deleted." });
+}
+
 export default {
   emailAnalysisGoogleLogin,
   emailAnalysisGoogleWebhook,
@@ -1030,4 +1104,13 @@ export default {
   setEmailAnalysisModel,
   getIncludeSpam,
   setIncludeSpam,
+  getKnowledgeBase,
+  saveKnowledgeBase,
+  patchKbKeywords,
+  patchKbGlossary,
+  listReportConfigs,
+  getReportConfigById,
+  createReportConfigCtrl,
+  updateReportConfigCtrl,
+  deleteReportConfigCtrl,
 };

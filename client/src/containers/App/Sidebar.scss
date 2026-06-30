@@ -1,0 +1,257 @@
+// Email Assistant — sidebar navigation
+// Palette: light silver + graphite/black
+
+$sb-bg: #ffffff;
+$sb-border: #E5E7EB;
+$sb-accent: #111827;
+$sb-text: #4B5563;
+$sb-muted: #9CA3AF;
+$sb-hover: rgba(0, 0, 0, 0.04);
+$sb-active: #E5E7EB;
+$sb-width: 220px;
+$sb-collapsed: 52px;
+
+.ea-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.ea-main {
+  flex: 1;
+  overflow: auto;
+  min-width: 0;
+  background: #F4F5F7;
+}
+
+/* ── Sidebar shell ── */
+.ea-sidebar {
+  width: $sb-width;
+  min-width: $sb-width;
+  height: 100vh;
+  background: $sb-bg;
+  border-right: 1px solid $sb-border;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease, min-width 0.2s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 100;
+
+  &--collapsed {
+    width: $sb-collapsed;
+    min-width: $sb-collapsed;
+  }
+}
+
+/* ── Logo area ── */
+.ea-sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  // padding: 0 10px;
+  min-height: 52px;
+  border-bottom: 1px solid $sb-border;
+  flex-shrink: 0;
+  overflow: visible; // never clip the toggle button
+}
+
+/* Amneal logo image (expanded state) */
+.ea-sidebar__logo-img {
+  height: 45px;
+  width: auto;
+  object-fit: contain;
+  flex: 1;
+  min-width: 0;
+}
+
+.ea-sidebar__collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid $sb-border;
+  color: $sb-text;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 8px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, .06);
+  transition: color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+
+  &:hover {
+    color: $sb-accent;
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+    box-shadow: 0 2px 7px rgba(17, 24, 39, .1);
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(17, 24, 39, .08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(17, 24, 39, .22);
+    outline-offset: 2px;
+  }
+
+  svg {
+    stroke-width: 2.2;
+  }
+
+  // Collapsed state: button is the only child — centre it
+  &--only {
+    margin: 0 auto;
+  }
+}
+
+/* ── Nav items ── */
+.ea-sidebar__nav {
+  flex: 1;
+  padding: 6px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $sb-border;
+    border-radius: 2px;
+  }
+}
+
+.ea-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  color: $sb-text;
+  text-decoration: none !important;
+  font-size: 13px;
+  font-weight: 400;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+  cursor: pointer;
+
+  &:hover {
+    background: $sb-hover;
+    color: #111827;
+  }
+
+  &--active {
+    background: $sb-active;
+    color: $sb-accent;
+    font-weight: 600;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 4px;
+      bottom: 4px;
+      width: 3px;
+      background: $sb-accent;
+      border-radius: 0 2px 2px 0;
+    }
+  }
+}
+
+.ea-sidebar__item-icon {
+  flex-shrink: 0;
+  opacity: 0.75;
+  stroke-width: 2.1;
+
+  .ea-sidebar__item--active & {
+    opacity: 1;
+  }
+}
+
+.ea-sidebar__item-label {
+  flex: 1;
+}
+
+.ea-sidebar__badge {
+  background: $sb-accent;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+/* ── Footer / user ── */
+.ea-sidebar__footer {
+  border-top: 1px solid $sb-border;
+  padding: 10px 12px;
+  flex-shrink: 0;
+}
+
+.ea-sidebar__user {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  button {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    border: 1px solid transparent !important;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s !important;
+
+    &:hover {
+      border-color: #FECACA !important;
+      box-shadow: 0 2px 7px rgba(127, 29, 29, .08) !important;
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+
+    svg {
+      stroke-width: 2.2;
+    }
+  }
+}
+
+.ea-sidebar__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #D1D5DB;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ea-sidebar__user-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.ea-sidebar__user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: $sb-text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ea-sidebar__user-role {
+  font-size: 10.5px;
+  color: $sb-muted;
+  white-space: nowrap;
+}

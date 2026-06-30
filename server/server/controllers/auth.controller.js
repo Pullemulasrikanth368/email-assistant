@@ -64,6 +64,65 @@ async function login(req, res, next) {
 }
 
 /**
+ * POST /api/auth/register
+ * Body: { name, email, password }
+ * Creates a new employee account and returns a JWT so the user is signed in immediately.
+ */
+async function register(req, res, next) {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        errorCode: 400,
+        errorMessage: 'Name, email and password are required',
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        errorCode: 400,
+        errorMessage: 'Password must be at least 8 characters',
+      });
+    }
+
+    const existing = await Employee.findOne({ email: email.toLowerCase().trim() });
+    if (existing) {
+      return res.status(httpStatus.CONFLICT).json({
+        errorCode: 409,
+        errorMessage: 'An account with this email already exists',
+      });
+    }
+
+    const employee = await Employee.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password,
+    });
+
+    const payload = {
+      _id: employee._id,
+      email: employee.email,
+      name: employee.name,
+      role: employee.role,
+    };
+
+    const accessToken = jwt.sign(payload, JWTSECRET, { expiresIn: JWT_EXPIRES_IN });
+
+    return res.status(httpStatus.CREATED).json({
+      respCode: 201,
+      accessToken,
+      email: employee.email,
+      name: employee.name,
+      role: employee.role,
+      _id: employee._id,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * POST /api/auth/logout
  * Client is responsible for clearing the token from localStorage.
  */
@@ -98,4 +157,4 @@ async function me(req, res) {
   }
 }
 
-export default { login, logout, me };
+export default { login, register, logout, me };

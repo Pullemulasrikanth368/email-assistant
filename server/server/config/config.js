@@ -47,7 +47,7 @@ const config = {
     host: getRequiredEnv(`${PREFIX}MONGO_HOST`),
     dmsHost: getRequiredEnv(`${PREFIX}DMS_MONGO_HOST`),
     port: 27017,
-    test: getRequiredEnv(`${PREFIX}MONGO_TEST`),
+    test: "mongodb://localhost:27017/executive_email_assistant",
   },
   projectName: "executive-email-assistant",
   isLoggerValidEnable: false,

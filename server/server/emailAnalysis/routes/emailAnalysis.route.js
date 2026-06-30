@@ -44,6 +44,25 @@ router.get("/brief-time", asyncHandler(emailAnalysisCtrl.getBriefTime));
 router.post("/brief-time", asyncHandler(emailAnalysisCtrl.setBriefTime));
 
 /**
+ * Knowledge Base configuration (keywords, thresholds, glossary, prompt instruction).
+ */
+router.get("/knowledge-base", asyncHandler(emailAnalysisCtrl.getKnowledgeBase));
+router.post("/knowledge-base", asyncHandler(emailAnalysisCtrl.saveKnowledgeBase));
+router.put("/knowledge-base", asyncHandler(emailAnalysisCtrl.saveKnowledgeBase));
+router.patch("/knowledge-base/keywords", asyncHandler(emailAnalysisCtrl.patchKbKeywords));
+router.patch("/knowledge-base/glossary", asyncHandler(emailAnalysisCtrl.patchKbGlossary));
+
+/**
+ * Report configuration (sections, fields, filters, output style).
+ * Specific paths before the :id catch-all.
+ */
+router.get("/report-configs", asyncHandler(emailAnalysisCtrl.listReportConfigs));
+router.post("/report-configs", asyncHandler(emailAnalysisCtrl.createReportConfigCtrl));
+router.get("/report-configs/:id", asyncHandler(emailAnalysisCtrl.getReportConfigById));
+router.put("/report-configs/:id", asyncHandler(emailAnalysisCtrl.updateReportConfigCtrl));
+router.delete("/report-configs/:id", asyncHandler(emailAnalysisCtrl.deleteReportConfigCtrl));
+
+/**
  * Operations Command Center analytics (dashboard data).
  */
 router.get("/analytics", asyncHandler(emailAnalysisCtrl.getEmailAnalysisAnalytics));

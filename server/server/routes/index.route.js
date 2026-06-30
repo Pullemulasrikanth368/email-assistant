@@ -27,4 +27,10 @@ import settingsRoutes from "./settings.route";
 // mount settings routes at /settings
 router.use("/settings", settingsRoutes);
 
+import usersRoutes from "./users.route";
+router.use("/users", usersRoutes);
+
+import rolesRoutes from "./roles.route";
+router.use("/roles", rolesRoutes);
+
 export default router;

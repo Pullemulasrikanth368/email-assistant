@@ -3,17 +3,21 @@ import React, { Suspense } from 'react';
 import Wrapper from './Wrapper.jsx';
 import { ProtectedRoute } from './ProtectedRoute.jsx';
 
-// Auth screen (public)
+// Auth screens (public — rendered without sidebar)
 import Login from '../Auth/Login.jsx';
+import Register from '../Auth/Register.jsx';
 
-// Lazy-load email analysis screens
-const EmailAnalysisMails    = React.lazy(() => import('../Cruds/EmailAnalysisMails/index.jsx'));
-const OperationsReport      = React.lazy(() => import('../Cruds/OperationsReport/index.jsx'));
-const DailyBrief            = React.lazy(() => import('../Cruds/DailyBrief/index.jsx'));
-const BulkEmailSend         = React.lazy(() => import('../Cruds/BulkEmailSend/index.jsx'));
+// Lazy-load app screens
+const Users                   = React.lazy(() => import('../Admin/Users/index.jsx'));
+const Roles                   = React.lazy(() => import('../Admin/Roles/index.jsx'));
+const EmailAnalysisMails      = React.lazy(() => import('../Cruds/EmailAnalysisMails/index.jsx'));
+const OperationsReport        = React.lazy(() => import('../Cruds/OperationsReport/index.jsx'));
+const DailyBrief              = React.lazy(() => import('../Cruds/DailyBrief/index.jsx'));
+const BulkEmailSend           = React.lazy(() => import('../Cruds/BulkEmailSend/index.jsx'));
 const OperationsCommandCenter = React.lazy(() => import('../Cruds/OperationsCommandCenter/index.jsx'));
-const ConnectionsDelivery   = React.lazy(() => import('../Settings/ConnectionsDelivery/index.jsx'));
-const Settings              = React.lazy(() => import('../Settings/index.jsx'));
+const KnowledgeBase           = React.lazy(() => import('../Cruds/KnowledgeBase/index.jsx'));
+const ConnectionsDelivery     = React.lazy(() => import('../Settings/ConnectionsDelivery/index.jsx'));
+const Settings                = React.lazy(() => import('../Settings/index.jsx'));
 
 const Loading = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -28,7 +32,6 @@ const S = (Component) => (
   </Suspense>
 );
 
-// Wrap a component with ProtectedRoute — redirects to /login when unauthenticated
 const P = (Component) => (
   <ProtectedRoute>
     {S(Component)}
@@ -36,28 +39,26 @@ const P = (Component) => (
 );
 
 const router = createBrowserRouter([
+  // ── Auth routes (no sidebar) ──────────────────────────────────────────────
+  { path: '/login',    Component: Login },
+  { path: '/register', Component: Register },
+
+  // ── App routes (with Sidebar via Wrapper) ─────────────────────────────────
   {
     path: '/',
     Component: Wrapper,
     children: [
-      // Public routes
-      { path: '/login', Component: Login },
-
-      // Root: redirect to email analysis inbox
       { index: true, Component: () => <Navigate to="/emailAnalysisMails" replace /> },
-
-      // Protected email analysis routes
       { path: '/emailAnalysisMails',       Component: () => P(EmailAnalysisMails) },
       { path: '/operationsReport',         Component: () => P(OperationsReport) },
       { path: '/dailyBrief',               Component: () => P(DailyBrief) },
       { path: '/bulkEmailSend',            Component: () => P(BulkEmailSend) },
       { path: '/operationsCommandCenter',  Component: () => P(OperationsCommandCenter) },
+      { path: '/knowledgeBase',            Component: () => P(KnowledgeBase) },
       { path: '/connectionsDelivery',      Component: () => P(ConnectionsDelivery) },
-
-      // Settings routes
       { path: '/settings',                 Component: () => P(Settings) },
-
-      // Catch-all
+      { path: '/users',                    Component: () => P(Users) },
+      { path: '/roles',                    Component: () => P(Roles) },
       { path: '*',                         Component: () => <Navigate to="/emailAnalysisMails" replace /> },
     ],
   },

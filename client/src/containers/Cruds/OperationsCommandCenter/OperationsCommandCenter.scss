@@ -1,12 +1,12 @@
 .ops-cc {
-  --occ-bg: #f5f7fa;
+  --occ-bg: #F4F5F7;
   --occ-panel: #ffffff;
-  --occ-panel2: #f1f3f5;
-  --occ-border: #e3e6ea;
-  --occ-text: #202124;
-  --occ-muted: #5f6368;
-  --occ-hint: #80868b;
-  --occ-blue: #378add;
+  --occ-panel2: #ECEFF3;
+  --occ-border: #D1D5DB;
+  --occ-text: #111827;
+  --occ-muted: #6B7280;
+  --occ-hint: #9CA3AF;
+  --occ-blue: #4B5563;
   --occ-teal: #1d9e75;
   --occ-crit: #e24b4a;
 
@@ -132,5 +132,5 @@
     padding: 6px 12px;
     color: #202124;
   }
-  .p-dropdown-item.p-highlight { color: #1a4f8a; }
+  .p-dropdown-item.p-highlight { color: #111827; }
 }

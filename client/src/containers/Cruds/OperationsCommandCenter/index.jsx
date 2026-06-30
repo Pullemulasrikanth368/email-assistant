@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chart } from 'primereact/chart';
-import { Dropdown } from 'primereact/dropdown';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import fetchMethodRequest from '../../../config/service';
 import './OperationsCommandCenter.scss';
 
@@ -194,15 +194,26 @@ const OperationsCommandCenter = () => {
         </div>
         <div className="occ-controls">
           <span>View by</span>
-          <Dropdown value={gran} options={GRAN_OPTIONS} onChange={(e) => setGran(e.value)} className="occ-select" panelClassName="occ-dropdown-panel" />
-          <Dropdown
-            value={period}
-            options={(series?.periods || []).map((p) => ({ label: p, value: p }))}
-            onChange={(e) => setPeriod(e.value)}
-            className="occ-select"
-            panelClassName="occ-dropdown-panel"
-            placeholder="Period"
-          />
+          <Select value={gran} onValueChange={setGran}>
+            <SelectTrigger className="occ-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GRAN_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={period || ''} onValueChange={setPeriod}>
+            <SelectTrigger className="occ-select">
+              <SelectValue placeholder="Period" />
+            </SelectTrigger>
+            <SelectContent>
+              {(series?.periods || []).map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

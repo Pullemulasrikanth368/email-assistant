@@ -1,6 +1,7 @@
 /**@Mail prioritization - assigns an intent-based priority to each mail */
 import aiClient from "./aiClient";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
+import { getActiveKnowledgeBaseConfig } from "./knowledgeBase.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHUNK = 25; // emails per AI call
@@ -25,9 +26,41 @@ function clampScore(n, priority) {
 }
 
 /** Build the prioritization prompt for a batch of emails. */
-function buildPriorityPrompt(items) {
+function buildPriorityPrompt(items, knowledgeBaseConfig = {}) {
+  const kb = knowledgeBaseConfig || {};
+  const keywords = kb.keywords || {};
+  const thresholds = kb.thresholds || {};
+  const glossary = kb.glossary || {};
+  const categories = keywords.categories || {};
+
+  const criticalKeywords = (keywords.critical || []).join(", ") || "urgent, escalation, deadline, outage, legal, safety";
+  const importantKeywords = (keywords.important || []).join(", ") || "approval, review, follow-up, request, due";
+  const lowKeywords = (keywords.low || []).join(", ") || "FYI, newsletter, update, automated, marketing";
+  const activeCategories = Object.entries(categories)
+    .filter(([, enabled]) => enabled !== false)
+    .map(([name]) => name);
+  const glossaryLines = Object.entries(glossary)
+    .map(([term, definition]) => `- ${term}: ${definition}`)
+    .join("\n");
+
   return `You are an experienced executive assistant. Read each email and judge it like a human would:
 what is the sender's INTENTION, and what does it demand of the recipient?
+
+Use this Knowledge Base as the primary classification guide. It was configured by the user and should override generic assumptions when it applies.
+
+KNOWLEDGE BASE KEYWORDS:
+- Critical signals: ${criticalKeywords}
+- Important signals: ${importantKeywords}
+- Low-priority signals: ${lowKeywords}
+
+KNOWLEDGE BASE THRESHOLDS:
+- Critical score starts at ${thresholds.criticalScore || 80}/100
+- Elevated score starts at ${thresholds.elevatedScore || 50}/100
+- Escalation score starts at ${thresholds.escalationScore || 70}/100
+
+${activeCategories.length ? `SURFACED CATEGORIES:\n${activeCategories.map((c) => `- ${c}`).join("\n")}\n` : ""}
+${glossaryLines ? `DOMAIN GLOSSARY:\n${glossaryLines}\n` : ""}
+${kb.promptInstruction ? `USER INSTRUCTION:\n${kb.promptInstruction}\n` : ""}
 
 Weigh: urgency / time-sensitivity, explicit deadlines, whether a decision or action is required,
 sender importance, business / financial / legal / safety consequence, and whether it is merely
@@ -38,6 +71,12 @@ Assign a PRIORITY for each email:
 - "High": needs the recipient's action soon.
 - "Medium": worth attention, no rush.
 - "Low": FYI, newsletter, automated, no action.
+
+Classification rules:
+- If an email contains Critical KB signals and the context is relevant, classify it as Critical unless the body clearly says the issue is already resolved.
+- If an email contains Important KB signals, classify it at least High or Medium depending on urgency.
+- If an email contains only Low-priority KB signals and no real action/deadline, classify it Low.
+- Mention the KB signal in the reason when it influenced the result.
 
 Also infer a short "intent" tag (e.g. approval-request, deadline, escalation, complaint,
 scheduling, info-request, invoice, fyi, marketing) and a one-line reason.
@@ -71,6 +110,8 @@ export async function prioritizeDay(email, day, opts = {}) {
   }).lean();
   if (!mails.length) return 0;
 
+  const knowledgeBaseConfig = await getActiveKnowledgeBaseConfig(email);
+
   let updated = 0;
   for (let i = 0; i < mails.length; i += CHUNK) {
     const slice = mails.slice(i, i + CHUNK);
@@ -83,7 +124,7 @@ export async function prioritizeDay(email, day, opts = {}) {
 
     let results = [];
     try {
-      const resp = await aiClient.createChat(buildPriorityPrompt(items));
+      const resp = await aiClient.createChat(buildPriorityPrompt(items, knowledgeBaseConfig));
       results = Array.isArray(resp?.items) ? resp.items : [];
       console.log(`[EmailAnalysis] Priority response for ${email} (${items.length} mails):`, JSON.stringify(results, null, 2));
     } catch (err) {
