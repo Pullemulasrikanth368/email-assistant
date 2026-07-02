@@ -40,6 +40,14 @@ function htmlOrText(content = {}) {
   return content?.content || "";
 }
 
+function cleanCid(value = "") {
+  return decodeURIComponent(value)
+    .replace(/^</, "")
+    .replace(/>$/, "")
+    .trim()
+    .toLowerCase();
+}
+
 export default class OutlookMessagesService {
   constructor(email) {
     this.email = email;
@@ -274,6 +282,7 @@ export default class OutlookMessagesService {
         if (existing) continue;
 
         const emailObject = this.#formatMessage(message);
+        emailObject.body = await this.resolveInlineCidImages(message.id, emailObject.body);
         const attachments = await this.#saveAttachments(emailObject);
         const doc = new EmailAnalysisMail({
           ...emailObject,
@@ -317,6 +326,53 @@ export default class OutlookMessagesService {
       hasAttachments: !!message.hasAttachments,
       isRepliedMail: false,
     };
+  }
+
+  // Outlook renders inline images as `<img src="cid:contentId">`. hasAttachments
+  // can be false when a message only has inline images, so check the body directly.
+  // Public (no #) so the controller can re-resolve at request time for mails
+  // that were already saved to Mongo with raw cid: refs before this existed.
+  async resolveInlineCidImages(providerMessageId, html) {
+    await this.#loadUser();
+    console.log("BEFORE INLINE REPLACE:", providerMessageId, String(html || "").includes("cid:"));
+    if (!html || !/src=["']cid:/i.test(html)) return html;
+
+    let attachments;
+    try {
+      const res = await this.#graph("GET", `/me/messages/${encodeURIComponent(providerMessageId)}/attachments`);
+      attachments = res.value || [];
+    } catch (err) {
+      console.error(`[EmailAnalysis] Could not fetch attachments for inline images on ${providerMessageId}:`, err.message);
+      return html;
+    }
+
+    console.log("ATTACHMENTS:", attachments.map((a) => ({
+      name: a.name,
+      isInline: a.isInline,
+      contentId: a.contentId,
+      contentType: a.contentType,
+      hasBytes: !!a.contentBytes,
+    })));
+
+    const inlineAttachments = attachments.filter((att) => (
+      att["@odata.type"] === "#microsoft.graph.fileAttachment"
+      && att.isInline
+      && att.contentId
+      && att.contentBytes
+    ));
+    if (!inlineAttachments.length) return html;
+
+    const finalHtml = html.replace(/src=["']cid:([^"']+)["']/gi, (match, cidFromHtml) => {
+      const cleanHtmlCid = cleanCid(cidFromHtml);
+      const matchedAttachment = inlineAttachments.find((att) => cleanCid(att.contentId) === cleanHtmlCid);
+      if (!matchedAttachment) return match;
+      const dataUrl = `data:${matchedAttachment.contentType};base64,${matchedAttachment.contentBytes}`;
+      return `src="${dataUrl}"`;
+    });
+
+    console.log("AFTER INLINE REPLACE HAS CID:", finalHtml.includes("cid:"));
+    console.log("AFTER INLINE REPLACE HAS DATA IMAGE:", finalHtml.includes("data:image"));
+    return finalHtml;
   }
 
   async #saveAttachments(emailObject) {
@@ -482,5 +538,18 @@ export default class OutlookMessagesService {
       },
     });
     return (data.value || []).map((m) => this.#formatMessage(m));
+  }
+
+  async fetchFullBody(providerMessageId) {
+    await this.#loadUser();
+    const data = await this.#graph("GET", `/me/messages/${encodeURIComponent(providerMessageId)}`, {
+      params: { $select: "id,body,bodyPreview" },
+    });
+    const body = await this.resolveInlineCidImages(providerMessageId, htmlOrText(data.body));
+    return {
+      body,
+      snippet: data.bodyPreview || "",
+      mimeType: data.body?.contentType === "html" ? "text/html" : "text/plain",
+    };
   }
 }

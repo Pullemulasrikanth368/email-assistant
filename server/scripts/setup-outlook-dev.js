@@ -24,20 +24,20 @@ const readline = require("readline");
 
 /* ─────────────────────── colour helpers ─────────────────────── */
 const c = {
-  reset:  "\x1b[0m",
-  bold:   "\x1b[1m",
-  green:  "\x1b[32m",
-  red:    "\x1b[31m",
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  green: "\x1b[32m",
+  red: "\x1b[31m",
   yellow: "\x1b[33m",
-  cyan:   "\x1b[36m",
-  grey:   "\x1b[90m",
+  cyan: "\x1b[36m",
+  grey: "\x1b[90m",
 };
-const ok    = (msg) => console.log(`  ${c.green}✓${c.reset} ${msg}`);
-const fail  = (msg) => console.log(`  ${c.red}✗${c.reset} ${msg}`);
-const warn  = (msg) => console.log(`  ${c.yellow}⚠${c.reset} ${msg}`);
-const info  = (msg) => console.log(`  ${c.cyan}→${c.reset} ${msg}`);
-const head  = (msg) => console.log(`\n${c.bold}${msg}${c.reset}`);
-const line  = ()    => console.log(c.grey + "─".repeat(60) + c.reset);
+const ok = (msg) => console.log(`  ${c.green}✓${c.reset} ${msg}`);
+const fail = (msg) => console.log(`  ${c.red}✗${c.reset} ${msg}`);
+const warn = (msg) => console.log(`  ${c.yellow}⚠${c.reset} ${msg}`);
+const info = (msg) => console.log(`  ${c.cyan}→${c.reset} ${msg}`);
+const head = (msg) => console.log(`\n${c.bold}${msg}${c.reset}`);
+const line = () => console.log(c.grey + "─".repeat(60) + c.reset);
 
 /* ─────────────────────── config read ─────────────────────── */
 
@@ -51,13 +51,13 @@ function getEnv(...keys) {
   return null;
 }
 
-const PORT   = getEnv(`${PREFIX}PORT`, "LOCAL_PORT", "PORT") || "8676";
+const PORT = getEnv(`${PREFIX}PORT`, "LOCAL_PORT", "PORT") || "6001";
 const SERVER = getEnv(`${PREFIX}SERVER_URL`, "LOCAL_SERVER_URL") || `http://localhost:${PORT}/`;
 
 const REQUIRED_VARS = [
-  { key: "MICROSOFT_CLIENT_ID",  label: "Azure App Client ID",     envName: "MICROSOFT_CLIENT_ID"  },
-  { key: "MICROSOFT_SECRET",     label: "Azure App Client Secret", envName: "MICROSOFT_SECRET"      },
-  { key: "MICROSOFT_TENANT_ID",  label: "Azure Tenant ID",         envName: "MICROSOFT_TENANT_ID",  optional: true },
+  { key: "MICROSOFT_CLIENT_ID", label: "Azure App Client ID", envName: "MICROSOFT_CLIENT_ID" },
+  { key: "MICROSOFT_SECRET", label: "Azure App Client Secret", envName: "MICROSOFT_SECRET" },
+  { key: "MICROSOFT_TENANT_ID", label: "Azure Tenant ID", envName: "MICROSOFT_TENANT_ID", optional: true },
 ];
 
 const outlookRedirectUri = getEnv("MS_OUTLOOK_REDIRECT_URI") ||
@@ -120,14 +120,14 @@ console.log(`  Add these DELEGATED permissions under Microsoft Graph:`);
 console.log();
 
 const PERMISSIONS = [
-  { name: "User.Read",         purpose: "Read signed-in user profile",              existing: true  },
-  { name: "Mail.Read",         purpose: "Read user's mailbox messages",             existing: false },
-  { name: "Mail.ReadWrite",    purpose: "Read + move emails to Deleted Items",      existing: false },
-  { name: "Mail.Send",         purpose: "Send replies / quick replies via Outlook", existing: false },
-  { name: "Team.ReadBasic.All",purpose: "List user's Teams (for delivery picker)",  existing: true  },
-  { name: "Channel.ReadBasic.All", purpose: "List channels in a team",             existing: true  },
-  { name: "ChannelMessage.Send",   purpose: "Post briefs to a Teams channel",       existing: true  },
-  { name: "offline_access",    purpose: "Get refresh tokens (keep session alive)",  existing: true  },
+  { name: "User.Read", purpose: "Read signed-in user profile", existing: true },
+  { name: "Mail.Read", purpose: "Read user's mailbox messages", existing: false },
+  { name: "Mail.ReadWrite", purpose: "Read + move emails to Deleted Items", existing: false },
+  { name: "Mail.Send", purpose: "Send replies / quick replies via Outlook", existing: false },
+  { name: "Team.ReadBasic.All", purpose: "List user's Teams (for delivery picker)", existing: true },
+  { name: "Channel.ReadBasic.All", purpose: "List channels in a team", existing: true },
+  { name: "ChannelMessage.Send", purpose: "Post briefs to a Teams channel", existing: true },
+  { name: "offline_access", purpose: "Get refresh tokens (keep session alive)", existing: true },
 ];
 
 for (const p of PERMISSIONS) {
@@ -183,7 +183,7 @@ console.log(`
 head("Step 5 — .env entries for Outlook integration");
 line();
 const clientId = process.env.MICROSOFT_CLIENT_ID || "<your-azure-client-id>";
-const tenant   = process.env.MICROSOFT_TENANT_ID  || "common";
+const tenant = process.env.MICROSOFT_TENANT_ID || "common";
 
 console.log(`  Add / update these in your ${c.bold}server/.env${c.reset}:\n`);
 console.log(`${c.grey}# Microsoft Azure App (shared by Teams + Outlook)${c.reset}`);
@@ -203,27 +203,27 @@ if (process.argv.includes("--test-auth")) {
   head("Step 6 — Testing Azure token endpoint reachability");
   line();
 
-  const clientId     = process.env.MICROSOFT_CLIENT_ID;
-  const tenant       = process.env.MICROSOFT_TENANT_ID || "common";
-  const tokenUrl     = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+  const clientId = process.env.MICROSOFT_CLIENT_ID;
+  const tenant = process.env.MICROSOFT_TENANT_ID || "common";
+  const tokenUrl = `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
 
   info(`Testing POST ${tokenUrl}`);
 
   // We just test that the endpoint is reachable (don't have a code yet).
   const body = new URLSearchParams({
-    client_id:     clientId,
+    client_id: clientId,
     client_secret: process.env.MICROSOFT_SECRET,
-    grant_type:    "client_credentials",
-    scope:         "https://graph.microsoft.com/.default",
+    grant_type: "client_credentials",
+    scope: "https://graph.microsoft.com/.default",
   }).toString();
 
   const url = new URL(tokenUrl);
   const options = {
     hostname: url.hostname,
-    path:     url.pathname,
-    method:   "POST",
-    headers:  {
-      "Content-Type":   "application/x-www-form-urlencoded",
+    path: url.pathname,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
       "Content-Length": Buffer.byteLength(body),
     },
   };

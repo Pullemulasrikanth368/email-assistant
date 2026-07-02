@@ -64,6 +64,30 @@ function escapeRegex(value = "") {
 }
 
 /**
+ * Outlook mails synced before inline-image support was added still have raw
+ * `src="cid:..."` refs in their stored body. Re-resolve at request time (not
+ * just at sync time) so already-stored mails also get fixed, and persist the
+ * result so we don't re-hit Graph on every subsequent view.
+ */
+async function resolveOutlookInlineImages(mail) {
+  if (!mail || mail.provider !== "outlook") return mail;
+  if (!mail.body || !/src=["']cid:/i.test(mail.body)) return mail;
+
+  try {
+    const service = await createMailService(mail.email);
+    if (typeof service.resolveInlineCidImages !== "function") return mail;
+    const resolvedBody = await service.resolveInlineCidImages(mail.providerMessageId, mail.body);
+    if (resolvedBody && resolvedBody !== mail.body) {
+      mail.body = resolvedBody;
+      await EmailAnalysisMail.updateOne({ _id: mail._id }, { $set: { body: resolvedBody } });
+    }
+  } catch (err) {
+    console.warn(`[EmailAnalysis] Could not resolve inline images for ${mail.providerMessageId}:`, err.message);
+  }
+  return mail;
+}
+
+/**
  * Kick off a mail sync for the connected account without blocking the caller.
  * First link backfills the last 7 days; later runs are incremental via history.
  */
@@ -529,6 +553,7 @@ async function getEmailAnalysisMail(req, res) {
   if (!mail) {
     return res.json({ errorCode: 9002, errorMessage: "Mail not found." });
   }
+  await resolveOutlookInlineImages(mail);
   mail.attachments = mapAttachments(mail.attachments);
   return res.json({ mail });
 }
@@ -1232,6 +1257,26 @@ async function getMailBySource(req, res) {
 
   const mail = await EmailAnalysisMail.findOne({ providerMessageId: sourceId, active: true }).lean();
   if (!mail) return res.json({ errorCode: 9005, errorMessage: "Source email not found." });
+
+  // Backfill body if it was not captured during sync (common for Outlook delta sync).
+  if (!mail.body && mail.provider === "outlook") {
+    try {
+      const service = await createMailService(mail.email);
+      if (typeof service.fetchFullBody === "function") {
+        const { body, snippet, mimeType } = await service.fetchFullBody(sourceId);
+        if (body) {
+          await EmailAnalysisMail.updateOne({ _id: mail._id }, { $set: { body, snippet: snippet || mail.snippet, mimeType } });
+          mail.body = body;
+          mail.snippet = snippet || mail.snippet;
+          mail.mimeType = mimeType;
+        }
+      }
+    } catch (err) {
+      console.warn(`[EmailAnalysis] Could not backfill body for ${sourceId}:`, err.message);
+    }
+  }
+
+  await resolveOutlookInlineImages(mail);
   mail.attachments = mapAttachments(mail.attachments);
   return res.json({ mail });
 }

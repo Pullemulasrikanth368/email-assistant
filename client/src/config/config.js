@@ -2,7 +2,7 @@
 // Override VITE_API_URL in .env for other environments.
 export const url = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '/')
-  : 'http://localhost:6001/';
+  : 'http://localhost:8676/';
 
 const config = {
 

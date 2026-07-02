@@ -47,11 +47,11 @@ const config = {
     host: getRequiredEnv(`${PREFIX}MONGO_HOST`),
     dmsHost: getRequiredEnv(`${PREFIX}DMS_MONGO_HOST`),
     port: 27017,
-    test: "mongodb://localhost:27017/executive_email_assistant_dev",
+    test: "mongodb://localhost:27017/executive_email_assistant",
   },
   projectName: "executive-email-assistant",
   isLoggerValidEnable: false,
-  serverUrl: getOptionalEnv(`${PREFIX}SERVER_URL`) || `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/`,
+  serverUrl: getOptionalEnv(`${PREFIX}SERVER_URL`) || `http://localhost:${process.env[`${PREFIX}PORT`] || 6001}/`,
   frontendUrl: getOptionalEnv(`${PREFIX}CLIENT_URL`) || "http://localhost:5173/",
   adminRoomName: "adminRoomUser",
 
@@ -63,7 +63,7 @@ const config = {
   // Register this exact URL in the Google Cloud console.
   emailAnalysisRedirectUri:
     process.env.EMAIL_ANALYSIS_REDIRECT_URI ||
-    `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/google/email-analysis/webhook`,
+    `http://localhost:${process.env[`${PREFIX}PORT`] || 6001}/api/auth/google/email-analysis/webhook`,
 
   /**
    * Microsoft (Entra ID) connection for Teams message delivery.
@@ -73,15 +73,15 @@ const config = {
   microsoftTenant: process.env.MICROSOFT_TENANT_ID || "common",
   microsoftTeamsRedirectUri:
     process.env.MS_TEAMS_REDIRECT_URI ||
-    `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/microsoft/teams/webhook`,
+    `http://localhost:${process.env[`${PREFIX}PORT`] || 6001}/api/auth/microsoft/teams/webhook`,
   microsoftOutlookRedirectUri:
     process.env.MS_OUTLOOK_REDIRECT_URI ||
-    `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/microsoft/outlook/webhook`,
+    `http://localhost:${process.env[`${PREFIX}PORT`] || 6001}/api/auth/microsoft/outlook/webhook`,
 
   // Alias used by microsoft/services/outlookAuth.service.js
   outlookRedirectUri:
     process.env.MS_OUTLOOK_REDIRECT_URI ||
-    `http://localhost:${process.env[`${PREFIX}PORT`] || 8676}/api/auth/microsoft/outlook/webhook`,
+    `http://localhost:${process.env[`${PREFIX}PORT`] || 6001}/api/auth/microsoft/outlook/webhook`,
 
   /**
    * AI backend for the email-analysis flow.
