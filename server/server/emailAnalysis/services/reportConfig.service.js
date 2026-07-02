@@ -26,14 +26,35 @@ const sanitizeColumnAssignments = (assignments, columnCount) => {
   return out;
 };
 
+const sanitizeOrder = (order, enabledSections) => {
+  const orderedKnown = keepKnown(order, ALL_SECTIONS, enabledSections);
+  // sections missing from a partial order are appended in default order, so nothing silently disappears.
+  return [...orderedKnown, ...enabledSections.filter((key) => !orderedKnown.includes(key))];
+};
+
+// { "1": { sectionOrder, columnAssignments }, "2": {...}, "3": {...}, "4": {...} } — kept
+// independently so the col-1/2/3/4 arrangements the user designed each survive a viewport switch.
+const sanitizeColumnLayouts = (layouts, enabledSections) => {
+  const src = layouts && typeof layouts === 'object' ? layouts : {};
+  const out = {};
+  [1, 2, 3, 4].forEach((n) => {
+    const raw = src[n] || src[String(n)];
+    if (!raw) return;
+    out[n] = {
+      sectionOrder: sanitizeOrder(raw.sectionOrder, enabledSections),
+      columnAssignments: sanitizeColumnAssignments(raw.columnAssignments, n),
+    };
+  });
+  return out;
+};
+
 function sanitizeReportConfigData(data = {}) {
   const { filters, ...rest } = data;
   const enabledSections = keepKnown(data.enabledSections, ALL_SECTIONS, DEFAULT_SECTIONS);
-  const orderedKnown = keepKnown(data.sectionOrder, ALL_SECTIONS, enabledSections);
-  // sections missing from a partial sectionOrder are appended in default order, so nothing silently disappears.
-  const sectionOrder = [...orderedKnown, ...enabledSections.filter((key) => !orderedKnown.includes(key))];
-  const columnCount = Math.min(3, Math.max(1, Number(data.columnCount) || 2));
+  const sectionOrder = sanitizeOrder(data.sectionOrder, enabledSections);
+  const columnCount = Math.min(4, Math.max(1, Number(data.columnCount) || 2));
   const columnAssignments = sanitizeColumnAssignments(data.columnAssignments, columnCount);
+  const columnLayouts = sanitizeColumnLayouts(data.columnLayouts, enabledSections);
   return {
     ...rest,
     enabledSections,
@@ -41,6 +62,7 @@ function sanitizeReportConfigData(data = {}) {
     sectionOrder,
     columnCount,
     columnAssignments,
+    columnLayouts,
   };
 }
 
@@ -51,6 +73,7 @@ const DEFAULT_REPORT_CONFIG = {
   sectionOrder: DEFAULT_SECTIONS,
   columnCount: 2,
   columnAssignments: {},
+  columnLayouts: {},
   promptInstruction: '',
   outputStyle: 'detailed',
   isDefault: true,

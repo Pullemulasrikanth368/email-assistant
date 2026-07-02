@@ -54,7 +54,7 @@ const DEFAULT_FIELDS = [
   'reason', 'owner', 'deadline',
 ];
 
-const COLUMN_OPTIONS = [1, 2, 3];
+const COLUMN_OPTIONS = [1, 2, 3, 4];
 
 const sectionKeys = new Set(ALL_SECTIONS.map((item) => item.key));
 const fieldKeys = new Set(ALL_FIELDS.map((item) => item.key));
@@ -90,14 +90,34 @@ const sanitizeColumnAssignments = (assignments = {}, columnCount) => {
   return out;
 };
 
+// Independent col-1 / col-2 / col-3 / col-4 arrangements: { 1: { sectionOrder, columnAssignments }, 2: {...}, ... }.
+const emptyLayouts = () => ({
+  1: { sectionOrder: [...DEFAULT_SECTIONS], columnAssignments: {} },
+  2: { sectionOrder: [...DEFAULT_SECTIONS], columnAssignments: {} },
+  3: { sectionOrder: [...DEFAULT_SECTIONS], columnAssignments: {} },
+  4: { sectionOrder: [...DEFAULT_SECTIONS], columnAssignments: {} },
+});
+
+const normalizeLayouts = (rawLayouts, enabledSections, legacySeed) => {
+  const src = rawLayouts && typeof rawLayouts === 'object' ? rawLayouts : {};
+  const out = {};
+  COLUMN_OPTIONS.forEach((n) => {
+    const raw = src[n] || src[String(n)] || (n === legacySeed?.columnCount ? legacySeed : null) || {};
+    out[n] = {
+      sectionOrder: normalizeOrder(raw.sectionOrder || [], enabledSections),
+      columnAssignments: sanitizeColumnAssignments(raw.columnAssignments, n),
+    };
+  });
+  return out;
+};
+
 const emptyConfig = () => ({
   _id: null,
   reportName: 'Default Report Requirements',
   enabledSections: [...DEFAULT_SECTIONS],
   selectedFields: [...DEFAULT_FIELDS],
-  sectionOrder: [...DEFAULT_SECTIONS],
   columnCount: 2,
-  columnAssignments: {},
+  columnLayouts: emptyLayouts(),
   promptInstruction: '',
   outputStyle: 'detailed',
   isDefault: true,
@@ -106,14 +126,16 @@ const emptyConfig = () => ({
 function normalizeConfig(cfg = {}) {
   const enabledSections = keepKnown(cfg.enabledSections || [], sectionKeys, DEFAULT_SECTIONS);
   const columnCount = COLUMN_OPTIONS.includes(Number(cfg.columnCount)) ? Number(cfg.columnCount) : 2;
+  // Configs saved before per-column layouts existed only had one top-level sectionOrder/
+  // columnAssignments pair — seed that into whichever column count was active for them.
+  const legacySeed = { columnCount, sectionOrder: cfg.sectionOrder, columnAssignments: cfg.columnAssignments };
   return {
     _id: cfg._id || null,
     reportName: cfg.reportName || 'Default Report Requirements',
     enabledSections,
     selectedFields: keepKnown(cfg.selectedFields || [], fieldKeys, DEFAULT_FIELDS),
-    sectionOrder: normalizeOrder(cfg.sectionOrder || [], enabledSections),
     columnCount,
-    columnAssignments: sanitizeColumnAssignments(cfg.columnAssignments, columnCount),
+    columnLayouts: normalizeLayouts(cfg.columnLayouts, enabledSections, legacySeed),
     promptInstruction: cfg.promptInstruction || '',
     outputStyle: cfg.outputStyle || 'detailed',
     isDefault: true,
@@ -175,7 +197,7 @@ function SectionColumnBoard({ order, enabled, columnCount, columnAssignments, on
   };
 
   return (
-    <div className="rc-col-board" style={{ gridTemplateColumns: `repeat(${columnCount}, 1fr)` }}>
+    <div className="rc-col-board" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(140px, 1fr))` }}>
       {columns.map((keys, colIdx) => (
         <div
           key={colIdx}
@@ -235,10 +257,14 @@ export default function ReportConfigPanel({ onClose }) {
   const saveConfig = async () => {
     setSaving(true);
     try {
+      const activeLayout = form.columnLayouts[form.columnCount] || { sectionOrder: DEFAULT_SECTIONS, columnAssignments: {} };
       const payload = {
         ...form,
         reportName: form.reportName.trim() || 'Default Report Requirements',
         isDefault: true,
+        // Legacy mirror, for any older reader still looking at top-level fields.
+        sectionOrder: activeLayout.sectionOrder,
+        columnAssignments: activeLayout.columnAssignments,
       };
 
       const res = form._id
@@ -305,6 +331,10 @@ export default function ReportConfigPanel({ onClose }) {
             {COLUMN_OPTIONS.map((n) => <SelectItem key={n} value={String(n)}>{n} column{n > 1 ? 's' : ''}</SelectItem>)}
           </SelectContent>
         </Select>
+        <p className="rc-field-hint">
+          Narrow screens automatically drop to fewer columns. Each column count below
+          remembers its own arrangement — switch this to preview/edit col-1 through col-4.
+        </p>
       </div>
 
       <div className="rc-field">
@@ -324,12 +354,14 @@ export default function ReportConfigPanel({ onClose }) {
       </div>
 
       <div className="rc-field">
-        <label>Report sections — drag into a column to place it there and set its order, uncheck to hide</label>
+        <label>
+          Column {form.columnCount} layout — drag into a column to place it there and set its order, uncheck to hide
+        </label>
         <SectionColumnBoard
-          order={form.sectionOrder}
+          order={form.columnLayouts[form.columnCount].sectionOrder}
           enabled={form.enabledSections}
           columnCount={form.columnCount}
-          columnAssignments={form.columnAssignments}
+          columnAssignments={form.columnLayouts[form.columnCount].columnAssignments}
           onToggle={(key) => setField(
             'enabledSections',
             form.enabledSections.includes(key)
@@ -338,8 +370,10 @@ export default function ReportConfigPanel({ onClose }) {
           )}
           onChange={(nextOrder, nextAssignments) => setForm((current) => ({
             ...current,
-            sectionOrder: nextOrder,
-            columnAssignments: nextAssignments,
+            columnLayouts: {
+              ...current.columnLayouts,
+              [current.columnCount]: { sectionOrder: nextOrder, columnAssignments: nextAssignments },
+            },
           }))}
         />
       </div>

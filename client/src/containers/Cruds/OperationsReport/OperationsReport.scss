@@ -1,7 +1,8 @@
 /* Operations Report — control-room theme (tokens from the approved wireframe) */
 .operations-report {
   --ink: #14181f;
-  --ink2: #2a3340;
+  --ink2: #8d3b00;
+  --ink3: #3a2f2f;
   --paper: #fff;
   --panel: #fff;
   --line: #d9dcd6;
@@ -140,6 +141,7 @@
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: .05em;
+      width: 100%;
     }
 
     .p-dropdown {
@@ -485,8 +487,9 @@
     }
   }
 
-  // Column count comes from the report config (1-3); grid-template-columns is
-  // set inline per-render so this only needs the shared row/gap behaviour.
+  // Column count comes from the report config (1-3), capped by viewport width; the
+  // effective count (and grid-template-columns) is computed in JS and set inline,
+  // so this only needs the shared row/gap behaviour.
   .orm-grid {
     display: grid;
     gap: 8px;
@@ -500,15 +503,9 @@
     }
   }
 
-  @media (max-width: 1100px) {
-    .orm-grid {
-      grid-template-columns: 1fr !important;
-    }
-  }
-
   .orm-panel {
     background: var(--panel);
-    border: 1px solid var(--line);
+    border: 2px solid var(--line);
     border-radius: 5px;
     padding: 9px 10px;
     min-width: 0;
@@ -528,6 +525,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    font-weight: 800;
 
     .n {
       margin-left: auto;
@@ -663,7 +661,7 @@
     }
 
     .et {
-      color: var(--ink2);
+      color: var(--ink3);
       font-size: 12px;
       font-weight: 650;
       line-height: 1.35;
@@ -678,9 +676,9 @@
       span {
         font-family: var(--mono);
         font-size: 10.5px;
-        color: var(--muted);
-        background: var(--paper);
-        border: 1px solid var(--line);
+        color: white;
+        background: #616175;
+        // border: 1px solid #73cb1c !important;
         border-radius: 3px;
         padding: 2px 6px;
       }
@@ -842,7 +840,7 @@
 
   .orm-pattern {
     font-size: 12px;
-    color: var(--ink2);
+    color: var(--ink3);
     padding: 6px 0;
     border-top: 1px solid var(--line);
 
@@ -1054,7 +1052,7 @@
     }
 
     .orm-grid {
-      grid-template-columns: 1fr !important;
+      grid-template-columns: 1fr;
     }
 
     .orm-risk {
@@ -1516,7 +1514,7 @@
     border-radius: 6px;
     border: 1px solid var(--line);
     background: #fff;
-    color: var(--ink2);
+    color: var(--ink3);
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -2221,10 +2219,21 @@
     }
   }
 
+  .rc-field-hint {
+    font-size: 11px;
+    color: #687180;
+    margin: 5px 0 0;
+    line-height: 1.5;
+  }
+
   .rc-col-board {
     display: grid;
     gap: 8px;
     align-items: start;
+    // At 4 columns the sheet is narrower than 4 readable columns — scroll horizontally
+    // instead of squeezing labels; each column keeps a sane minimum width (set inline).
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .rc-col {

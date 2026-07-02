@@ -540,10 +540,10 @@ const OperationsReport = () => {
               </SelectContent>
             </Select>
           </span>
-          <button type="button" className="orm-settings-btn" onClick={() => setKbSheetOpen(true)} title="Knowledge Base Settings">
+          {/* <button type="button" className="orm-settings-btn" onClick={() => setKbSheetOpen(true)} title="Knowledge Base Settings">
             <i className="pi pi-book" />
             <span>KB</span>
-          </button>
+          </button> */}
           <button type="button" className="orm-settings-btn" onClick={() => setRcSheetOpen(true)} title="Report Requirements">
             <i className="pi pi-sliders-h" />
             <span>Requirements</span>

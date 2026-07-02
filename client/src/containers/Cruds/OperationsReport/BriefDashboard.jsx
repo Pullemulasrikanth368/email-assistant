@@ -1,6 +1,6 @@
 /* Shared dashboard renderer (wireframe screen 02) used by the Reports screen
    and the Daily Brief screen. */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import ReactMarkdown from 'react-markdown';
@@ -10,6 +10,25 @@ import { url } from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 
 const todoKey = (t) => `${t.sourceId || ''}::${t.task || ''}`;
+
+// Viewport caps how many columns can actually fit well, regardless of what's configured:
+// mobile gets 1, small/tablet gets at most 2, desktop gets 3, and only extra-large screens get 4.
+const maxColumnsForWidth = (w) => {
+  if (w < 640) return 1;
+  if (w < 1300) return 2;
+  if (w < 1800) return 3;
+  return 4;
+};
+
+const useResponsiveColumnCap = () => {
+  const [cap, setCap] = useState(() => (typeof window !== 'undefined' ? maxColumnsForWidth(window.innerWidth) : 3));
+  useEffect(() => {
+    const onResize = () => setCap(maxColumnsForWidth(window.innerWidth));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return cap;
+};
 
 // Risk score -> severity colour tier (score drives colour, not decoration).
 export const scoreColor = (score) => {
@@ -94,6 +113,7 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
  */
 export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { }, onOpenRisk }) => {
   const brief = report?.brief || {};
+  const responsiveColumnCap = useResponsiveColumnCap();
 
   // Layout/visibility (sections, fields, order, columns) is a display concern, so the
   // live report-config always wins; the report's own snapshot is only a fallback for
@@ -336,8 +356,15 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     ),
   };
 
-  const columnCount = Math.min(3, Math.max(1, Number(rcSnap?.columnCount) || 2));
-  const configuredOrder = rcSnap?.sectionOrder?.length ? rcSnap.sectionOrder : DEFAULT_SECTION_ORDER;
+  const configuredColumnCount = Math.min(4, Math.max(1, Number(rcSnap?.columnCount) || 2));
+  // Viewport may force fewer columns than configured — use the layout the user specifically
+  // designed for THAT column count (col-1/col-2/col-3 are remembered independently), not a
+  // re-derived one, so resizing the window shows what was actually set up for that width.
+  const columnCount = Math.min(configuredColumnCount, responsiveColumnCap);
+  const activeLayout = rcSnap?.columnLayouts?.[columnCount] || rcSnap?.columnLayouts?.[String(columnCount)] || null;
+
+  const legacyOrder = rcSnap?.sectionOrder?.length ? rcSnap.sectionOrder : DEFAULT_SECTION_ORDER;
+  const configuredOrder = activeLayout?.sectionOrder?.length ? activeLayout.sectionOrder : legacyOrder;
   const orderedKeys = [
     ...configuredOrder.filter((key) => key !== 'narrativeSummary' && sectionNodes[key]),
     ...DEFAULT_SECTION_ORDER.filter((key) => key !== 'narrativeSummary' && sectionNodes[key] && !configuredOrder.includes(key)),
@@ -345,7 +372,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
 
   // Explicit column placement wins; anything unassigned round-robins (item 1 -> col 1,
   // item 2 -> col 2, item 3 -> col 3, item 4 -> col 1, ...) so older configs still lay out sensibly.
-  const columnAssignments = rcSnap?.columnAssignments || {};
+  const columnAssignments = activeLayout?.columnAssignments || rcSnap?.columnAssignments || {};
   const columns = Array.from({ length: columnCount }, () => []);
   orderedKeys.forEach((key, i) => {
     const assigned = columnAssignments[key];

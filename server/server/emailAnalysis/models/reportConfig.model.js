@@ -37,11 +37,18 @@ const ReportConfigSchema = new mongoose.Schema({
   sectionOrder: { type: [String], default: DEFAULT_SECTIONS, enum: ALL_SECTIONS },
 
   // How many columns to lay the sections out in.
-  columnCount: { type: Number, default: 2, min: 1, max: 3 },
+  columnCount: { type: Number, default: 2, min: 1, max: 4 },
 
   // Explicit column placement per section, e.g. { decisionQueue: 0, riskRadar: 1 }.
   // Sections with no entry here fall back to a round-robin placement at render time.
+  // (Legacy/top-level — mirrors columnLayouts[columnCount] for older readers.)
   columnAssignments: { type: mongoose.Schema.Types.Mixed, default: {} },
+
+  // Per-column-count layout, remembered independently: { "1": {...}, "2": {...}, "3": {...} },
+  // each { sectionOrder, columnAssignments }. Lets the live report use the arrangement the
+  // user actually designed for 1/2/3 columns instead of re-deriving one when the viewport
+  // forces a narrower column count than what's configured.
+  columnLayouts: { type: mongoose.Schema.Types.Mixed, default: {} },
 
   /**
    * User-facing generation requirement, e.g.
