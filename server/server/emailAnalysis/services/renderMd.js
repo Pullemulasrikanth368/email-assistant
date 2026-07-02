@@ -218,7 +218,7 @@ export function renderBriefMarkdown(report) {
     sectionEnabled("actionRegister") ? renderActions(brief.actions) : "",
   ].join("");
   const rightColumn = [
-    sectionEnabled("riskRadar") ? renderMatrix(riskMatrixItems) : "",
+    sectionEnabled("riskMatrix") ? renderMatrix(riskMatrixItems) : "",
     sectionEnabled("calendarConflicts") ? renderCollisions(brief.collisions) : "",
     sectionEnabled("todoList") ? renderTodo(brief.todoList) : "",
     sectionEnabled("events") ? renderEvents(brief.events) : "",

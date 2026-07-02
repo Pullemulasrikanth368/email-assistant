@@ -5,12 +5,12 @@ import httpStatus from 'http-status';
 import APIError from '../../helpers/APIError';
 
 const ALL_SECTIONS = [
-  'narrativeSummary', 'decisionQueue', 'riskRadar', 'todoList',
+  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
   'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
 ];
 
 const DEFAULT_SECTIONS = [
-  'narrativeSummary', 'decisionQueue', 'riskRadar', 'todoList',
+  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
   'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
 ];
 
@@ -32,6 +32,16 @@ const ReportConfigSchema = new mongoose.Schema({
   enabledSections: { type: [String], default: DEFAULT_SECTIONS, enum: ALL_SECTIONS },
 
   selectedFields: { type: [String], default: DEFAULT_FIELDS, enum: ALL_FIELDS },
+
+  // Display order of sections in the report (subset/superset resolved against ALL_SECTIONS at render time).
+  sectionOrder: { type: [String], default: DEFAULT_SECTIONS, enum: ALL_SECTIONS },
+
+  // How many columns to lay the sections out in.
+  columnCount: { type: Number, default: 2, min: 1, max: 3 },
+
+  // Explicit column placement per section, e.g. { decisionQueue: 0, riskRadar: 1 }.
+  // Sections with no entry here fall back to a round-robin placement at render time.
+  columnAssignments: { type: mongoose.Schema.Types.Mixed, default: {} },
 
   /**
    * User-facing generation requirement, e.g.

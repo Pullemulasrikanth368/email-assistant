@@ -7,7 +7,8 @@ import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 const ALL_SECTIONS = [
   { key: 'narrativeSummary', label: 'Narrative summary' },
   { key: 'decisionQueue', label: 'Decisions needed today' },
-  { key: 'riskRadar', label: 'Risk radar and matrix' },
+  { key: 'riskRadar', label: 'Risk radar' },
+  { key: 'riskMatrix', label: 'Risk matrix' },
   { key: 'todoList', label: 'Your to-do' },
   { key: 'events', label: 'Events mentioned' },
   { key: 'calendarConflicts', label: 'Schedule collisions' },
@@ -44,7 +45,7 @@ const REQUIREMENT_PRESETS = [
 ];
 
 const DEFAULT_SECTIONS = [
-  'narrativeSummary', 'decisionQueue', 'riskRadar', 'todoList',
+  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
   'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
 ];
 
@@ -53,12 +54,40 @@ const DEFAULT_FIELDS = [
   'reason', 'owner', 'deadline',
 ];
 
+const COLUMN_OPTIONS = [1, 2, 3];
+
 const sectionKeys = new Set(ALL_SECTIONS.map((item) => item.key));
 const fieldKeys = new Set(ALL_FIELDS.map((item) => item.key));
+const sectionLabel = (key) => ALL_SECTIONS.find((item) => item.key === key)?.label || key;
 
 const keepKnown = (values = [], knownKeys, fallback) => {
   const filtered = values.filter((value) => knownKeys.has(value));
   return filtered.length ? filtered : [...fallback];
+};
+
+// A sectionOrder covering every known key, seeded with whatever order was saved (if any).
+const normalizeOrder = (order = [], enabled = DEFAULT_SECTIONS) => {
+  const known = order.filter((key) => sectionKeys.has(key));
+  const rest = DEFAULT_SECTIONS.filter((key) => !known.includes(key));
+  const full = [...known, ...rest];
+  // Sections not yet in a saved order but already enabled should surface near the top, not the tail.
+  return full.sort((a, b) => {
+    const aIn = enabled.includes(a) ? 0 : 1;
+    const bIn = enabled.includes(b) ? 0 : 1;
+    if (aIn !== bIn && !known.length) return aIn - bIn;
+    return 0;
+  });
+};
+
+// Anything without an explicit column entry round-robins across columns, in sectionOrder position.
+const sanitizeColumnAssignments = (assignments = {}, columnCount) => {
+  const out = {};
+  Object.keys(assignments || {}).forEach((key) => {
+    if (!sectionKeys.has(key)) return;
+    const col = Number(assignments[key]);
+    if (Number.isInteger(col) && col >= 0 && col < columnCount) out[key] = col;
+  });
+  return out;
 };
 
 const emptyConfig = () => ({
@@ -66,17 +95,25 @@ const emptyConfig = () => ({
   reportName: 'Default Report Requirements',
   enabledSections: [...DEFAULT_SECTIONS],
   selectedFields: [...DEFAULT_FIELDS],
+  sectionOrder: [...DEFAULT_SECTIONS],
+  columnCount: 2,
+  columnAssignments: {},
   promptInstruction: '',
   outputStyle: 'detailed',
   isDefault: true,
 });
 
 function normalizeConfig(cfg = {}) {
+  const enabledSections = keepKnown(cfg.enabledSections || [], sectionKeys, DEFAULT_SECTIONS);
+  const columnCount = COLUMN_OPTIONS.includes(Number(cfg.columnCount)) ? Number(cfg.columnCount) : 2;
   return {
     _id: cfg._id || null,
     reportName: cfg.reportName || 'Default Report Requirements',
-    enabledSections: keepKnown(cfg.enabledSections || [], sectionKeys, DEFAULT_SECTIONS),
+    enabledSections,
     selectedFields: keepKnown(cfg.selectedFields || [], fieldKeys, DEFAULT_FIELDS),
+    sectionOrder: normalizeOrder(cfg.sectionOrder || [], enabledSections),
+    columnCount,
+    columnAssignments: sanitizeColumnAssignments(cfg.columnAssignments, columnCount),
     promptInstruction: cfg.promptInstruction || '',
     outputStyle: cfg.outputStyle || 'detailed',
     isDefault: true,
@@ -98,6 +135,75 @@ function CheckGrid({ items, selected, onChange }) {
           <input type="checkbox" checked={selected.includes(key)} onChange={() => toggle(key)} />
           <span>{label}</span>
         </label>
+      ))}
+    </div>
+  );
+}
+
+// Sections with no explicit column entry round-robin by their position in `order`.
+const columnOf = (key, idx, columnCount, columnAssignments) => {
+  const explicit = columnAssignments[key];
+  return Number.isInteger(explicit) && explicit >= 0 && explicit < columnCount ? explicit : idx % columnCount;
+};
+
+/* Multi-column drag board — one list per report column, so the user decides exactly
+   what lands in column 1 vs column 2 vs column 3, not just an overall order.
+   'narrativeSummary' is excluded: the dashboard always renders it as a full-width
+   banner above the columns, never inside one, so it's toggled separately above this
+   board and must not count towards the round-robin fallback index below. */
+function SectionColumnBoard({ order, enabled, columnCount, columnAssignments, onToggle, onChange }) {
+  const [dragKey, setDragKey] = useState(null);
+  const [overCol, setOverCol] = useState(null);
+
+  const boardKeys = order.filter((key) => key !== 'narrativeSummary');
+  const columns = Array.from({ length: columnCount }, () => []);
+  boardKeys.forEach((key, idx) => columns[columnOf(key, idx, columnCount, columnAssignments)].push(key));
+
+  const moveTo = (key, targetCol, beforeKey) => {
+    if (!key) return;
+    // Lock in every currently visible section's column (not just the dragged one) so the
+    // board and the live report always agree — otherwise untouched siblings keep resolving
+    // via round-robin fallback and can land somewhere different than what's shown here.
+    const nextAssignments = {};
+    columns.forEach((keys, idx) => keys.forEach((k) => { nextAssignments[k] = idx; }));
+    nextAssignments[key] = targetCol;
+
+    const nextOrder = order.filter((k) => k !== key);
+    const insertAt = beforeKey ? nextOrder.indexOf(beforeKey) : -1;
+    nextOrder.splice(insertAt === -1 ? nextOrder.length : insertAt, 0, key);
+    onChange(nextOrder, nextAssignments);
+  };
+
+  return (
+    <div className="rc-col-board" style={{ gridTemplateColumns: `repeat(${columnCount}, 1fr)` }}>
+      {columns.map((keys, colIdx) => (
+        <div
+          key={colIdx}
+          className={`rc-col${overCol === colIdx ? ' rc-col-over' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setOverCol(colIdx); }}
+          onDragLeave={() => setOverCol((current) => (current === colIdx ? null : current))}
+          onDrop={(e) => { e.preventDefault(); moveTo(dragKey, colIdx, null); setDragKey(null); setOverCol(null); }}
+        >
+          <div className="rc-col-head">Column {colIdx + 1}</div>
+          {keys.map((key) => (
+            <div
+              key={key}
+              className="rc-order-row"
+              draggable
+              onDragStart={() => setDragKey(key)}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOverCol(colIdx); }}
+              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); moveTo(dragKey, colIdx, key); setDragKey(null); setOverCol(null); }}
+              onDragEnd={() => { setDragKey(null); setOverCol(null); }}
+            >
+              <i className="pi pi-bars rc-order-handle" title="Drag to reorder or move to another column" />
+              <label className="rc-order-toggle">
+                <input type="checkbox" checked={enabled.includes(key)} onChange={() => onToggle(key)} />
+                <span>{sectionLabel(key)}</span>
+              </label>
+            </div>
+          ))}
+          {keys.length === 0 && <div className="rc-col-empty">Drop a section here</div>}
+        </div>
       ))}
     </div>
   );
@@ -192,8 +298,50 @@ export default function ReportConfigPanel({ onClose }) {
       </div>
 
       <div className="rc-field">
-        <label>Report sections to show</label>
-        <CheckGrid items={ALL_SECTIONS} selected={form.enabledSections} onChange={(value) => setField('enabledSections', value)} />
+        <label>Number of columns</label>
+        <Select value={String(form.columnCount)} onValueChange={(value) => setField('columnCount', Number(value))}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {COLUMN_OPTIONS.map((n) => <SelectItem key={n} value={String(n)}>{n} column{n > 1 ? 's' : ''}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="rc-field">
+        <label className="rc-order-toggle" style={{ marginBottom: 0 }}>
+          <input
+            type="checkbox"
+            checked={form.enabledSections.includes('narrativeSummary')}
+            onChange={() => setField(
+              'enabledSections',
+              form.enabledSections.includes('narrativeSummary')
+                ? form.enabledSections.filter((k) => k !== 'narrativeSummary')
+                : [...form.enabledSections, 'narrativeSummary'],
+            )}
+          />
+          <span>Show narrative summary (always a full-width banner above the columns)</span>
+        </label>
+      </div>
+
+      <div className="rc-field">
+        <label>Report sections — drag into a column to place it there and set its order, uncheck to hide</label>
+        <SectionColumnBoard
+          order={form.sectionOrder}
+          enabled={form.enabledSections}
+          columnCount={form.columnCount}
+          columnAssignments={form.columnAssignments}
+          onToggle={(key) => setField(
+            'enabledSections',
+            form.enabledSections.includes(key)
+              ? form.enabledSections.filter((k) => k !== key)
+              : [...form.enabledSections, key],
+          )}
+          onChange={(nextOrder, nextAssignments) => setForm((current) => ({
+            ...current,
+            sectionOrder: nextOrder,
+            columnAssignments: nextAssignments,
+          }))}
+        />
       </div>
 
       <div className="rc-field">

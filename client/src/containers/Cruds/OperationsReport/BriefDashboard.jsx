@@ -21,6 +21,11 @@ export const scoreColor = (score) => {
 
 const TREND_LABEL = { New: 'new', Escalating: 'escalating', Cooling: 'cooling', Stable: 'stable' };
 
+const DEFAULT_SECTION_ORDER = [
+  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
+  'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
+];
+
 const TRIAGE_MATRIX_POSITION = {
   Critical: { likelihood: 4, impact: 4 },
   Important: { likelihood: 3, impact: 2 },
@@ -87,11 +92,13 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
  * @param onOpenSource (sourceId) => void  — open the source email
  * @param onOpenRisk   (risk) => void      — open risk detail (falls back to onOpenSource)
  */
-export const BriefDashboard = ({ report, onOpenSource = () => { }, onOpenRisk }) => {
+export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { }, onOpenRisk }) => {
   const brief = report?.brief || {};
 
-  // Use report config snapshot if present; fall back to showing everything.
-  const rcSnap = report?.reportConfigSnapshot || null;
+  // Layout/visibility (sections, fields, order, columns) is a display concern, so the
+  // live report-config always wins; the report's own snapshot is only a fallback for
+  // older reports generated before the live config could be fetched.
+  const rcSnap = reportConfig || report?.reportConfigSnapshot || null;
   const enabledSections = rcSnap?.enabledSections || null; // null = show all
   const selectedFields = rcSnap?.selectedFields || null;   // null = show all
 
@@ -177,6 +184,175 @@ export const BriefDashboard = ({ report, onOpenSource = () => { }, onOpenRisk })
 
   const isQuiet = !decisions.length && !risks.length && !collisions.length;
 
+  /* -------- section renderers, keyed the same as the report-config's sectionOrder -------- */
+  const sectionNodes = {
+    decisionQueue: sectionEnabled('decisionQueue') && decisions.length > 0 && (
+      <div className="orm-panel" key="decisionQueue">
+        <div className="orm-ph">Decisions needed today<span className="n">{decisions.length}</span></div>
+        {decisions.map((d, i) => (
+          <div className="orm-dec" key={i} onClick={() => onOpenSource(d.sourceId)} role="button" tabIndex={0}>
+            <div className="t">{d.title}</div>
+            {d.why && <div className="w">{d.why}</div>}
+            {d.deadline && fieldEnabled('deadline') && <span className="due">DUE: {d.deadline}</span>}
+          </div>
+        ))}
+      </div>
+    ),
+
+    riskRadar: sectionEnabled('riskRadar') && risks.length > 0 && (
+      <div className="orm-panel" key="riskRadar">
+        <div className="orm-ph">Risk radar<span className="n">{risks.length}</span></div>
+        {risks.map((r, i) => (
+          <div className="orm-risk" key={i} onClick={() => openRisk(r)} role="button" tabIndex={0}>
+            {fieldEnabled('riskScore') && (
+              <div className="orm-score" style={{ background: scoreColor(r.riskScore) }}>
+                {r.riskScore}<small>{r.likelihood}×{r.impact}</small>
+              </div>
+            )}
+            <div>
+              <div className="s">{r.summary}</div>
+              <div className="orm-rrow">
+                {fieldEnabled('category') && r.category && <span className="orm-chip">{r.category}</span>}
+                {fieldEnabled('clock') && r.clock && <span className="orm-chip clock">{r.clock}</span>}
+                {fieldEnabled('trend') && r.trend && <span className={`orm-chip ${r.trend === 'Escalating' ? 'esc' : r.trend === 'New' ? 'new' : ''}`}>{TREND_LABEL[r.trend] || r.trend}</span>}
+                {fieldEnabled('matchedKeywords') && r.matchedKeywords?.length > 0 && (
+                  <span className="orm-chip kw">{r.matchedKeywords.join(', ')}</span>
+                )}
+              </div>
+              {r.mitigation && <div className="orm-mit"><b>Mitigate:</b> {r.mitigation}</div>}
+              {fieldEnabled('reason') && r.reason && <div className="orm-reason"><b>Reason:</b> {r.reason}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+
+    riskMatrix: sectionEnabled('riskMatrix') && riskMatrixItems.length > 0 && (
+      <div className="orm-panel" key="riskMatrix">
+        <div className="orm-ph">Risk matrix<span className="n">{riskMatrixItems.length}</span></div>
+        <RiskMatrix risks={riskMatrixItems} onPick={openRisk} />
+      </div>
+    ),
+
+    patterns: sectionEnabled('patterns') && patterns.length > 0 && (
+      <div className="orm-panel" key="patterns">
+        <div className="orm-ph">Patterns</div>
+        {patterns.map((p, i) => <div className="orm-pattern" key={i}>{p}</div>)}
+      </div>
+    ),
+
+    inboxTriage: sectionEnabled('inboxTriage') && triage.length > 0 && (
+      <div className="orm-panel" key="inboxTriage">
+        <div className="orm-ph">Inbox triage<span className="n">{triage.length}</span></div>
+        {['Critical', 'Important', 'Low'].map((tier) => (
+          tierGroups[tier].length > 0 && (
+            <div key={tier}>
+              <div className={`orm-tier ${tier.toLowerCase()}`}>{tier} · {tierGroups[tier].length}</div>
+              {tierGroups[tier].map((t, i) => (
+                <div className="orm-trow" key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
+                  <span className="orm-dotm" style={{ background: tier === 'Critical' ? 'var(--crit)' : tier === 'Important' ? 'var(--high)' : 'var(--muted)' }} />
+                  <span className="reason">{t.reason}</span>
+                  {fieldEnabled('matchedKeywords') && t.matchedKeywords?.length > 0 && (
+                    <span className="orm-chip kw" style={{ marginLeft: 6 }}>{t.matchedKeywords.join(', ')}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        ))}
+      </div>
+    ),
+
+    actionRegister: sectionEnabled('actionRegister') && actions.length > 0 && (
+      <div className="orm-panel" key="actionRegister">
+        <div className="orm-ph">Action register<span className="n">{actions.length}</span></div>
+        <table className="orm-actions">
+          <tbody>
+            {actions.map((a, i) => (
+              <tr key={i} onClick={() => onOpenSource(a.sourceId)}>
+                <td className="task">{a.task}</td>
+                {fieldEnabled('owner') && <td className="owner">{a.owner || '-'}</td>}
+                {fieldEnabled('deadline') && <td className="due">{a.deadline || ''}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ),
+
+    calendarConflicts: sectionEnabled('calendarConflicts') && collisions.length > 0 && (
+      <div className="orm-panel orm-panel-amber" key="calendarConflicts">
+        <div className="orm-ph" style={{ color: 'var(--high)' }}>Schedule collisions<span className="n">{collisions.length}</span></div>
+        {collisions.map((c, i) => (
+          <div className="orm-coll" key={i}>
+            <div className="ct">{c.type}</div>
+            <div className="cs">{c.summary}{c.when ? ` · ${c.when}` : ''}</div>
+            {c.suggestion && <div className="cg"><b>Suggested:</b> {c.suggestion}</div>}
+          </div>
+        ))}
+      </div>
+    ),
+
+    todoList: sectionEnabled('todoList') && todos.length > 0 && (
+      <div className="orm-panel" key="todoList">
+        <div className="orm-ph">Your to-do<span className="n">{todos.length}</span></div>
+        {todos.map((t, i) => {
+          const done = isTodoDone(t);
+          return (
+            <div className={`orm-todo${done ? ' done' : ''}`} key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
+              <span
+                className={`orm-box${done ? ' checked' : ''}`}
+                role="checkbox"
+                aria-checked={done}
+                tabIndex={0}
+                title={done ? 'Completed' : 'Mark completed & send reply'}
+                onClick={(e) => { e.stopPropagation(); if (!done) askComplete(t); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); if (!done) askComplete(t); } }}
+              >
+                {done && <i className="pi pi-check" />}
+              </span>
+              <span className="orm-todo-task">{t.task}</span>
+              {fieldEnabled('deadline') && t.deadline && <span className="d">{t.deadline}</span>}
+            </div>
+          );
+        })}
+      </div>
+    ),
+
+    events: sectionEnabled('events') && events.length > 0 && (
+      <div className="orm-panel" key="events">
+        <div className="orm-ph">Events mentioned<span className="n">{events.length}</span></div>
+        {events.map((event, i) => (
+          <div className="orm-event" key={i} onClick={() => onOpenSource(event.sourceId)} role="button" tabIndex={0}>
+            <div className="et">{event.title}</div>
+            <div className="em">
+              {event.when && <span>{event.when}</span>}
+              {event.type && <span>{event.type}</span>}
+              {event.owner && <span>{event.owner}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+  };
+
+  const columnCount = Math.min(3, Math.max(1, Number(rcSnap?.columnCount) || 2));
+  const configuredOrder = rcSnap?.sectionOrder?.length ? rcSnap.sectionOrder : DEFAULT_SECTION_ORDER;
+  const orderedKeys = [
+    ...configuredOrder.filter((key) => key !== 'narrativeSummary' && sectionNodes[key]),
+    ...DEFAULT_SECTION_ORDER.filter((key) => key !== 'narrativeSummary' && sectionNodes[key] && !configuredOrder.includes(key)),
+  ];
+
+  // Explicit column placement wins; anything unassigned round-robins (item 1 -> col 1,
+  // item 2 -> col 2, item 3 -> col 3, item 4 -> col 1, ...) so older configs still lay out sensibly.
+  const columnAssignments = rcSnap?.columnAssignments || {};
+  const columns = Array.from({ length: columnCount }, () => []);
+  orderedKeys.forEach((key, i) => {
+    const assigned = columnAssignments[key];
+    const col = Number.isInteger(assigned) && assigned >= 0 && assigned < columnCount ? assigned : i % columnCount;
+    columns[col].push(key);
+  });
+
   return (
     <div className="orm-dash">
       {report?.mdPath && (
@@ -214,159 +390,12 @@ export const BriefDashboard = ({ report, onOpenSource = () => { }, onOpenRisk })
         })()
       )}
 
-      <div className="orm-grid2">
-        <div>
-          {sectionEnabled('decisionQueue') && decisions.length > 0 && (
-            <div className="orm-panel">
-              <div className="orm-ph">Decisions needed today<span className="n">{decisions.length}</span></div>
-              {decisions.map((d, i) => (
-                <div className="orm-dec" key={i} onClick={() => onOpenSource(d.sourceId)} role="button" tabIndex={0}>
-                  <div className="t">{d.title}</div>
-                  {d.why && <div className="w">{d.why}</div>}
-                  {d.deadline && fieldEnabled('deadline') && <span className="due">DUE: {d.deadline}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {sectionEnabled('riskRadar') && risks.length > 0 && (
-            <div className="orm-panel">
-              <div className="orm-ph">Risk radar<span className="n">{risks.length}</span></div>
-              {risks.map((r, i) => (
-                <div className="orm-risk" key={i} onClick={() => openRisk(r)} role="button" tabIndex={0}>
-                  {fieldEnabled('riskScore') && (
-                    <div className="orm-score" style={{ background: scoreColor(r.riskScore) }}>
-                      {r.riskScore}<small>{r.likelihood}×{r.impact}</small>
-                    </div>
-                  )}
-                  <div>
-                    <div className="s">{r.summary}</div>
-                    <div className="orm-rrow">
-                      {fieldEnabled('category') && r.category && <span className="orm-chip">{r.category}</span>}
-                      {fieldEnabled('clock') && r.clock && <span className="orm-chip clock">{r.clock}</span>}
-                      {fieldEnabled('trend') && r.trend && <span className={`orm-chip ${r.trend === 'Escalating' ? 'esc' : r.trend === 'New' ? 'new' : ''}`}>{TREND_LABEL[r.trend] || r.trend}</span>}
-                      {fieldEnabled('matchedKeywords') && r.matchedKeywords?.length > 0 && (
-                        <span className="orm-chip kw">{r.matchedKeywords.join(', ')}</span>
-                      )}
-                    </div>
-                    {r.mitigation && <div className="orm-mit"><b>Mitigate:</b> {r.mitigation}</div>}
-                    {fieldEnabled('reason') && r.reason && <div className="orm-reason"><b>Reason:</b> {r.reason}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {sectionEnabled('patterns') && patterns.length > 0 && (
-            <div className="orm-panel">
-              <div className="orm-ph">Patterns</div>
-              {patterns.map((p, i) => <div className="orm-pattern" key={i}>{p}</div>)}
-            </div>
-          )}
-
-          {sectionEnabled('inboxTriage') && triage.length > 0 && (
-            <div className="orm-panel">
-              <div className="orm-ph">Inbox triage<span className="n">{triage.length}</span></div>
-              {['Critical', 'Important', 'Low'].map((tier) => (
-                tierGroups[tier].length > 0 && (
-                  <div key={tier}>
-                    <div className={`orm-tier ${tier.toLowerCase()}`}>{tier} · {tierGroups[tier].length}</div>
-                    {tierGroups[tier].map((t, i) => (
-                      <div className="orm-trow" key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
-                        <span className="orm-dotm" style={{ background: tier === 'Critical' ? 'var(--crit)' : tier === 'Important' ? 'var(--high)' : 'var(--muted)' }} />
-                        <span className="reason">{t.reason}</span>
-                        {fieldEnabled('matchedKeywords') && t.matchedKeywords?.length > 0 && (
-                          <span className="orm-chip kw" style={{ marginLeft: 6 }}>{t.matchedKeywords.join(', ')}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )
-              ))}
-            </div>
-          )}
-
-          {sectionEnabled('actionRegister') && actions.length > 0 && (
-            <div className="orm-panel">
-              <div className="orm-ph">Action register<span className="n">{actions.length}</span></div>
-              <table className="orm-actions">
-                <tbody>
-                  {actions.map((a, i) => (
-                    <tr key={i} onClick={() => onOpenSource(a.sourceId)}>
-                      <td className="task">{a.task}</td>
-                      {fieldEnabled('owner') && <td className="owner">{a.owner || '-'}</td>}
-                      {fieldEnabled('deadline') && <td className="due">{a.deadline || ''}</td>}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div>
-          {sectionEnabled('riskRadar') && riskMatrixItems.length > 0 && (
-            <div className="orm-panel">
-              <div className="orm-ph">Risk matrix<span className="n">{riskMatrixItems.length}</span></div>
-              <RiskMatrix risks={riskMatrixItems} onPick={openRisk} />
-            </div>
-          )}
-
-          {sectionEnabled('calendarConflicts') && collisions.length > 0 && (
-            <div className="orm-panel orm-panel-amber">
-              <div className="orm-ph" style={{ color: 'var(--high)' }}>Schedule collisions<span className="n">{collisions.length}</span></div>
-              {collisions.map((c, i) => (
-                <div className="orm-coll" key={i}>
-                  <div className="ct">{c.type}</div>
-                  <div className="cs">{c.summary}{c.when ? ` · ${c.when}` : ''}</div>
-                  {c.suggestion && <div className="cg"><b>Suggested:</b> {c.suggestion}</div>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {sectionEnabled('todoList') && todos.length > 0 && (
-            <div className="orm-panel">
-              <div className="orm-ph">Your to-do<span className="n">{todos.length}</span></div>
-              {todos.map((t, i) => {
-                const done = isTodoDone(t);
-                return (
-                  <div className={`orm-todo${done ? ' done' : ''}`} key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
-                    <span
-                      className={`orm-box${done ? ' checked' : ''}`}
-                      role="checkbox"
-                      aria-checked={done}
-                      tabIndex={0}
-                      title={done ? 'Completed' : 'Mark completed & send reply'}
-                      onClick={(e) => { e.stopPropagation(); if (!done) askComplete(t); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); if (!done) askComplete(t); } }}
-                    >
-                      {done && <i className="pi pi-check" />}
-                    </span>
-                    <span className="orm-todo-task">{t.task}</span>
-                    {fieldEnabled('deadline') && t.deadline && <span className="d">{t.deadline}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {sectionEnabled('events') && events.length > 0 && (
-            <div className="orm-panel">
-              <div className="orm-ph">Events mentioned<span className="n">{events.length}</span></div>
-              {events.map((event, i) => (
-                <div className="orm-event" key={i} onClick={() => onOpenSource(event.sourceId)} role="button" tabIndex={0}>
-                  <div className="et">{event.title}</div>
-                  <div className="em">
-                    {event.when && <span>{event.when}</span>}
-                    {event.type && <span>{event.type}</span>}
-                    {event.owner && <span>{event.owner}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="orm-grid" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
+        {columns.map((colKeys, colIdx) => (
+          <div key={colIdx}>
+            {colKeys.map((key) => sectionNodes[key])}
+          </div>
+        ))}
       </div>
 
       {/* Markdown file viewer */}

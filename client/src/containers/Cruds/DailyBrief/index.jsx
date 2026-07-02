@@ -64,6 +64,18 @@ const DailyBrief = () => {
 
   const dayKey = moment(date).format('YYYY-MM-DD');
 
+  // Live report-config (sections/order/columns), shared with the Reports screen's
+  // Report Requirements panel — always wins over a report's own stale snapshot.
+  const [reportConfig, setReportConfig] = useState(null);
+  useEffect(() => {
+    fetchMethodRequest('GET', 'email-analysis/report-configs')
+      .then((res) => {
+        const configs = Array.isArray(res?.configs) ? res.configs : [];
+        setReportConfig(configs.find((c) => c.isDefault) || configs[0] || null);
+      })
+      .catch(() => {});
+  }, []);
+
   /* ---------------- fetch report for the selected day ---------------- */
   const fetchReport = useCallback(async (d) => {
     setLoading(true);
@@ -152,7 +164,7 @@ const DailyBrief = () => {
         </div>
       );
     }
-    return <BriefDashboard report={report} onOpenSource={openEmail} onOpenRisk={openRisk} />;
+    return <BriefDashboard report={report} reportConfig={reportConfig} onOpenSource={openEmail} onOpenRisk={openRisk} />;
   };
 
   /* ---------------- render: email drawer (04) ---------------- */

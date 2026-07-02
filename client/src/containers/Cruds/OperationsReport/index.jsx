@@ -112,6 +112,18 @@ const OperationsReport = () => {
   const [kbSheetOpen, setKbSheetOpen] = useState(false);
   const [rcSheetOpen, setRcSheetOpen] = useState(false);
 
+  // Live report-config (sections/order/columns) — always wins over a report's own
+  // snapshot so layout changes show up immediately without regenerating the brief.
+  const [reportConfig, setReportConfig] = useState(null);
+  const fetchReportConfig = useCallback(async () => {
+    try {
+      const res = await fetchMethodRequest('GET', 'email-analysis/report-configs');
+      const configs = Array.isArray(res?.configs) ? res.configs : [];
+      setReportConfig(configs.find((c) => c.isDefault) || configs[0] || null);
+    } catch { /* non-fatal — BriefDashboard falls back to each report's own snapshot */ }
+  }, []);
+  useEffect(() => { fetchReportConfig(); }, [fetchReportConfig]);
+
   /* ---------------- fetch list ---------------- */
   const fetchReports = useCallback(async (preserveSelection) => {
     setListLoading(true);
@@ -424,7 +436,7 @@ const OperationsReport = () => {
               {selectedWeekReport.source === 'live' ? 'LIVE AI' : 'SAMPLE'}
             </span>
           </div>
-          <BriefDashboard report={selectedWeekReport} onOpenSource={onOpenSource} />
+          <BriefDashboard report={selectedWeekReport} reportConfig={reportConfig} onOpenSource={onOpenSource} />
         </>
       );
     }
@@ -443,7 +455,7 @@ const OperationsReport = () => {
             {selectedReport.source === 'live' ? 'LIVE AI' : 'SAMPLE'}
           </span>
         </div>
-        <BriefDashboard report={selectedReport} onOpenSource={onOpenSource} />
+        <BriefDashboard report={selectedReport} reportConfig={reportConfig} onOpenSource={onOpenSource} />
       </>
     );
   };
@@ -573,13 +585,16 @@ const OperationsReport = () => {
       </Sheet>
 
       {/* Report Requirements sheet */}
-      <Sheet open={rcSheetOpen} onOpenChange={setRcSheetOpen}>
+      <Sheet
+        open={rcSheetOpen}
+        onOpenChange={(o) => { setRcSheetOpen(o); if (!o) fetchReportConfig(); }}
+      >
         <SheetContent side="right" className="w-[560px] !max-w-[96vw] overflow-y-auto bg-white">
           <div className="orm-sheet-head">
             <h3>Report Requirements</h3>
             <p className="orm-sheet-sub">Choose what the generated report should show. Email analysis rules stay in Knowledge Base.</p>
           </div>
-          <ReportConfigPanel onClose={() => setRcSheetOpen(false)} />
+          <ReportConfigPanel onClose={() => { setRcSheetOpen(false); fetchReportConfig(); }} />
         </SheetContent>
       </Sheet>
     </div>

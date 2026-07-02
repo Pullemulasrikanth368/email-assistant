@@ -15,12 +15,32 @@ const keepKnown = (values = [], allowed = [], fallback = []) => {
   return filtered.length ? filtered : [...fallback];
 };
 
+const sanitizeColumnAssignments = (assignments, columnCount) => {
+  const src = assignments && typeof assignments === 'object' ? assignments : {};
+  const out = {};
+  Object.keys(src).forEach((key) => {
+    if (!ALL_SECTIONS.includes(key)) return;
+    const col = Number(src[key]);
+    if (Number.isInteger(col) && col >= 0 && col < columnCount) out[key] = col;
+  });
+  return out;
+};
+
 function sanitizeReportConfigData(data = {}) {
   const { filters, ...rest } = data;
+  const enabledSections = keepKnown(data.enabledSections, ALL_SECTIONS, DEFAULT_SECTIONS);
+  const orderedKnown = keepKnown(data.sectionOrder, ALL_SECTIONS, enabledSections);
+  // sections missing from a partial sectionOrder are appended in default order, so nothing silently disappears.
+  const sectionOrder = [...orderedKnown, ...enabledSections.filter((key) => !orderedKnown.includes(key))];
+  const columnCount = Math.min(3, Math.max(1, Number(data.columnCount) || 2));
+  const columnAssignments = sanitizeColumnAssignments(data.columnAssignments, columnCount);
   return {
     ...rest,
-    enabledSections: keepKnown(data.enabledSections, ALL_SECTIONS, DEFAULT_SECTIONS),
+    enabledSections,
     selectedFields: keepKnown(data.selectedFields, ALL_FIELDS, DEFAULT_FIELDS),
+    sectionOrder,
+    columnCount,
+    columnAssignments,
   };
 }
 
@@ -28,6 +48,9 @@ const DEFAULT_REPORT_CONFIG = {
   reportName: 'Default Config',
   enabledSections: DEFAULT_SECTIONS,
   selectedFields: DEFAULT_FIELDS,
+  sectionOrder: DEFAULT_SECTIONS,
+  columnCount: 2,
+  columnAssignments: {},
   promptInstruction: '',
   outputStyle: 'detailed',
   isDefault: true,
