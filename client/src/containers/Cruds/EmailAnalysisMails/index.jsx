@@ -1,9 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Paginator } from 'primereact/paginator';
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
-import { RefreshCw, Trash2, Flag, Link } from 'lucide-react';
+import { RefreshCw, Trash2, Flag, Link, ChevronLeft, ChevronRight, CalendarDays, X } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
@@ -237,9 +236,15 @@ const EmailAnalysisMails = () => {
   const [error, setError] = useState(null);
 
   const [first, setFirst] = useState(0);
-  const [rows, setRows] = useState(PAGE_SIZE);
+  const [rows] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+
+  // Received-date filter ({ from, to } as YYYY-MM-DD). `dateRange` is applied;
+  // `draftRange` is what the user is editing inside the filter popup.
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
+  const [draftRange, setDraftRange] = useState({ from: '', to: '' });
+  const [dateDialog, setDateDialog] = useState(false);
 
   const [selectedId, setSelectedId] = useState(null);
   const [selectedMail, setSelectedMail] = useState(null);
@@ -263,7 +268,7 @@ const EmailAnalysisMails = () => {
   const searchDebounce = useRef(null);
 
   /* -------------------- data fetching -------------------- */
-  const fetchMails = useCallback(async (page, limit, searchTerm) => {
+  const fetchMails = useCallback(async (page, limit, searchTerm, range) => {
     setLoading(true);
     setError(null);
     try {
@@ -274,6 +279,8 @@ const EmailAnalysisMails = () => {
         direction: 'desc',
         search: searchTerm || '',
         loginUserEmailId: getLoginEmail(),
+        ...(range?.from ? { fromDate: range.from } : {}),
+        ...(range?.to ? { toDate: range.to } : {}),
       };
       const url = `email-analysis/mails?filter=${encodeURIComponent(JSON.stringify(filter))}`;
       const res = await fetchMethodRequest('GET', url);
@@ -290,8 +297,8 @@ const EmailAnalysisMails = () => {
 
   useEffect(() => {
     const page = Math.floor(first / rows) + 1;
-    fetchMails(page, rows, appliedSearch);
-  }, [first, rows, appliedSearch, fetchMails]);
+    fetchMails(page, rows, appliedSearch, dateRange);
+  }, [first, rows, appliedSearch, dateRange, fetchMails]);
 
   /* -------------------- search (debounced) -------------------- */
   const onSearchChange = (value) => {
@@ -351,7 +358,7 @@ const EmailAnalysisMails = () => {
           'success'
         );
         setFirst(0);
-        fetchMails(1, rows, appliedSearch);
+        fetchMails(1, rows, appliedSearch, dateRange);
       } else {
         showToasterMessage(res?.errorMessage || 'No connected account to sync', 'warning');
       }
@@ -364,7 +371,7 @@ const EmailAnalysisMails = () => {
 
   const refresh = () => {
     const page = Math.floor(first / rows) + 1;
-    fetchMails(page, rows, appliedSearch);
+    fetchMails(page, rows, appliedSearch, dateRange);
   };
 
   /* -------------------- cleanup (remove junk/promo/low) -------------------- */
@@ -392,7 +399,7 @@ const EmailAnalysisMails = () => {
         setSelectedId(null);
         setSelectedMail(null);
         setFirst(0);
-        fetchMails(1, rows, appliedSearch);
+        fetchMails(1, rows, appliedSearch, dateRange);
       } else {
         setCleanup(c => ({ ...c, removing: false }));
         showToasterMessage(res?.errorMessage || 'Could not clean up', 'error');
@@ -403,10 +410,11 @@ const EmailAnalysisMails = () => {
     }
   };
 
-  const onPageChange = (e) => {
-    setFirst(e.first);
-    setRows(e.rows);
-  };
+  /* -------------------- pager (Gmail-style prev / next) -------------------- */
+  const canPrev = first > 0;
+  const canNext = first + rows < totalRecords;
+  const goPrev = () => { if (canPrev) setFirst(Math.max(0, first - rows)); };
+  const goNext = () => { if (canNext) setFirst(first + rows); };
 
   const rangeLabel = useMemo(() => {
     if (!totalRecords) return '0';
@@ -414,6 +422,49 @@ const EmailAnalysisMails = () => {
     const end = Math.min(first + rows, totalRecords);
     return `${start}–${end} of ${totalRecords}`;
   }, [first, rows, totalRecords]);
+
+  /* -------------------- date filter -------------------- */
+  const hasDateFilter = !!(dateRange.from || dateRange.to);
+
+  const openDateDialog = () => {
+    setDraftRange(dateRange);
+    setDateDialog(true);
+  };
+
+  const applyDateFilter = () => {
+    setDateRange(draftRange);
+    setFirst(0);
+    setDateDialog(false);
+  };
+
+  const clearDateFilter = () => {
+    setDraftRange({ from: '', to: '' });
+    setDateRange({ from: '', to: '' });
+    setFirst(0);
+    setDateDialog(false);
+  };
+
+  // Quick presets fill the draft inputs; Apply commits them.
+  const DATE_PRESETS = [
+    { label: 'Today', from: 0, to: 0 },
+    { label: 'Yesterday', from: 1, to: 1 },
+    { label: 'Last 7 days', from: 6, to: 0 },
+    { label: 'Last 30 days', from: 29, to: 0 },
+  ];
+  const usePreset = (p) => setDraftRange({
+    from: moment().subtract(p.from, 'days').format('YYYY-MM-DD'),
+    to: moment().subtract(p.to, 'days').format('YYYY-MM-DD'),
+  });
+
+  // Human label for the applied range, shown on the filter chip.
+  const dateChipLabel = useMemo(() => {
+    if (!hasDateFilter) return '';
+    const fmt = (d) => moment(d, 'YYYY-MM-DD').format('MMM D');
+    if (dateRange.from && dateRange.to) {
+      return dateRange.from === dateRange.to ? fmt(dateRange.from) : `${fmt(dateRange.from)} – ${fmt(dateRange.to)}`;
+    }
+    return dateRange.from ? `From ${fmt(dateRange.from)}` : `Until ${fmt(dateRange.to)}`;
+  }, [dateRange, hasDateFilter]);
 
   // Approximate total to remove for the selected cleanup categories (categories
   // can overlap, so the exact count is reported back after removal).
@@ -481,17 +532,19 @@ const EmailAnalysisMails = () => {
           <div className="ea-row-bottom">
             {mail.priority && PRIORITY_META[mail.priority] && (
               <span
-                className="ea-prio"
+                className={cn('ea-prio', { 'dot-only': mail.priority === 'Low' })}
                 style={{ color: PRIORITY_META[mail.priority].color }}
                 title={mail.intent ? `${mail.priority} · ${mail.intent}${mail.priorityReason ? ` — ${mail.priorityReason}` : ''}` : mail.priority}
               >
-                {mail.priority}
+                {mail.priority !== 'Low' && mail.priority}
               </span>
             )}
-            <span className="ea-subject">{mail.subject || '(no subject)'}</span>
+            <span className="ea-subject">
+              {mail.subject || '(no subject)'}
+              {mail.snippet && <span className="ea-snippet"> — {mail.snippet}</span>}
+            </span>
             {mail.hasAttachments && <i className="pi pi-paperclip ea-clip" />}
           </div>
-          <div className="ea-snippet">{mail.snippet}</div>
         </div>
       </div>
     );
@@ -563,15 +616,6 @@ const EmailAnalysisMails = () => {
 
         <MailBody body={selectedMail.body} snippet={selectedMail.snippet} />
 
-        {/* Quick replies + AI draft reply bar */}
-        <div className="ea-reply-section">
-          <QuickReplies sourceId={selectedMail.providerMessageId} />
-          <AiDraftReply
-            mailId={selectedMail._id}
-            sourceId={selectedMail.providerMessageId}
-          />
-        </div>
-
         {attachments.length > 0 && (
           <div className="ea-attachments">
             <div className="ea-attachments-head">
@@ -607,6 +651,16 @@ const EmailAnalysisMails = () => {
             </div>
           </div>
         )}
+
+        {/* Quick replies + AI draft reply — sticky footer, Gmail-style:
+            stays visible while reading, settles into flow at the mail's end */}
+        <div className="ea-reply-section">
+          {/* <QuickReplies sourceId={selectedMail.providerMessageId} /> */}
+          <AiDraftReply
+            mailId={selectedMail._id}
+            sourceId={selectedMail.providerMessageId}
+          />
+        </div>
       </div>
     );
   };
@@ -805,18 +859,53 @@ const EmailAnalysisMails = () => {
 
       </div>
 
-      {/* Sub-toolbar: count + paginator */}
+      {/* Sub-toolbar: date filter + Gmail-style pager */}
       <div className="ea-subbar">
-        <span className="ea-count">{rangeLabel}</span>
-        <Paginator
-          first={first}
-          rows={rows}
-          totalRecords={totalRecords}
-          rowsPerPageOptions={[25, 50, 100]}
-          template="FirstPageLink PrevPageLink NextPageLink LastPageLink RowsPerPageDropdown"
-          onPageChange={onPageChange}
-          className="ea-paginator"
-        />
+        <div className="ea-subbar-left">
+          <button
+            type="button"
+            className={cn('ea-datefilter-btn', { active: hasDateFilter })}
+            onClick={openDateDialog}
+            title="Filter by received date"
+          >
+            <CalendarDays size={14} />
+            <span>{hasDateFilter ? dateChipLabel : 'Filter by date'}</span>
+          </button>
+          {hasDateFilter && (
+            <button
+              type="button"
+              className="ea-datefilter-clear"
+              onClick={clearDateFilter}
+              title="Clear date filter"
+              aria-label="Clear date filter"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+        <div className="ea-pager">
+          <span className="ea-count">{rangeLabel}</span>
+          <button
+            type="button"
+            className="ea-page-btn"
+            onClick={goPrev}
+            disabled={!canPrev || loading}
+            title="Newer"
+            aria-label="Newer emails"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            type="button"
+            className="ea-page-btn"
+            onClick={goNext}
+            disabled={!canNext || loading}
+            title="Older"
+            aria-label="Older emails"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Body: split view (inbox) or full-width priority table */}
@@ -833,6 +922,63 @@ const EmailAnalysisMails = () => {
       <Dialog open={mailDialog} onOpenChange={(o) => !o && setMailDialog(false)}>
         <DialogContent className="ea-dialog-content max-w-[720px] w-[96vw]">
           {renderReadingPane()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Date-range filter popup */}
+      <Dialog open={dateDialog} onOpenChange={(o) => !o && setDateDialog(false)}>
+        <DialogContent className="ea-date-dialog max-w-[400px] w-[92vw]">
+          <div className="ea-date-head">
+            <span className="ea-date-ic"><CalendarDays size={18} /></span>
+            <div>
+              <h2>Filter by date</h2>
+              <p>Show only mail received in this range.</p>
+            </div>
+          </div>
+
+          <div className="ea-date-presets">
+            {DATE_PRESETS.map((p) => (
+              <button key={p.label} type="button" className="ea-date-preset" onClick={() => usePreset(p)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="ea-date-fields">
+            <label className="ea-date-field">
+              <span>From</span>
+              <input
+                type="date"
+                value={draftRange.from}
+                max={draftRange.to || moment().format('YYYY-MM-DD')}
+                onChange={(e) => setDraftRange(r => ({ ...r, from: e.target.value }))}
+              />
+            </label>
+            <label className="ea-date-field">
+              <span>To</span>
+              <input
+                type="date"
+                value={draftRange.to}
+                min={draftRange.from || undefined}
+                max={moment().format('YYYY-MM-DD')}
+                onChange={(e) => setDraftRange(r => ({ ...r, to: e.target.value }))}
+              />
+            </label>
+          </div>
+
+          <div className="ea-date-foot">
+            <button type="button" className="ea-date-clear" onClick={clearDateFilter}>
+              Clear
+            </button>
+            <button
+              type="button"
+              className="ea-date-apply"
+              disabled={!draftRange.from && !draftRange.to}
+              onClick={applyDateFilter}
+            >
+              Apply
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 

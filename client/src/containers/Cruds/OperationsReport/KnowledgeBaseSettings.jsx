@@ -576,7 +576,7 @@ export default function KnowledgeBaseSettings({ onClose }) {
       >
         <textarea
           className="kb-prompt"
-          rows={6}
+          rows={4}
           placeholder="e.g. Treat vendor outage emails as Important, classify payment receipts as Low, flag security alerts as Critical, extract actions only when the email asks me to do something."
           value={promptInstruction}
           onChange={(event) => setPromptInstruction(event.target.value)}

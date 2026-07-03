@@ -6,6 +6,8 @@ import sampleBrief from "./sampleBrief";
 // Keys every brief must expose so the UI never breaks on a partial response.
 const BRIEF_ARRAY_KEYS = [
   "triage",
+  "narrativeKeyPoints",
+  "mailBriefs",
   "decisionQueue",
   "risks",
   "todoList",
@@ -181,18 +183,41 @@ function fallbackBriefFromEmails(emails = [], kb) {
       sourceId: e.id,
       tier,
       reason: e.subject || "(no subject)",
+      subject: e.subject || "(no subject)",
+      from: e.from || "",
+      summary: String(e.body || "").replace(/\s+/g, " ").trim().slice(0, 160) || "(no content)",
       matchedKeywords: tier === "Critical" ? critMatched : tier === "Important" ? impMatched : [],
     };
   });
 
+  const mailBriefs = emails.map((e) => ({
+    sourceId: e.id,
+    subject: e.subject || "(no subject)",
+    from: e.from || "",
+    brief: String(e.body || "").replace(/\s+/g, " ").trim().slice(0, 200) || "(no content)",
+  }));
+
   const critical = triage.filter((t) => t.tier === "Critical");
   const important = triage.filter((t) => t.tier === "Important");
+
+  // Key points grouped by tier so the narrative reads as linked bullets even offline.
+  const tierPoint = (label, items, summary) => (items.length ? {
+    title: `${label} · ${items.length} email(s)`,
+    summary,
+    mails: items.map((t) => ({ sourceId: t.sourceId, subject: t.subject, from: t.from })),
+  } : null);
+  const narrativeKeyPoints = [
+    tierPoint("Critical", critical, "Flagged critical by keyword scan — review these first."),
+    tierPoint("Important", important, "Flagged important by keyword scan — likely need a response or follow-up."),
+  ].filter(Boolean);
 
   return {
     narrative:
       `Offline summary (AI analysis unavailable): ${emails.length} email(s) in this period — ` +
       `${critical.length} look critical, ${important.length} important. ` +
       `Showing a keyword-based triage of your actual inbox; reconnect AI for full scoring.`,
+    narrativeKeyPoints,
+    mailBriefs,
     triage,
     decisionQueue: critical.slice(0, 6).map((t) => ({
       title: t.reason, why: "Flagged critical by keyword scan", deadline: "", sourceId: t.sourceId,

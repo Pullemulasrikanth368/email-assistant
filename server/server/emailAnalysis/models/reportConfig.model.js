@@ -5,12 +5,12 @@ import httpStatus from 'http-status';
 import APIError from '../../helpers/APIError';
 
 const ALL_SECTIONS = [
-  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
+  'narrativeSummary', 'mailBriefs', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
   'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
 ];
 
 const DEFAULT_SECTIONS = [
-  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
+  'narrativeSummary', 'mailBriefs', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
   'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
 ];
 

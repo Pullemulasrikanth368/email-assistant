@@ -479,6 +479,7 @@ const OperationsReport = () => {
             <h3 className="orm-email-subject">{mail.subject || '(no subject)'}</h3>
             <div className="orm-email-meta">{mail.receivedAt ? moment(mail.receivedAt).format('ddd, MMM D, YYYY h:mm A') : ''}</div>
 
+            <QuickReplies sourceId={mail.providerMessageId || sourceId} />
             {risk && (
               <div className="orm-flag">
                 <div className="ft">AI flagged - high operational risk</div>
@@ -497,7 +498,6 @@ const OperationsReport = () => {
             )}
 
             <MailFrame body={mail.body} snippet={mail.snippet} />
-            <QuickReplies sourceId={mail.providerMessageId || sourceId} />
 
             {mail.attachments?.length > 0 && (
               <div className="orm-att-list">

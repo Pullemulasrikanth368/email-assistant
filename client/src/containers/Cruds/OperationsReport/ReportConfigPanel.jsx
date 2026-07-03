@@ -6,6 +6,7 @@ import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 
 const ALL_SECTIONS = [
   { key: 'narrativeSummary', label: 'Narrative summary' },
+  { key: 'mailBriefs', label: 'Mail briefs' },
   { key: 'decisionQueue', label: 'Decisions needed today' },
   { key: 'riskRadar', label: 'Risk radar' },
   { key: 'riskMatrix', label: 'Risk matrix' },
@@ -45,7 +46,7 @@ const REQUIREMENT_PRESETS = [
 ];
 
 const DEFAULT_SECTIONS = [
-  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
+  'narrativeSummary', 'mailBriefs', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
   'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
 ];
 

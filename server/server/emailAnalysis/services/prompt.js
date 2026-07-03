@@ -96,7 +96,7 @@ RISK SCORE THRESHOLDS:
 - Escalation threshold: riskScore >= ${Math.round(escalationScore / 4)} OR email contains escalation keywords
 
 ANALYSIS RULES:
-1. Triage EVERY email into "Critical", "Important", or "Low" with a one-line reason. Use the CLASSIFICATION KEYWORDS above as signals. Rank by severity × urgency: anything threatening safety, legal/regulatory/compliance, customers, or revenue ranks highest; pure cost items or routine FYI rank lowest.
+1. Triage EVERY email into "Critical", "Important", or "Low" with a one-line reason. Use the CLASSIFICATION KEYWORDS above as signals. Rank by severity × urgency: anything threatening safety, legal/regulatory/compliance, customers, or revenue ranks highest; pure cost items or routine FYI rank lowest. Also include the email's "subject", "from", and a "summary" (one clear sentence explaining what the email is actually about and why it landed in this tier) so the reader can understand the item without opening the email.
 2. Read the FULL body of each email. Catch real operational issues even when buried inside a routine/boring message.
 3. For each operational risk, score: likelihood (1-5), impact (1-5), riskScore = likelihood * impact. Add: category, clock (time-to-impact, short string), affectedArea, a concrete mitigation, and a trend.
    - category: a SHORT, sector-appropriate label chosen from the email's own domain.
@@ -110,7 +110,12 @@ ANALYSIS RULES:
 8. events: list every event mentioned in emails when relevant. Each {title, when, type, owner, sourceId}. Include both calendar-style events and business events, but do not invent dates.
 9. patterns: array of strings — cross-email signals.
 10. deadlines: {date, item, sourceId} for every dated commitment.
-11. narrative: a 120-second, spoken-style summary. Lead with the most important thing.
+11. narrative: a 120-second, spoken-style summary. Lead with the most important thing. Keep it to 1-2 sentences — the detail lives in narrativeKeyPoints.
+12. narrativeKeyPoints: the narrative broken into 3-7 KEY POINTS, ordered most important first. GROUP related emails: when 2-3 emails belong to the same category/topic (e.g. several security alerts, several lead notifications, several policy updates), merge them into ONE key point whose "mails" array lists EVERY email in that group. Each key point:
+    - "title": a short headline for the point/category (e.g. "Google security alerts", "Payment issue").
+    - "summary": 1-2 sentences with enough concrete info (who, what, deadline, what to do) that the reader doesn't need to open the emails.
+    - "mails": [{ "sourceId", "subject", "from" }] — one entry per email backing this point, so the UI can link each mail beside the point. Never leave it empty.
+13. mailBriefs: for EVERY email in the inbox, produce a short, plain-language brief (2-3 sentences) explaining what the email is about, who it's from/for, and why it matters. Each {sourceId, subject, from, brief}. Do not skip any email.
 
 Base EVERY field strictly on the emails provided — do NOT fabricate issues, names, dates, or numbers.
 Every array item MUST carry a "sourceId" equal to the "id" of the email it came from.
@@ -119,7 +124,9 @@ OUTPUT:
 Return ONLY a valid JSON object (no markdown) with EXACTLY these keys:
 {
   "narrative": string,
-  "triage": [{ "sourceId": string, "tier": "Critical"|"Important"|"Low", "reason": string, "matchedKeywords": [string] }],
+  "narrativeKeyPoints": [{ "title": string, "summary": string, "mails": [{ "sourceId": string, "subject": string, "from": string }] }],
+  "mailBriefs": [{ "sourceId": string, "subject": string, "from": string, "brief": string }],
+  "triage": [{ "sourceId": string, "tier": "Critical"|"Important"|"Low", "reason": string, "subject": string, "from": string, "summary": string, "matchedKeywords": [string] }],
   "decisionQueue": [{ "title": string, "why": string, "deadline": string, "sourceId": string }],
   "risks": [{ "category": string, "summary": string, "likelihood": number, "impact": number, "riskScore": number, "clock": string, "affectedArea": string, "mitigation": string, "trend": "New"|"Escalating"|"Stable"|"Cooling", "sourceId": string }],
   "todoList": [{ "task": string, "deadline": string, "status": "Open", "sourceId": string }],

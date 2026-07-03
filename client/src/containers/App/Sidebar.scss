@@ -36,7 +36,7 @@ $sb-collapsed: 52px;
   transition: width 0.2s ease, min-width 0.2s ease;
   overflow: hidden;
   flex-shrink: 0;
-  z-index: 100;
+  z-index: 50;
 
   &--collapsed {
     width: $sb-collapsed;
@@ -49,7 +49,7 @@ $sb-collapsed: 52px;
   display: flex;
   align-items: center;
   gap: 8px;
-  // padding: 0 10px;
+  padding: 0 10px 0 14px;
   min-height: 52px;
   border-bottom: 1px solid $sb-border;
   flex-shrink: 0;
@@ -58,9 +58,10 @@ $sb-collapsed: 52px;
 
 /* Amneal logo image (expanded state) */
 .ea-sidebar__logo-img {
-  height: 45px;
+  height: 40px;
   width: auto;
   object-fit: contain;
+  object-position: left center;
   flex: 1;
   min-width: 0;
 }

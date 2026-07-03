@@ -487,6 +487,97 @@
     }
   }
 
+  /* Narrative as key points, each with its source-mail links beside it. Fixed 2 columns. */
+  .orm-kp-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+  }
+
+  .orm-kp {
+    background: #fff;
+    border: 1px solid rgba(31, 111, 107, .22);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 12px;
+    line-height: 1.55;
+    min-width: 0;
+  }
+
+  .orm-kp-title {
+    font-weight: 650;
+    color: var(--ink);
+  }
+
+  .orm-kp-summary {
+    color: var(--ink2);
+  }
+
+  /* "Mails (n)" accordion per key point: toggles the badge list below */
+  .orm-kp-mails-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    font-size: 11px;
+    font-weight: 650;
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    .pi {
+      font-size: 9px;
+    }
+
+    .n {
+      font-family: var(--mono);
+      font-weight: 500;
+      color: var(--muted);
+    }
+  }
+
+  .orm-kp-mails {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .orm-kp-mail {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid rgba(31, 111, 107, .35);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .orm-kp-mail-icon {
+      width: 12px;
+      height: 12px;
+      flex: none;
+    }
+  }
+
   // Column count comes from the report config (1-3), capped by viewport width; the
   // effective count (and grid-template-columns) is computed in JS and set inline,
   // so this only needs the shared row/gap behaviour.
@@ -532,6 +623,55 @@
       font-family: var(--mono);
       color: var(--muted);
     }
+
+    /* When there's no count badge, the info icon takes the right edge itself */
+    .orm-info-btn {
+      margin-left: auto;
+    }
+
+    .n + .orm-info-btn {
+      margin-left: 0;
+    }
+  }
+
+  .orm-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--accent);
+      background: rgba(0, 85, 140, .08);
+    }
+  }
+
+  /* Accordion behaviour: every panel header toggles its body */
+  .orm-ph-toggle {
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      color: var(--accent);
+    }
+
+    .orm-ph-chev {
+      font-size: 10px;
+      color: var(--muted);
+      flex: none;
+    }
+  }
+
+  .orm-narr-head {
+    margin-bottom: 6px;
   }
 
   .orm-dec {
@@ -648,6 +788,9 @@
   }
 
   .orm-event {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
     border-top: 1px solid var(--line);
     padding: 9px 0;
     cursor: pointer;
@@ -660,9 +803,51 @@
       background: var(--paper);
     }
 
+    /* Calendar tile: month over day */
+    .orm-event-date {
+      flex: none;
+      width: 42px;
+      border: 1px solid rgba(31, 111, 107, .35);
+      border-radius: 5px;
+      background: var(--accent-soft);
+      text-align: center;
+      padding: 3px 0 4px;
+      line-height: 1.15;
+
+      .m {
+        display: block;
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .d {
+        display: block;
+        font-size: 17px;
+        font-weight: 750;
+        color: var(--ink);
+      }
+
+      &.none {
+        padding: 10px 0;
+        color: var(--accent);
+
+        .pi {
+          font-size: 14px;
+        }
+      }
+    }
+
+    .orm-event-body {
+      flex: 1;
+      min-width: 0;
+    }
+
     .et {
       color: var(--ink3);
-      font-size: 12px;
+      font-size: 12.5px;
       font-weight: 650;
       line-height: 1.35;
     }
@@ -670,17 +855,33 @@
     .em {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      align-items: center;
+      gap: 6px 10px;
       margin-top: 4px;
+      font-size: 11px;
 
-      span {
-        font-family: var(--mono);
-        font-size: 10.5px;
-        color: white;
-        background: #616175;
-        // border: 1px solid #73cb1c !important;
-        border-radius: 3px;
-        padding: 2px 6px;
+      .pi {
+        font-size: 10px;
+        margin-right: 4px;
+      }
+
+      .time,
+      .who {
+        display: inline-flex;
+        align-items: center;
+        color: var(--ink2);
+      }
+
+      .type {
+        font-size: 10px;
+        font-weight: 650;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border: 1px solid rgba(31, 111, 107, .3);
+        border-radius: 9px;
+        padding: 1px 8px;
       }
     }
   }
@@ -849,24 +1050,49 @@
     }
   }
 
-  /* Triage */
+  /* Triage — tier headers are bright full-width bands so collapsed tiers stay visible */
   .orm-tier {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 11.5px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .05em;
-    margin: 13px 0 5px;
+    margin: 10px 0 5px;
+    padding: 5px 8px;
+    border-radius: 4px;
 
     &.critical {
-      color: var(--crit);
+      color: #b3261e;
+      background: #fbe4e2;
+      border-left: 4px solid #d9534f;
     }
 
     &.important {
-      color: var(--high);
+      color: #9a5b00;
+      background: #fcefd9;
+      border-left: 4px solid #f0a53a;
     }
 
     &.low {
-      color: var(--muted);
+      color: #3c4550;
+      background: #e9ebee;
+      border-left: 4px solid #9aa1ab;
+    }
+  }
+
+  .orm-tier-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      filter: brightness(.96);
+    }
+
+    .pi {
+      font-size: 9px;
     }
   }
 
@@ -880,6 +1106,59 @@
     cursor: pointer;
   }
 
+  .orm-trow-rich {
+    align-items: flex-start;
+
+    // Risk tier is signalled by a medium-light left border:
+    // red = high risk, yellow = medium, light gray = low.
+    border-left: 4px solid #d7dadf;
+    padding-left: 9px;
+    border-radius: 2px;
+
+    &.t-critical {
+      border-left-color: #e88080;
+    }
+
+    &.t-important {
+      border-left-color: #f0c05a;
+    }
+
+    &.t-low {
+      border-left-color: #d7dadf;
+    }
+
+    .orm-trow-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .orm-trow-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 2px;
+
+      .subject {
+        font-weight: 600;
+        color: var(--ink);
+        font-size: 12.5px;
+      }
+
+      .from {
+        color: var(--muted);
+        font-size: 11px;
+      }
+    }
+
+    .summary {
+      color: var(--ink2);
+      font-size: 11.5px;
+      line-height: 1.4;
+      margin-top: 3px;
+    }
+  }
+
   .orm-dotm {
     width: 8px;
     height: 8px;
@@ -888,43 +1167,102 @@
     flex: none;
   }
 
+  .orm-mail-icon {
+    width: 15px;
+    height: 15px;
+    margin-top: 3px;
+    flex: none;
+    stroke-width: 2;
+    font-weight: 800 !important;
+  }
+
   .reason {
     color: var(--muted);
   }
 
-  /* Actions table */
-  .orm-actions {
-    width: 100%;
-    border-collapse: collapse;
+  /* Mail briefs */
+  .orm-mailbrief {
+    border-top: 1px solid var(--line);
+    padding: 9px 0;
+    cursor: pointer;
 
-    td {
-      padding: 6px 6px;
-      border-bottom: 1px solid var(--line);
-      font-size: 12px;
-      vertical-align: top;
+    &:first-of-type {
+      border-top: none;
     }
 
-    tr {
-      cursor: pointer;
-
-      &:hover td {
-        background: var(--paper);
-      }
+    &:hover {
+      background: var(--paper);
     }
 
-    td.owner {
-      font-family: var(--mono);
-      font-size: 12px;
+    .mb-subject {
+      font-weight: 600;
+      font-size: 12.5px;
+      color: var(--ink);
+    }
+
+    .mb-from {
+      font-size: 11px;
       color: var(--muted);
-      white-space: nowrap;
+      margin-top: 2px;
     }
 
-    td.due {
-      font-family: var(--mono);
+    .mb-brief {
       font-size: 12px;
-      color: var(--crit);
-      white-space: nowrap;
-      text-align: right;
+      color: var(--ink2);
+      line-height: 1.45;
+      margin-top: 4px;
+    }
+  }
+
+  /* Action register: stacked rows — task on top, owner + due date on a meta row */
+  .orm-action {
+    border-top: 1px solid var(--line);
+    padding: 8px 0;
+    cursor: pointer;
+
+    &:first-of-type {
+      border-top: none;
+    }
+
+    &:hover {
+      background: var(--paper);
+    }
+
+    .task {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 12px;
+      margin-top: 4px;
+      font-size: 11px;
+
+      .pi {
+        font-size: 10px;
+        margin-right: 4px;
+      }
+
+      .owner {
+        display: inline-flex;
+        align-items: center;
+        color: var(--ink2);
+      }
+
+      .due {
+        display: inline-flex;
+        align-items: center;
+        font-family: var(--mono);
+        color: var(--crit);
+        background: var(--crit-bg);
+        border-radius: 9px;
+        padding: 1px 8px;
+      }
     }
   }
 
@@ -1503,6 +1841,14 @@
   }
 }
 
+/* Body copy of the section-explainer dialog (portaled, so styled at top level) */
+.orm-info-body {
+  margin: 0;
+  color: #3c4043;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 /* ---- Settings buttons in header ---- */
 .operations-report {
   .orm-settings-btn {
@@ -1589,7 +1935,7 @@
 
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   color: var(--kb-ink);
 
   &--loading,
@@ -1607,36 +1953,36 @@
   .kb-card {
     background: #fff;
     border: 1px solid var(--kb-line);
-    border-radius: 14px;
-    padding: 22px;
+    border-radius: 10px;
+    padding: 14px;
   }
 
   .kb-card__head {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     align-items: flex-start;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
 
     h2 {
-      margin: 3px 0 0;
+      margin: 2px 0 0;
       color: var(--kb-ink);
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 650;
       letter-spacing: -.01em;
     }
 
     p {
-      margin: 5px 0 0;
+      margin: 3px 0 0;
       color: var(--kb-muted-2);
-      font-size: 13px;
-      line-height: 1.55;
+      font-size: 12px;
+      line-height: 1.45;
     }
   }
 
   .kb-card__icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
     background: var(--kb-accent-soft);
     color: var(--kb-accent);
     display: inline-flex;
@@ -1657,13 +2003,13 @@
   .kb-tier-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
+    gap: 10px;
   }
 
   .kb-tier {
     border: 1px solid var(--kb-line-soft);
-    border-radius: 11px;
-    padding: 14px;
+    border-radius: 9px;
+    padding: 10px;
     background: #fcfdfe;
     min-width: 0;
   }
@@ -1672,7 +2018,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 
     h3 {
       margin: 0;
@@ -1699,8 +2045,8 @@
   .kb-chip-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    min-height: 30px;
+    gap: 5px;
+    min-height: 24px;
   }
 
   .kb-chip {
@@ -1741,12 +2087,12 @@
   .kb-add-row {
     display: flex;
     gap: 6px;
-    margin-top: 12px;
+    margin-top: 8px;
   }
 
   .kb-add-input {
     min-width: 0;
-    height: 32px;
+    height: 28px;
     border-color: #dde4e9;
     box-shadow: none;
     font-size: 12px;
@@ -1763,23 +2109,23 @@
   .kb-split {
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(260px, .8fr);
-    gap: 16px;
+    gap: 10px;
   }
 
   .kb-threshold-stack {
     display: flex;
     flex-direction: column;
-    gap: 11px;
+    gap: 8px;
   }
 
   .kb-threshold {
     border: 1px solid var(--kb-line-soft);
-    border-radius: 11px;
-    padding: 15px;
+    border-radius: 9px;
+    padding: 10px 12px;
 
     input[type='range'] {
       width: 100%;
-      margin-top: 12px;
+      margin-top: 8px;
       accent-color: var(--threshold-color);
     }
   }
@@ -1798,17 +2144,17 @@
     }
 
     p {
-      margin: 3px 0 0;
+      margin: 2px 0 0;
       color: var(--kb-muted-2);
-      font-size: 12px;
+      font-size: 11.5px;
     }
 
     span {
-      min-width: 44px;
+      min-width: 40px;
       text-align: right;
       color: var(--threshold-color);
       font-family: var(--kb-mono);
-      font-size: 24px;
+      font-size: 18px;
       font-weight: 700;
     }
   }
@@ -1816,8 +2162,8 @@
   .kb-band-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 15px;
+    gap: 8px;
+    margin-top: 10px;
   }
 
   .kb-band {
@@ -1859,28 +2205,28 @@
   .kb-escalation {
     text-align: center;
     border: 1px solid var(--kb-line-soft);
-    border-radius: 11px;
-    padding: 18px;
+    border-radius: 9px;
+    padding: 12px;
     background: #fcfdfe;
 
     strong {
       display: block;
       color: var(--kb-accent);
       font-family: var(--kb-mono);
-      font-size: clamp(38px, 8vw, 52px);
+      font-size: clamp(28px, 6vw, 36px);
       line-height: 1;
     }
 
     span {
       display: block;
-      margin-top: 4px;
+      margin-top: 3px;
       color: var(--kb-muted-2);
-      font-size: 11.5px;
+      font-size: 11px;
     }
 
     input[type='range'] {
       width: 100%;
-      margin-top: 16px;
+      margin-top: 10px;
       accent-color: var(--kb-accent);
     }
   }
@@ -1888,30 +2234,30 @@
   .kb-filter-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
   }
 
   .kb-scope-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 8px;
+    margin-bottom: 8px;
   }
 
   .kb-scope-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
 
     span {
       color: var(--kb-muted);
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 650;
     }
 
     input {
-      height: 34px;
+      height: 30px;
       border-color: var(--kb-line-soft);
       background: #fcfdfe;
       box-shadow: none;
@@ -1926,11 +2272,11 @@
   .kb-filter {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     min-width: 0;
     border: 1px solid var(--kb-line-soft);
-    border-radius: 10px;
-    padding: 12px 15px;
+    border-radius: 8px;
+    padding: 8px 12px;
     background: #fff;
     color: var(--kb-ink-2);
     cursor: pointer;
@@ -1943,7 +2289,7 @@
     span {
       flex: 1;
       min-width: 0;
-      font-size: 13.5px;
+      font-size: 12.5px;
       font-weight: 600;
     }
 
@@ -2019,11 +2365,11 @@
   }
 
   .kb-glossary-row {
-    padding: 7px 0;
+    padding: 5px 0;
     border-top: 1px solid var(--kb-line-soft);
 
     input {
-      height: 34px;
+      height: 30px;
       border-color: var(--kb-line-soft);
       background: #fcfdfe;
       box-shadow: none;
@@ -2059,20 +2405,20 @@
   }
 
   .kb-add-term {
-    margin-top: 13px;
+    margin-top: 8px;
   }
 
   .kb-prompt {
     width: 100%;
     box-sizing: border-box;
     border: 1px solid #dde4e9;
-    border-radius: 10px;
-    padding: 14px 15px;
+    border-radius: 8px;
+    padding: 10px 12px;
     background: #fcfdfe;
     color: var(--kb-ink-2);
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 14.5px;
-    line-height: 1.65;
+    font-size: 13.5px;
+    line-height: 1.5;
     resize: vertical;
 
     &:focus {
@@ -2085,7 +2431,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 8px;
     color: var(--kb-muted-2);
     font-family: var(--kb-mono);
     font-size: 11px;
@@ -2105,7 +2451,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    padding: 12px 0 0;
+    padding: 10px 0 0;
     border-top: 1px solid var(--kb-line);
     background: linear-gradient(to bottom, rgba(255, 255, 255, .82), #fff 35%);
   }

@@ -523,6 +523,16 @@ async function listEmailAnalysisMails(req, res) {
     query.$or = [{ subject: rx }, { from: rx }, { to: rx }, { snippet: rx }];
   }
 
+  // Optional received-date range: fromDate/toDate as YYYY-MM-DD (inclusive).
+  if (filter.fromDate || filter.toDate) {
+    const range = {};
+    const from = new Date(`${filter.fromDate}T00:00:00`);
+    const to = new Date(`${filter.toDate}T23:59:59.999`);
+    if (filter.fromDate && !Number.isNaN(from.getTime())) range.$gte = from;
+    if (filter.toDate && !Number.isNaN(to.getTime())) range.$lte = to;
+    if (Object.keys(range).length) query.receivedAt = range;
+  }
+
   const [totalCount, mails] = await Promise.all([
     EmailAnalysisMail.countDocuments(query),
     EmailAnalysisMail.find(query, { body: 0 })

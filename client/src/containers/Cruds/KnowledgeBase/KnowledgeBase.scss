@@ -2,15 +2,15 @@
   background: #fff;
   border: 1px solid #d9dcd6;
   border-radius: 10px;
-  padding: 24px 18px 34px;
+  padding: 16px 14px 24px;
   min-height: calc(100vh - 20px);
   font-family: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
   color: #14181f;
   overflow: auto;
 
   .kb-page-header {
-    padding: 12px;
-    margin: 0 auto 22px;
+    padding: 0;
+    margin: 0 auto 14px;
   }
 
   .kb-page-eyebrow {
@@ -24,16 +24,16 @@
   }
 
   .kb-page-title {
-    font-size: 25px;
+    font-size: 20px;
     font-weight: 650;
     letter-spacing: -.01em;
-    margin: 0 0 6px;
+    margin: 0 0 4px;
     color: #14181f;
   }
 
   .kb-page-sub {
-    font-size: 14px;
-    line-height: 1.6;
+    font-size: 13px;
+    line-height: 1.5;
     color: #5a6772;
     margin: 0;
     max-width: 700px;
