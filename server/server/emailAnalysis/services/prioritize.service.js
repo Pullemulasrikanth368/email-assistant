@@ -37,6 +37,15 @@ function normCategory(c) {
   return hit || "Notifications & Updates";
 }
 
+/** Normalize the per-mail quick-reply block coming back from the AI. */
+function normQuickReplies(qr) {
+  const options = (Array.isArray(qr?.options) ? qr.options : [])
+    .filter((o) => o && o.label && o.reply)
+    .slice(0, 5)
+    .map((o) => ({ label: String(o.label).trim().slice(0, 24), reply: String(o.reply).trim().slice(0, 500) }));
+  return { eligible: !!qr?.eligible && options.length > 0, options, generatedAt: new Date() };
+}
+
 function clampScore(n, priority) {
   const num = Number(n);
   if (Number.isFinite(num) && num >= 1 && num <= 100) return Math.round(num);
@@ -154,8 +163,19 @@ marketing campaigns are ALWAYS "Low" priority with category "Promotions & Market
 "Newsletters", or "Junk" — even when they contain urgent-sounding keywords like "important",
 "urgent", "last chance", "act now", or "deadline". Marketing copy does not create real urgency.
 
+Also produce one-click QUICK-REPLY buttons for each email:
+- "quickReplies.eligible" = true ONLY if the email expects a short answer: a yes/no question, a
+scheduling/availability ask, a "please confirm"/"is this correct?" check, a request needing
+acknowledgement, or a thanks that warrants a brief reply.
+- Give 3-5 options that MATCH what THAT email is actually asking (e.g. scheduling -> "Yes" / "No" /
+"Maybe"; a confirm -> "Correct" / "Not correct"; an FYI needing acknowledgement -> "Got it" / "Thanks").
+- "label": 1-2 words for the button. "reply": a natural one-line message to actually send
+(e.g. label "Yes" -> reply "Yes, that works for me.").
+- eligible = false with an empty options array for newsletters, promotions, spam, no-reply/automated
+notifications, or anything with nothing to answer.
+
 Return ONLY JSON, no markdown:
-{ "items": [ { "id": "<email id>", "priority": "Critical|High|Medium|Low", "priorityScore": <1-100>, "intent": "<tag>", "category": "<one of the categories above>", "reason": "<one line>" } ] }
+{ "items": [ { "id": "<email id>", "priority": "Critical|High|Medium|Low", "priorityScore": <1-100>, "intent": "<tag>", "category": "<one of the categories above>", "reason": "<one line>", "quickReplies": { "eligible": <boolean>, "options": [ { "label": "<1-2 words>", "reply": "<one line>" } ] } } ] }
 
 EMAILS:
 ${JSON.stringify(items)}
@@ -232,6 +252,12 @@ export async function prioritizeDay(email, day, opts = {}) {
         category: normCategory(r.category),
         reason: r.reason || null,
       });
+      const quickReplies = normQuickReplies(r.quickReplies);
+      // Bulk mail never warrants a one-click reply, whatever the AI said.
+      if (LOW_ONLY_CATEGORIES.includes(clamped.category)) {
+        quickReplies.eligible = false;
+        quickReplies.options = [];
+      }
       return {
         updateOne: {
           filter: { email, providerMessageId: m.providerMessageId },
@@ -243,6 +269,7 @@ export async function prioritizeDay(email, day, opts = {}) {
               category: clamped.category,
               priorityReason: clamped.reason,
               prioritizedAt: new Date(),
+              quickReplies,
             },
           },
         },

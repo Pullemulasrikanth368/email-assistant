@@ -26,8 +26,6 @@ const EmailAnalysisReportSchema = new mongoose.Schema({
   source: { type: String, enum: ['live', 'sample'], default: 'sample' },
   generatedAt: { type: Date },
 
-  // Absolute path to the rendered, self-contained .md dashboard for this report.
-  mdPath: { type: String },
 
   // Convenience counters for the report list cards.
   counts: {

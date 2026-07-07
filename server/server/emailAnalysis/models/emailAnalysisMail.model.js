@@ -60,6 +60,17 @@ const EmailAnalysisMailSchema = new mongoose.Schema({
   // AI mail category (assigned alongside priority).
   category: { type: String, default: null },        // e.g. Action Required, Finance, Newsletters
 
+  // One-click quick-reply options — generated once when the mail is
+  // categorized (prioritize pass) and stored, so the UI never waits on AI.
+  quickReplies: {
+    eligible: { type: Boolean, default: null },
+    options: {
+      type: [new mongoose.Schema({ label: { type: String }, reply: { type: String } }, { _id: false })],
+      default: [],
+    },
+    generatedAt: { type: Date, default: null },
+  },
+
   // Cached AI-drafted reply — generated once when the mail is read, reused on
   // every later open; "Regenerate" in the UI overwrites it.
   aiReply: {

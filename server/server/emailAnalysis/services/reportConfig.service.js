@@ -52,6 +52,7 @@ const DEFAULT_ROW_MAX_HEIGHT = 400;
 
 const DEFAULT_ROWS = [
   { maxHeight: 400, columns: [{ width: 12, sections: ['narrativeSummary'] }] },
+  { maxHeight: 400, columns: [{ width: 12, sections: ['categorySummaries'] }] },
   { maxHeight: 400, columns: [{ width: 12, sections: ['inboxTriage'] }] },
   { maxHeight: 400, columns: [
     { width: 4, sections: ['decisionQueue'] },

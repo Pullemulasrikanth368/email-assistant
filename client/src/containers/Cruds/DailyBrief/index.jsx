@@ -10,6 +10,7 @@ import config from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import { BriefDashboard, scoreColor } from '../OperationsReport/BriefDashboard';
 import QuickReplies from '../CommonComponents/QuickReplies';
+import AiDraftReply from '../CommonComponents/AiDraftReply';
 import '../OperationsReport/OperationsReport.scss';
 
 /* Sanitised email body in an isolated iframe (keeps email CSS, blocks scripts) */
@@ -59,6 +60,7 @@ const DailyBrief = () => {
 
   // Email-detail drawer (screen 04)
   const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
+  const [markRead, setMarkRead] = useState({ busy: false, done: false });
   // Risk-detail drawer (screen 05)
   const [riskDrawer, setRiskDrawer] = useState({ visible: false, risk: null });
 
@@ -73,7 +75,7 @@ const DailyBrief = () => {
         const configs = Array.isArray(res?.configs) ? res.configs : [];
         setReportConfig(configs.find((c) => c.isDefault) || configs[0] || null);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   /* ---------------- fetch report for the selected day ---------------- */
@@ -127,6 +129,7 @@ const DailyBrief = () => {
 
   const openEmail = useCallback(async (sourceId) => {
     if (!sourceId) return;
+    setMarkRead({ busy: false, done: false });
     setEmailDrawer({ visible: true, loading: true, mail: null, sourceId });
     try {
       const res = await fetchMethodRequest('GET', `email-analysis/mails/by-source/${encodeURIComponent(sourceId)}`);
@@ -135,6 +138,29 @@ const DailyBrief = () => {
       setEmailDrawer({ visible: true, loading: false, mail: null, sourceId });
     }
   }, [report]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mark the drawer's mail as read at the provider (Gmail/Outlook).
+  const onMarkRead = useCallback(async () => {
+    const { mail, sourceId } = emailDrawer;
+    const id = mail?.providerMessageId || sourceId;
+    if (!id) return;
+    setMarkRead({ busy: true, done: false });
+    try {
+      const res = await fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
+        sourceId: id, email: mail?.email, isRead: true,
+      });
+      if (res?.respCode) {
+        setMarkRead({ busy: false, done: true });
+        showToasterMessage('Marked as read', 'success');
+      } else {
+        setMarkRead({ busy: false, done: false });
+        showToasterMessage(res?.errorMessage || 'Could not mark as read', 'error');
+      }
+    } catch {
+      setMarkRead({ busy: false, done: false });
+      showToasterMessage('Could not mark as read', 'error');
+    }
+  }, [emailDrawer]);
 
   const openRisk = useCallback((risk) => setRiskDrawer({ visible: true, risk }), []);
 
@@ -182,9 +208,24 @@ const DailyBrief = () => {
           <div className="orm-state"><i className="pi pi-inbox" /><span>Source email not found in synced mail.</span></div>
         ) : (
           <>
-            <div className="orm-email-from">{mail.from}</div>
-            <h3 className="orm-email-subject">{mail.subject || '(no subject)'}</h3>
-            <div className="orm-email-meta">{mail.receivedAt ? moment(mail.receivedAt).format('ddd, MMM D, YYYY h:mm A') : ''}</div>
+            <div className="orm-email-head">
+              <div className="orm-email-head-main">
+                <div className="orm-email-from">{mail.from}</div>
+                <h3 className="orm-email-subject">{mail.subject || '(no subject)'}</h3>
+                <div className="orm-email-meta">{mail.receivedAt ? moment(mail.receivedAt).format('ddd, MMM D, YYYY h:mm A') : ''}</div>
+              </div>
+              <div className="orm-email-actions">
+                <button
+                  type="button"
+                  className={`orm-email-action${markRead.done ? ' done' : ''}`}
+                  onClick={onMarkRead}
+                  disabled={markRead.busy || markRead.done}
+                >
+                  <i className={`pi ${markRead.busy ? 'pi-spin pi-spinner' : markRead.done ? 'pi-check-circle' : 'pi-envelope'}`} />
+                  {markRead.done ? 'Read' : 'Mark as read'}
+                </button>
+              </div>
+            </div>
 
             {/* AI flag callout (buried-risk style) */}
             {risk && (
@@ -206,8 +247,16 @@ const DailyBrief = () => {
 
             <MailFrame body={mail.body} snippet={mail.snippet} />
 
-            {/* One-click quick replies for this email */}
-            <QuickReplies sourceId={mail.providerMessageId || sourceId} />
+            {/* One-click quick replies + full AI-drafted reply for this email */}
+            <div className="orm-reply-section">
+              <QuickReplies sourceId={mail.providerMessageId || sourceId} preloaded={mail.quickReplies} />
+              <AiDraftReply
+                key={mail._id}
+                mailId={mail._id}
+                sourceId={mail.providerMessageId || sourceId}
+                mail={mail}
+              />
+            </div>
 
             {mail.attachments?.length > 0 && (
               <div className="orm-att-list">
@@ -294,14 +343,14 @@ const DailyBrief = () => {
               inputClassName="orm-cal-input"
             />
           </span>
-          {report && (
+          {/* {report && (
             <span className={`orm-badge ${report.source === 'live' ? 'live' : 'sample'}`}>
               {report.source === 'live' ? 'LIVE AI' : 'SAMPLE'}
             </span>
           )}
           {report && (
             <Button variant="ghost" size="icon" title="Open .md" onClick={downloadMd}><FileText size={15} /></Button>
-          )}
+          )} */}
           <button type="button" className="orm-runbrief-btn" onClick={runBrief} disabled={generating}>
             <i className={generating ? 'pi pi-spin pi-spinner' : 'pi pi-bolt'} />
             <span>Run brief</span>

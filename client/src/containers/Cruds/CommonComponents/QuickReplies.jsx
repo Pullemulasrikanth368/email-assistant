@@ -9,14 +9,27 @@ import './QuickReplies.scss';
  * providerMessageId / sourceId) and sends the chosen one on the thread.
  *
  * @param {string} sourceId  the email's providerMessageId (a.k.a. brief sourceId)
+ * @param {Object} [preloaded]  the mail's stored quickReplies ({eligible, options,
+ *                  generatedAt}) — when present, rendered directly with no request
  */
-const QuickReplies = ({ sourceId }) => {
+const QuickReplies = ({ sourceId, preloaded }) => {
   const [state, setState] = useState({ loading: false, options: [], sentLabel: null, sending: false });
 
   useEffect(() => {
     let cancelled = false;
     if (!sourceId) {
       setState({ loading: false, options: [], sentLabel: null, sending: false });
+      return undefined;
+    }
+    // Quick replies were generated at categorization time and stored on the
+    // mail — use them as-is instead of asking the server again.
+    if (preloaded?.generatedAt) {
+      setState({
+        loading: false,
+        options: preloaded.eligible ? (preloaded.options || []) : [],
+        sentLabel: null,
+        sending: false,
+      });
       return undefined;
     }
     setState({ loading: true, options: [], sentLabel: null, sending: false });
@@ -27,7 +40,7 @@ const QuickReplies = ({ sourceId }) => {
       })
       .catch(() => { if (!cancelled) setState({ loading: false, options: [], sentLabel: null, sending: false }); });
     return () => { cancelled = true; };
-  }, [sourceId]);
+  }, [sourceId, preloaded]);
 
   const onReply = async (opt) => {
     setState((s) => ({ ...s, sending: true }));

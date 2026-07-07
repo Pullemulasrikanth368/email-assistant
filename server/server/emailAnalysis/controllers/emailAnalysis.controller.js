@@ -1156,8 +1156,23 @@ async function getQuickReplies(req, res) {
   const email = mail.email;
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account associated with this email." });
 
+  // Quick replies are generated when the mail is categorized and stored on the
+  // doc — serve them straight from the DB so opening a mail never waits on AI.
+  if (mail.quickReplies?.generatedAt) {
+    return res.json({
+      respCode: 200,
+      eligible: !!mail.quickReplies.eligible,
+      options: mail.quickReplies.options || [],
+    });
+  }
+
+  // Backfill for mails categorized before quick replies were stored.
   try {
     const { eligible, options } = await generateQuickReplies(mail);
+    await EmailAnalysisMail.updateOne(
+      { _id: mail._id },
+      { $set: { quickReplies: { eligible, options, generatedAt: new Date() } } }
+    );
     return res.json({ respCode: 200, eligible, options });
   } catch (err) {
     console.error("[EmailAnalysis] quick-reply generation failed:", err.message);

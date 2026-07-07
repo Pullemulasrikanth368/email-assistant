@@ -9,6 +9,7 @@ import moment from 'moment';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
+import AiDraftReply from '../CommonComponents/AiDraftReply';
 import { BriefDashboard } from './BriefDashboard';
 import KnowledgeBaseSettings from './KnowledgeBaseSettings';
 import './OperationsReport.scss';
@@ -106,6 +107,7 @@ const OperationsReport = () => {
   const [generating, setGenerating] = useState(false);
   const [briefTime, setBriefTime] = useState('06:00');
   const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
+  const [markRead, setMarkRead] = useState({ busy: false, done: false });
 
   // Settings panels
   const [kbSheetOpen, setKbSheetOpen] = useState(false);
@@ -212,6 +214,7 @@ const OperationsReport = () => {
   // Drill-down: open the source email beside the report, without leaving it.
   const onOpenSource = useCallback(async (sourceId) => {
     if (!sourceId) return;
+    setMarkRead({ busy: false, done: false });
     setEmailDrawer({ visible: true, loading: true, mail: null, sourceId });
     try {
       const res = await fetchMethodRequest('GET', `email-analysis/mails/by-source/${encodeURIComponent(sourceId)}`);
@@ -220,6 +223,29 @@ const OperationsReport = () => {
       setEmailDrawer({ visible: true, loading: false, mail: null, sourceId });
     }
   }, []);
+
+  // Mark the drawer's mail as read at the provider (Gmail/Outlook).
+  const onMarkRead = useCallback(async () => {
+    const { mail, sourceId } = emailDrawer;
+    const id = mail?.providerMessageId || sourceId;
+    if (!id) return;
+    setMarkRead({ busy: true, done: false });
+    try {
+      const res = await fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
+        sourceId: id, email: mail?.email, isRead: true,
+      });
+      if (res?.respCode) {
+        setMarkRead({ busy: false, done: true });
+        showToasterMessage('Marked as read', 'success');
+      } else {
+        setMarkRead({ busy: false, done: false });
+        showToasterMessage(res?.errorMessage || 'Could not mark as read', 'error');
+      }
+    } catch {
+      setMarkRead({ busy: false, done: false });
+      showToasterMessage('Could not mark as read', 'error');
+    }
+  }, [emailDrawer]);
 
   const fetchWeekReports = useCallback(async (preserveSelection) => {
     try {
@@ -461,9 +487,9 @@ const OperationsReport = () => {
       <>
         <div className="orm-detail-head">
           <h2 className="orm-detail-title">{selectedReport.periodLabel || moment(selectedReport.periodStart).format('ddd, D MMM YYYY')}</h2>
-          <span className={`orm-badge ${selectedReport.source === 'live' ? 'live' : 'sample'}`}>
+          {/* <span className={`orm-badge ${selectedReport.source === 'live' ? 'live' : 'sample'}`}>
             {selectedReport.source === 'live' ? 'LIVE AI' : 'SAMPLE'}
-          </span>
+          </span> */}
         </div>
         <BriefDashboard report={selectedReport} reportConfig={reportConfig} onOpenSource={onOpenSource} />
       </>
@@ -485,11 +511,25 @@ const OperationsReport = () => {
           <div className="orm-state"><i className="pi pi-inbox" /><span>Source email not found in synced mail.</span></div>
         ) : (
           <>
-            <div className="orm-email-from">{mail.from}</div>
-            <h3 className="orm-email-subject">{mail.subject || '(no subject)'}</h3>
-            <div className="orm-email-meta">{mail.receivedAt ? moment(mail.receivedAt).format('ddd, MMM D, YYYY h:mm A') : ''}</div>
+            <div className="orm-email-head">
+              <div className="orm-email-head-main">
+                <div className="orm-email-from">{mail.from}</div>
+                <h3 className="orm-email-subject">{mail.subject || '(no subject)'}</h3>
+                <div className="orm-email-meta">{mail.receivedAt ? moment(mail.receivedAt).format('ddd, MMM D, YYYY h:mm A') : ''}</div>
+              </div>
+              <div className="orm-email-actions">
+                <button
+                  type="button"
+                  className={cn('orm-email-action', { done: markRead.done })}
+                  onClick={onMarkRead}
+                  disabled={markRead.busy || markRead.done}
+                >
+                  <i className={`pi ${markRead.busy ? 'pi-spin pi-spinner' : markRead.done ? 'pi-check-circle' : 'pi-envelope'}`} />
+                  {markRead.done ? 'Read' : 'Mark as read'}
+                </button>
+              </div>
+            </div>
 
-            <QuickReplies sourceId={mail.providerMessageId || sourceId} />
             {risk && (
               <div className="orm-flag">
                 <div className="ft">AI flagged - high operational risk</div>
@@ -521,6 +561,16 @@ const OperationsReport = () => {
                 ))}
               </div>
             )}
+
+            <div className="orm-reply-section">
+              <QuickReplies sourceId={mail.providerMessageId || sourceId} preloaded={mail.quickReplies} />
+              <AiDraftReply
+                key={mail._id}
+                mailId={mail._id}
+                sourceId={mail.providerMessageId || sourceId}
+                mail={mail}
+              />
+            </div>
           </>
         )}
       </div>

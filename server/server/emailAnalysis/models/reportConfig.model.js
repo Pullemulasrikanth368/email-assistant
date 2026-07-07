@@ -6,12 +6,12 @@ import APIError from '../../helpers/APIError';
 
 const ALL_SECTIONS = [
   'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
-  'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
+  'events', 'calendarConflicts', 'patterns', 'categorySummaries', 'inboxTriage', 'actionRegister',
 ];
 
 const DEFAULT_SECTIONS = [
   'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
-  'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
+  'events', 'calendarConflicts', 'patterns', 'categorySummaries', 'inboxTriage', 'actionRegister',
 ];
 
 const ALL_FIELDS = [

@@ -61,8 +61,6 @@ const TIER_RANK = { Critical: 3, Important: 2, Low: 1 };
 const tierColor = (tier) =>
   tier === 'Critical' ? 'var(--crit)' : tier === 'Important' ? 'var(--high)' : 'var(--muted)';
 const tierClass = (tier) => (tier === 'Critical' ? 'crit' : tier === 'Important' ? 'imp' : 'low');
-const topTierOf = (items = []) =>
-  items.reduce((best, t) => (TIER_RANK[t.tier] > TIER_RANK[best] ? t.tier : best), 'Low');
 
 // Turn an event's "when" into calendar-tile parts; null when it isn't a parseable date
 // (free-text like "next week" then falls back to being shown as-is).
@@ -111,9 +109,13 @@ const SECTION_INFO = {
     title: 'Patterns',
     description: 'Recurring themes the AI noticed across many emails in this period — for example a vendor who keeps slipping dates or a topic that keeps escalating. Useful for spotting slow-building issues no single email would reveal.',
   },
+  categorySummaries: {
+    title: 'AI Category wise summary',
+    description: 'A short AI-written summary for each email category in this period — what the emails were about, who they came from, and the key points. Expand a category to see its emails; click one to open it.',
+  },
   inboxTriage: {
     title: 'Inbox triage',
-    description: 'Every analyzed email sorted into Critical, Important, or Low priority using the keywords and rules from your knowledge base. A short AI summary of each email category appears at the top, followed by the emails grouped by sender. Each entry shows why it was placed in that tier; click it to open the email.',
+    description: 'Every analyzed email sorted into Critical, Important, or Low priority using the keywords and rules from your knowledge base, grouped by sender. Each entry shows why it was placed in that tier; click it to open the email.',
   },
   actionRegister: {
     title: 'Action register',
@@ -124,17 +126,20 @@ const SECTION_INFO = {
 // Tinted chip colors per email category — hues from a CVD-validated categorical
 // palette, text darkened for contrast on the tint. Unknown categories hash into
 // the same set so a category keeps its color across reports.
+// Each slot: dark text color + faint chip tint, plus a light "soft" fill and
+// an accent for the category accordion headers — light, professional pastels
+// that still read as clearly different hues.
 const CATEGORY_CHIP_STYLES = [
-  { color: '#1c5cab', background: 'rgba(42, 120, 214, .10)', borderColor: 'rgba(42, 120, 214, .35)' },  // blue
-  { color: '#0c6b4c', background: 'rgba(27, 175, 122, .12)', borderColor: 'rgba(27, 175, 122, .40)' },  // teal
-  { color: '#7a5200', background: 'rgba(237, 161, 0, .14)', borderColor: 'rgba(237, 161, 0, .45)' },    // amber
-  { color: '#045c04', background: 'rgba(0, 131, 0, .10)', borderColor: 'rgba(0, 131, 0, .35)' },        // green
-  { color: '#43349c', background: 'rgba(74, 58, 167, .10)', borderColor: 'rgba(74, 58, 167, .35)' },    // violet
-  { color: '#ab2f2e', background: 'rgba(227, 73, 72, .10)', borderColor: 'rgba(227, 73, 72, .38)' },    // red
-  { color: '#9c2458', background: 'rgba(232, 123, 164, .15)', borderColor: 'rgba(216, 81, 129, .40)' }, // magenta
-  { color: '#973a10', background: 'rgba(235, 104, 52, .12)', borderColor: 'rgba(235, 104, 52, .40)' },  // orange
+  { color: '#1c5cab', background: 'rgba(42, 120, 214, .10)', borderColor: 'rgba(42, 120, 214, .35)', soft: '#e3eefb', accent: '#5b93d8' },  // blue
+  { color: '#0c6b4c', background: 'rgba(27, 175, 122, .12)', borderColor: 'rgba(27, 175, 122, .40)', soft: '#def4ea', accent: '#3fb389' },  // teal
+  { color: '#7a5200', background: 'rgba(237, 161, 0, .14)', borderColor: 'rgba(237, 161, 0, .45)', soft: '#fdf0d3', accent: '#dfa62e' },    // amber
+  { color: '#045c04', background: 'rgba(0, 131, 0, .10)', borderColor: 'rgba(0, 131, 0, .35)', soft: '#e1f1e1', accent: '#4d9c4d' },        // green
+  { color: '#43349c', background: 'rgba(74, 58, 167, .10)', borderColor: 'rgba(74, 58, 167, .35)', soft: '#e8e5f7', accent: '#7d70c4' },    // violet
+  { color: '#ab2f2e', background: 'rgba(227, 73, 72, .10)', borderColor: 'rgba(227, 73, 72, .38)', soft: '#fbe5e5', accent: '#dd7776' },    // red
+  { color: '#9c2458', background: 'rgba(232, 123, 164, .15)', borderColor: 'rgba(216, 81, 129, .40)', soft: '#fae4ee', accent: '#dd7ba6' }, // magenta
+  { color: '#973a10', background: 'rgba(235, 104, 52, .12)', borderColor: 'rgba(235, 104, 52, .40)', soft: '#fce9df', accent: '#e2854f' },  // orange
 ];
-const CATEGORY_CHIP_NEUTRAL = { color: '#5f6368', background: 'rgba(95, 99, 104, .10)', borderColor: 'rgba(95, 99, 104, .35)' };
+const CATEGORY_CHIP_NEUTRAL = { color: '#5f6368', background: 'rgba(95, 99, 104, .10)', borderColor: 'rgba(95, 99, 104, .35)', soft: '#eef0f2', accent: '#9aa1ab' };
 
 const KNOWN_CATEGORY_SLOT = {
   'Action Required': 5,          // red — urgency
@@ -517,61 +522,78 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
       <>{patterns?.map((p, i) => <div className="orm-pattern" key={i}>{p}</div>)}</>
     ),
 
+    // AI category-wise summaries — their own row, split out of Inbox triage.
+    // Older saved configs won't list the new key, so it inherits inboxTriage's
+    // enablement until the config is re-saved with it present.
+    categorySummaries: (sectionEnabled('categorySummaries') || sectionEnabled('inboxTriage'))
+      && categorySummaries.length > 0 && panel(
+        'categorySummaries', 'AI Category wise summary', categorySummaries.length,
+        <div className="orm-cat-summaries">
+          {categorySummaries?.map((c, i) => {
+            const open = expandedCatSums.has(i);
+            const mails = c.mails || [];
+            const chip = categoryChipStyle(c.category);
+            return (
+              <div
+                className="orm-cat-summary"
+                key={i}
+                style={{
+                  '--cat-color': chip.color,
+                  '--cat-accent': chip.accent,
+                  '--cat-soft': chip.soft,
+                  '--cat-tint': chip.background,
+                  '--cat-border': chip.borderColor,
+                }}
+              >
+                <div
+                  className="orm-cat-head"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={open}
+                  onClick={() => toggleCatSum(i)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') toggleCatSum(i); }}
+                >
+                  <span className="orm-chip cat">{c.category || 'Other'}</span>
+                  {(c.count != null || mails.length > 0) && (
+                    <span className="cnt">{c.count != null ? c.count : mails.length}</span>
+                  )}
+                  <i className={`pi chev ${open ? 'pi-chevron-up' : 'pi-chevron-down'}`} />
+                </div>
+                <div className="txt" dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(c.summary) }} />
+                {(c.keyPoints || []).length > 0 && (
+                  <ul className={`orm-cat-kps${(c.keyPoints || []).length > 5 ? ' two-col' : ''}`}>
+                    {(c.keyPoints || []).map((k, j) => (
+                      <li key={j} dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(k) }} />
+                    ))}
+                  </ul>
+                )}
+                {open && mails.length > 0 && (
+                  <div className="orm-kp-mails">
+                    {mails?.map((m, j) => (
+                      <span
+                        className="orm-kp-mail"
+                        key={j}
+                        title={m.from ? `From: ${m.from}` : m.subject}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onOpenSource(m.sourceId)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') onOpenSource(m.sourceId); }}
+                      >
+                        <Mail className="orm-kp-mail-icon" />
+                        {m.subject || '(no subject)'}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ),
+
     inboxTriage: sectionEnabled('inboxTriage') && triage.length > 0 && panel(
       'inboxTriage', 'Inbox triage', triage.length,
       <>
-        {categorySummaries.length > 0 && (
-          <div className="orm-cat-summaries">
-            {categorySummaries?.map((c, i) => {
-              const open = expandedCatSums.has(i);
-              const mails = c.mails || [];
-              return (
-                <div className="orm-cat-summary" key={i}>
-                  <div
-                    className="orm-cat-head"
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={open}
-                    onClick={() => toggleCatSum(i)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') toggleCatSum(i); }}
-                  >
-                    <i className={`pi ${open ? 'pi-chevron-down' : 'pi-chevron-right'}`} />
-                    <span className="orm-chip cat" style={categoryChipStyle(c.category)}>{c.category || 'Other'}</span>
-                    {(c.count != null || mails.length > 0) && (
-                      <span className="cnt">{c.count != null ? c.count : mails.length}</span>
-                    )}
-                  </div>
-                  <div className="txt" dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(c.summary) }} />
-                  {(c.keyPoints || []).length > 0 && (
-                    <ul className={`orm-cat-kps${(c.keyPoints || []).length > 5 ? ' two-col' : ''}`}>
-                      {(c.keyPoints || []).map((k, j) => (
-                        <li key={j} dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(k) }} />
-                      ))}
-                    </ul>
-                  )}
-                  {open && mails.length > 0 && (
-                    <div className="orm-kp-mails">
-                      {mails?.map((m, j) => (
-                        <span
-                          className="orm-kp-mail"
-                          key={j}
-                          title={m.from ? `From: ${m.from}` : m.subject}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => onOpenSource(m.sourceId)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') onOpenSource(m.sourceId); }}
-                        >
-                          <Mail className="orm-kp-mail-icon" />
-                          {m.subject || '(no subject)'}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
         {senderGroups?.map((g) => {
           const triageRow = (t) => (
             <div className={`orm-trow orm-trow-rich t-${(t.tier || 'low').toLowerCase()}`} key={t.idx} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
@@ -608,7 +630,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                 onKeyDown={(e) => { if (e.key === 'Enter') toggleSection(sgKey); }}
               >
                 <i className={`pi ${collapsed ? 'pi-chevron-right' : 'pi-chevron-down'}`} />
-                <Mail className="orm-mail-icon" style={{ color: tierColor(g.topTier) }} />
+                <Mail className="orm-mail-icon" />
                 <span className="orm-sg-name">{g.name}</span>
                 <span className="orm-sg-count">{g.items.length} mails</span>
                 <span className="orm-sg-tiers">
@@ -631,10 +653,17 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                   {g.catList?.map(([cat, items]) => {
                     const catKey = `triage-cat:${g.key}:${cat}`;
                     const catCollapsed = collapsedKeys.has(catKey);
+                    const chip = categoryChipStyle(cat);
                     return (
                       <div key={cat}>
                         <div
-                          className={`orm-sg-cat-head orm-sg-cat-toggle tg-${tierClass(topTierOf(items))}`}
+                          className="orm-sg-cat-head orm-sg-cat-toggle"
+                          style={{
+                            color: chip.color,
+                            background: chip.soft,
+                            borderColor: chip.soft,
+                            borderLeftColor: chip.accent,
+                          }}
                           role="button"
                           tabIndex={0}
                           aria-expanded={!catCollapsed}
@@ -644,7 +673,11 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                           <i className={`pi ${catCollapsed ? 'pi-chevron-right' : 'pi-chevron-down'}`} />
                           {cat} <span className="n">{items.length}</span>
                         </div>
-                        {!catCollapsed && items?.map(triageRow)}
+                        {!catCollapsed && (
+                          <div className="orm-sg-cat-mails">
+                            {items?.map(triageRow)}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -764,7 +797,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
   return (
     <div className="orm-dash">
       {/* Markdown is rendered on demand by the server — any stored report can be viewed. */}
-      {report?._id && (
+      {/* {report?._id && (
         <div className="orm-md-bar">
           <Button
             label="View Report File"
@@ -773,7 +806,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
             onClick={openMd}
           />
         </div>
-      )}
+      )} */}
 
       {isQuiet && (
         <div className="orm-empty-quiet">

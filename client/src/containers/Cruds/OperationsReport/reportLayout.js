@@ -16,6 +16,7 @@ export const ALL_SECTIONS = [
   { key: 'events', label: 'Events mentioned' },
   { key: 'calendarConflicts', label: 'Schedule collisions' },
   { key: 'patterns', label: 'Patterns' },
+  { key: 'categorySummaries', label: 'AI Category wise summary' },
   { key: 'inboxTriage', label: 'Inbox triage' },
   { key: 'actionRegister', label: 'Action register' },
 ];
@@ -30,6 +31,7 @@ export const MAX_COLUMNS_PER_ROW = 4;
 
 export const DEFAULT_ROWS = [
   { maxHeight: 400, columns: [{ width: 12, sections: ['narrativeSummary'] }] },
+  { maxHeight: 400, columns: [{ width: 12, sections: ['categorySummaries'] }] },
   { maxHeight: 400, columns: [{ width: 12, sections: ['inboxTriage'] }] },
   {
     maxHeight: 400, columns: [
