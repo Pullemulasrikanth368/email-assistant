@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sun, Mail, LayoutDashboard, FileText, Send, Settings,
-  Menu, Users, Shield, LogOut, BookOpen, PenLine, SlidersHorizontal,
+  Menu, Users, Shield, LogOut, BookOpen, PenLine, SlidersHorizontal, CalendarClock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,7 @@ import './Sidebar.scss';
 
 const NAV_ITEMS = [
   { label: 'Morning Brief', path: '/dailyBrief', icon: Sun },
+  { label: 'Pre-Meeting Brief', path: '/preMeetingBrief', icon: CalendarClock },
   { label: 'Inbox Triage', path: '/emailAnalysisMails', icon: Mail },
   { label: 'Command Center', path: '/operationsCommandCenter', icon: LayoutDashboard },
   { label: 'Reports', path: '/operationsReport', icon: FileText },

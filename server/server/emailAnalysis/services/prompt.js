@@ -179,4 +179,135 @@ ${JSON.stringify(safeEmails)}
 `;
 }
 
-export default { buildBriefPrompt };
+/**
+ * Small prompt that turns a meeting invitation into discussion topics /
+ * keywords, used to retrieve the relevant emails for the pre-meeting brief.
+ * Runs through the SAME aiClient (OpenAI/Ollama) as every other AI call.
+ *
+ * @param {Object} meeting - { title, whenText, participants[], description, organizer }
+ * @returns {string} prompt (expects a JSON object back: { topics:[], keywords:[] })
+ */
+export function buildMeetingTopicsPrompt(meeting = {}) {
+  const title = String(meeting.title || '').slice(0, 300);
+  const when = String(meeting.whenText || '').slice(0, 120);
+  const organizer = String(meeting.organizer || '').slice(0, 200);
+  const participants = (meeting.participants || []).slice(0, 30).join(', ');
+  const description = String(meeting.description || '')
+    .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000);
+
+  return `You are preparing an executive for an upcoming meeting. From the meeting invitation below, infer the concrete DISCUSSION TOPICS and SEARCH KEYWORDS that would help find related emails in the executive's mailbox.
+
+MEETING TITLE: ${title || '(none)'}
+WHEN: ${when || '(unknown)'}
+ORGANIZER: ${organizer || '(unknown)'}
+PARTICIPANTS: ${participants || '(unknown)'}
+DESCRIPTION / AGENDA:
+${description || '(none provided)'}
+
+Return ONLY a valid JSON object (no markdown) with EXACTLY these keys:
+{
+  "topics": [string],    // 3-8 short discussion topics likely to come up
+  "keywords": [string]   // 5-15 distinctive search terms (project names, products, clients, systems, acronyms) — single words or short phrases, no generic filler
+}
+Base everything strictly on the invitation. Do NOT invent client or project names that are not implied by the text.`;
+}
+
+/**
+ * Build the single analysis prompt for a PRE-MEETING BRIEF. Produces the SAME
+ * JSON contract as buildBriefPrompt so the existing brief engine, dashboard and
+ * markdown renderer work unchanged — only the framing changes: instead of a
+ * "morning brief" over a day, it is a preparation brief for ONE meeting, built
+ * from emails already selected as relevant to that meeting.
+ *
+ * @param {Object} meeting - { title, whenText, participants[], description, organizer, location, topics[] }
+ * @param {Array}  emails  - relevant emails (engine shape: {id, from, subject, body, receivedAt, category, priority})
+ * @param {Object} meta    - { knowledgeBaseConfig? }
+ * @returns {string} prompt
+ */
+export function buildPreMeetingPrompt(meeting = {}, emails = [], meta = {}) {
+  const kb = meta.knowledgeBaseConfig || {};
+
+  const safeEmails = emails.map((e) => ({
+    id: e.id,
+    from: e.from || '',
+    subject: e.subject || '',
+    body: String(e.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 3500),
+    receivedAt: e.receivedAt,
+    category: e.category || '',
+    priority: e.priority || '',
+  }));
+
+  // ---- Knowledge Base context (reused verbatim from the daily brief) ----
+  const kbKeywords = kb.keywords || {};
+  const criticalKw = (kbKeywords.critical || []).join(', ') || 'FDA, Form 483, OOS, recall, deviation, urgent, escalation';
+  const importantKw = (kbKeywords.important || []).join(', ') || 'CAPA, audit, inspection, deadline, approval, review';
+
+  const glossary = kb.glossary || {};
+  const glossaryLines = Object.entries(glossary).map(([term, def]) => `  ${term}: ${def}`).join('\n');
+  const glossarySection = glossaryLines
+    ? `\nDOMAIN GLOSSARY (use these definitions when you see these terms):\n${glossaryLines}\n`
+    : '';
+  const promptInstruction = kb.promptInstruction
+    ? `\nANALYSIS INSTRUCTIONS FROM KNOWLEDGE BASE:\n${kb.promptInstruction}\n`
+    : '';
+
+  const participants = (meeting.participants || []).slice(0, 40).join(', ');
+  const topics = (meeting.topics || []).slice(0, 12).join(', ');
+  const description = String(meeting.description || '')
+    .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000);
+
+  return `You are the preparation engine for an AI Executive Assistant. Your job is to prepare a senior leader for ONE upcoming meeting, using ONLY the emails provided below — these have already been selected as relevant to the meeting (by participants, sender domain and topic). First INFER the sector and context from the meeting and emails, then produce a single structured PRE-MEETING BRIEF framed as "what you need to know and do before walking into this meeting".
+${glossarySection}${promptInstruction}
+MEETING
+- Title: ${String(meeting.title || '(untitled meeting)').slice(0, 300)}
+- When: ${String(meeting.whenText || 'unknown').slice(0, 120)}
+- Location: ${String(meeting.location || 'n/a').slice(0, 200)}
+- Organizer: ${String(meeting.organizer || 'unknown').slice(0, 200)}
+- Participants: ${participants || 'unknown'}
+- Likely topics: ${topics || '(infer from emails)'}
+- Agenda/description: ${description || '(none provided)'}
+
+CLASSIFICATION KEYWORDS (signals for what matters most):
+- Critical: ${criticalKw}
+- Important: ${importantKw}
+
+ANALYSIS RULES — map meeting-prep content onto these JSON keys:
+1. narrative: a 60-90 second spoken-style briefing — lead with the single most important thing to know before this meeting. 1-2 sentences.
+2. narrativeKeyPoints: 3-7 key preparation points ordered most important first. GROUP related emails into one point. Each: { "title", "summary" (concrete: who/what/status/what to do), "mails":[{ "sourceId","subject","from" }] }.
+3. decisionQueue: decisions the leader must be ready to make IN or BEFORE this meeting — { "title","why","deadline","sourceId" }.
+4. risks: open issues, blockers or sensitivities to be aware of going in. Score likelihood (1-5), impact (1-5), riskScore = likelihood*impact, plus category, clock, affectedArea, mitigation, trend:"New". Each with "sourceId".
+5. todoList: prep tasks to do BEFORE the meeting — { "task","deadline","status":"Open","sourceId" }, most urgent first.
+6. actions: open action items / commitments involving the participants or topics — { "task","owner","deadline","sourceId" }.
+7. events: related meetings, deadlines or dated commitments connected to this meeting or its participants — { "title","when","type","owner","sourceId" }. Do not invent dates.
+8. collisions: scheduling clashes around the meeting time or competing deadlines — { "type","summary","when","items":[sourceId...],"suggestion" }.
+9. patterns: 2-5 cross-email observations about the history/context with these participants or topics (recurring asks, slipping dates, unanswered follow-ups, rising urgency).
+10. deadlines: every dated commitment found — { "date","item","sourceId" }.
+11. triage: classify EVERY provided email into "Critical"|"Important"|"Low" for meeting relevance with a one-line "reason", plus "subject","from","summary","matchedKeywords".
+12. categorySummaries: group the emails by their "category" field (emails with no category go under "Other"). For EACH category: { "category","count","summary","keyPoints","mails" }. The "summary" is 2-3 complete sentences; use ONLY these inline tags: <b>…</b>, <mark>…</mark>, <span class="danger">…</span>. "keyPoints" are 0-8 ultra-short phrases naming concrete items. "mails":[{ "sourceId","subject","from" }] one per email.
+
+COMPLETENESS: populate every key that has ANY supporting material in the emails; an empty array is acceptable only when nothing relevant exists. Base EVERY field strictly on the emails provided — do NOT fabricate names, dates, or numbers. Every array item MUST carry a "sourceId" equal to the "id" of the email it came from.
+
+OUTPUT:
+Return ONLY a valid JSON object (no markdown) with EXACTLY these keys:
+{
+  "narrative": string,
+  "narrativeKeyPoints": [{ "title": string, "summary": string, "mails": [{ "sourceId": string, "subject": string, "from": string }] }],
+  "triage": [{ "sourceId": string, "tier": "Critical"|"Important"|"Low", "reason": string, "subject": string, "from": string, "summary": string, "matchedKeywords": [string] }],
+  "categorySummaries": [{ "category": string, "count": number, "summary": string, "keyPoints": [string], "mails": [{ "sourceId": string, "subject": string, "from": string }] }],
+  "decisionQueue": [{ "title": string, "why": string, "deadline": string, "sourceId": string }],
+  "risks": [{ "category": string, "summary": string, "likelihood": number, "impact": number, "riskScore": number, "clock": string, "affectedArea": string, "mitigation": string, "trend": "New"|"Escalating"|"Stable"|"Cooling", "sourceId": string }],
+  "todoList": [{ "task": string, "deadline": string, "status": "Open", "sourceId": string }],
+  "actions": [{ "task": string, "owner": string, "deadline": string, "sourceId": string }],
+  "events": [{ "title": string, "when": string, "type": string, "owner": string, "sourceId": string }],
+  "collisions": [{ "type": "Meeting"|"Inspection"|"Audit"|"Deadline", "summary": string, "when": string, "items": [string], "suggestion": string }],
+  "patterns": [string],
+  "deadlines": [{ "date": string, "item": string, "sourceId": string }]
+}
+If there is little related mail, still return the object with mostly empty arrays and a short narrative noting there is limited prior context for this meeting.
+
+RELEVANT EMAILS (${safeEmails.length}):
+${JSON.stringify(safeEmails)}
+`;
+}
+
+export default { buildBriefPrompt, buildMeetingTopicsPrompt, buildPreMeetingPrompt };

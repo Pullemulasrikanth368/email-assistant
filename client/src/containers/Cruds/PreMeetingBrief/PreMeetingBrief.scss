@@ -1,0 +1,250 @@
+/* Pre-Meeting Brief — layout + meeting rail. Reuses OperationsReport.scss for
+   the dashboard/drawer internals; these classes only cover the rail, the
+   meeting-info header and the manual-entry form. */
+
+.pre-meeting-brief {
+  .pmb-layout {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .pmb-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ---------------- left rail ---------------- */
+  .pmb-rail {
+    width: 300px;
+    flex: none;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px;
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+    position: sticky;
+    top: 12px;
+
+    .pmb-rail-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 600;
+      }
+      .pmb-rail-head-btns { display: flex; gap: 4px; }
+    }
+
+    .pmb-rail-state {
+      font-size: 12.5px;
+      color: #64748b;
+      padding: 14px 6px;
+      line-height: 1.5;
+    }
+  }
+
+  .pmb-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    transition: all .15s;
+
+    &:hover { background: #f1f5f9; color: #0f172a; }
+    &.danger:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+    &:disabled { opacity: .5; cursor: default; }
+    .spin { animation: pmb-spin .8s linear infinite; }
+  }
+
+  .pmb-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .pmb-meeting-item,
+  .pmb-hist-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px;
+    transition: border-color .15s, box-shadow .15s;
+
+    .pmb-mi-body, .pmb-hi-body { flex: 1; min-width: 0; }
+
+    .pmb-mi-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pmb-mi-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      color: #64748b;
+      margin-top: 3px;
+    }
+    .pmb-hi-counts {
+      display: flex;
+      gap: 8px;
+      margin-top: 5px;
+      font-size: 10.5px;
+      color: #94a3b8;
+      span { background: #f1f5f9; border-radius: 4px; padding: 1px 6px; }
+    }
+  }
+
+  .pmb-hist-item {
+    cursor: pointer;
+    &:hover { border-color: #cbd5e1; box-shadow: 0 1px 3px rgba(15,23,42,.06); }
+    &.active { border-color: #6366f1; background: #eef2ff; }
+  }
+
+  .pmb-gen-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #4338ca;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: all .15s;
+
+    &:hover { background: #e0e7ff; }
+    &:disabled { opacity: .6; cursor: default; }
+    &.solid { color: #fff; background: #4f46e5; border-color: #4f46e5; padding: 8px 14px; font-size: 13px; }
+    &.solid:hover { background: #4338ca; }
+  }
+
+  /* ---------------- meeting info header (above dashboard) ---------------- */
+  .pmb-meeting-card {
+    background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+
+    .pmb-meeting-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 8px; }
+
+    .pmb-meeting-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: 12.5px;
+      color: #475569;
+      span { display: inline-flex; align-items: center; gap: 5px; }
+    }
+
+    .pmb-src {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      &.live { background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; }
+      &.sample { background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; }
+    }
+
+    .pmb-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      &.topics { margin-top: 6px; }
+    }
+    .pmb-chip {
+      font-size: 11px;
+      padding: 2px 9px;
+      border-radius: 20px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      &.more { background: transparent; color: #94a3b8; }
+      &.topic { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+    }
+
+    .pmb-meeting-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      .pmb-candidate-note { font-size: 11.5px; color: #94a3b8; }
+    }
+    .pmb-regen {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #475569;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 5px 10px;
+      cursor: pointer;
+      &:hover { background: #f8fafc; color: #0f172a; }
+      &:disabled { opacity: .5; cursor: default; }
+    }
+  }
+
+  /* ---------------- manual entry form ---------------- */
+  .pmb-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+    input, textarea {
+      font-size: 13px;
+      font-weight: 400;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      color: #0f172a;
+      outline: none;
+      &:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.15); }
+    }
+    .pmb-form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 4px;
+    }
+  }
+}
+
+@keyframes pmb-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .pre-meeting-brief .pmb-layout { flex-direction: column; }
+  .pre-meeting-brief .pmb-rail { width: 100%; position: static; max-height: none; }
+}

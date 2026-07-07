@@ -40,6 +40,9 @@ import reportConfigService from "../services/reportConfig.service";
 /**@AI Reply */
 import aiReplyService from "../services/aiReply.service";
 
+/**@Pre-Meeting Brief */
+import preMeetingBriefService from "../services/preMeetingBrief.service";
+
 /**
  * Convert a stored attachment savedPath ("server/upload/email-analysis/<file>")
  * into a public URL. The server serves <server>/server/upload at "/images".
@@ -1420,6 +1423,73 @@ async function getReportMarkdown(req, res) {
   res.type("text/markdown").send(renderBriefMarkdown(report));
 }
 
+/* ====================== PRE-MEETING BRIEF ====================== */
+
+/**
+ * List upcoming meeting invitations detected in the connected account's mail,
+ * so the UI can offer them for brief generation.
+ */
+async function detectPreMeetingMeetings(req, res) {
+  const email = await resolveAccount(req.query.email, req.query.loginUserEmailId, req.query.provider);
+  if (!email) return res.json({ meetings: [] });
+  const meetings = await preMeetingBriefService.detectUpcomingMeetings(email);
+  return res.json({ meetings });
+}
+
+/**
+ * Generate (or regenerate) a pre-meeting brief.
+ * Body: { email?, meetingSourceId? } OR { meeting: { title, whenText, participants[], description } }, force?
+ */
+async function generatePreMeetingBrief(req, res) {
+  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  try {
+    const brief = await preMeetingBriefService.generatePreMeetingBrief(email, {
+      meetingSourceId: req.body?.meetingSourceId,
+      meeting: req.body?.meeting,
+      force: !!req.body?.force,
+    });
+    return res.json({ respCode: 200, respMessage: "Pre-meeting brief generated.", brief });
+  } catch (err) {
+    return res.json({ errorCode: 9401, errorMessage: err.message });
+  }
+}
+
+/** List previously generated pre-meeting briefs (cards; brief body excluded). */
+async function listPreMeetingBriefs(req, res) {
+  const email = await resolveAccount(req.query.email);
+  if (!email) return res.json({ briefs: [] });
+  const briefs = await preMeetingBriefService.listPreMeetingBriefs(email, parseInt(req.query.limit, 10) || 30);
+  return res.json({ briefs });
+}
+
+/** Get one full pre-meeting brief by id. */
+async function getPreMeetingBriefById(req, res) {
+  const brief = await preMeetingBriefService.getPreMeetingBriefById(req.params.id);
+  if (!brief) return res.json({ errorCode: 9402, errorMessage: "Pre-meeting brief not found." });
+  return res.json({ brief });
+}
+
+/** Render a pre-meeting brief as markdown (reuses the shared brief renderer). */
+async function getPreMeetingBriefMarkdown(req, res) {
+  const doc = await preMeetingBriefService.getPreMeetingBriefById(req.params.id);
+  if (!doc || !doc.brief) {
+    return res.status(404).json({ errorCode: 9403, errorMessage: "Markdown not found." });
+  }
+  res.type("text/markdown").send(renderBriefMarkdown({
+    brief: doc.brief,
+    periodLabel: doc.meetingTitle,
+    source: doc.source,
+    generatedAt: doc.generatedAt,
+  }));
+}
+
+/** Soft-delete a pre-meeting brief. */
+async function deletePreMeetingBrief(req, res) {
+  await preMeetingBriefService.deletePreMeetingBrief(req.params.id);
+  return res.json({ respCode: 200, respMessage: "Pre-meeting brief deleted." });
+}
+
 /* ====================== KNOWLEDGE BASE ====================== */
 
 async function getKnowledgeBase(req, res) {
@@ -1527,6 +1597,12 @@ export default {
   getReportByDate,
   getMailBySource,
   getReportMarkdown,
+  detectPreMeetingMeetings,
+  generatePreMeetingBrief,
+  listPreMeetingBriefs,
+  getPreMeetingBriefById,
+  getPreMeetingBriefMarkdown,
+  deletePreMeetingBrief,
   prioritizeEmailAnalysisMails,
   getBriefTime,
   setBriefTime,

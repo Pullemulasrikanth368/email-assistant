@@ -98,7 +98,7 @@ function briefCounts(brief) {
 }
 
 /** Map a stored mail doc to the engine's email shape (see CONTRACT.md). */
-function toEmailShape(mail) {
+export function toEmailShape(mail) {
   return {
     id: mail.providerMessageId || String(mail._id),
     from: mail.from || "",
