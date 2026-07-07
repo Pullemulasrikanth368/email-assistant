@@ -23,7 +23,7 @@ const BRIEF_ARRAY_KEYS = [
  * narrative is a string and every list key is an array. Also recompute
  * riskScore defensively (likelihood * impact).
  */
-function normalizeBrief(brief) {
+export function normalizeBrief(brief) {
   const out = { ...brief };
   out.narrative = typeof out.narrative === "string" ? out.narrative : "";
   for (const key of BRIEF_ARRAY_KEYS) {
@@ -38,7 +38,7 @@ function normalizeBrief(brief) {
   return out;
 }
 
-function isUsableBrief(brief) {
+export function isUsableBrief(brief) {
   return brief && typeof brief === "object" && typeof brief.narrative === "string";
 }
 
@@ -198,7 +198,7 @@ function applyKnowledgeBaseFilters(emails = [], kb) {
  * report always reflects the saved mail (never unrelated canned data).
  * Uses KB keywords when available, hardcoded patterns as fallback.
  */
-function fallbackBriefFromEmails(emails = [], kb) {
+export function fallbackBriefFromEmails(emails = [], kb) {
   const { critRe, impRe } = buildFallbackRegexes(kb);
 
   const triage = emails.map((e) => {
@@ -280,6 +280,56 @@ function fallbackBriefFromEmails(emails = [], kb) {
 }
 
 /**
+ * Run an ALREADY-BUILT brief prompt (buildBriefPrompt) through the shared
+ * aiClient and normalise the result to the brief contract. Encapsulates the
+ * single AI call, the usable-brief check and the one-shot completeness retry.
+ * THROWS on an unusable/unavailable response so the caller can decide how to
+ * fall back.
+ *
+ * @param {string} prompt      - a full prompt from buildBriefPrompt
+ * @param {Object} opts        - { periodLabel?, emailCount?, allowRetry? }
+ * @returns {Promise<{brief, source: "live"}>}
+ */
+export async function generateBriefFromPrompt(prompt, opts = {}) {
+  const { periodLabel = "", emailCount = 0, allowRetry = true } = opts;
+  const provider = await aiClient.currentProvider();
+  const result = await aiClient.createChat(prompt);
+
+  console.log(
+    `[EmailAnalysis] ${provider} response for "${periodLabel}" (${emailCount} emails):`,
+    JSON.stringify(result, null, 2)
+  );
+
+  if (!isUsableBrief(result)) {
+    throw new Error(`${provider} returned an unusable brief`);
+  }
+
+  let brief = normalizeBrief(result);
+
+  // Completeness guard: if the model skipped most core sections on a
+  // non-trivial inbox, re-ask once with an explicit callout and keep the
+  // richer answer per section.
+  const missing = emptyCoreSections(brief);
+  if (allowRetry && emailCount >= 2 && missing.length >= 3) {
+    console.warn(
+      `[EmailAnalysis] Brief left ${missing.length} core sections empty (${missing.join(", ")}) — retrying once for completeness.`
+    );
+    try {
+      const retryPrompt =
+        `${prompt}\n\nIMPORTANT: A previous attempt left these sections EMPTY: ${missing.join(", ")}. ` +
+        `Re-analyse the emails and populate every one of them that has ANY supporting material. ` +
+        `Do not return empty arrays out of brevity — extract implicit actions, dated events, scoreable risks, cross-email patterns, deadline collisions.`;
+      const retry = await aiClient.createChat(retryPrompt);
+      if (isUsableBrief(retry)) brief = mergeBriefs(brief, normalizeBrief(retry));
+    } catch (retryErr) {
+      console.warn("[EmailAnalysis] Completeness retry failed, keeping first brief:", retryErr.message);
+    }
+  }
+
+  return { brief, source: "live" };
+}
+
+/**
  * Generate a brief from emails. Live mode uses OpenAI/Ollama (JSON mode via
  * the shared aiClient). On ANY failure it falls back to keyword-based triage
  * so the report always reflects the real inbox.
@@ -309,41 +359,11 @@ export async function generateBrief(emails = [], yesterdayRisks = [], meta = {})
 
   try {
     const prompt = buildBriefPrompt(filteredEmails, yesterdayRisks, meta);
-    const provider = await aiClient.currentProvider();
-    const result = await aiClient.createChat(prompt);
-
-    console.log(
-      `[EmailAnalysis] ${provider} response for "${meta.periodLabel || ""}" (${filteredEmails.length} emails):`,
-      JSON.stringify(result, null, 2)
-    );
-
-    if (!isUsableBrief(result)) {
-      throw new Error(`${provider} returned an unusable brief`);
-    }
-
-    let brief = normalizeBrief(result);
-
-    // Completeness guard: if the model skipped most core sections on a
-    // non-trivial inbox, re-ask once with an explicit callout and keep the
-    // richer answer per section.
-    const missing = emptyCoreSections(brief);
-    if (filteredEmails.length >= 2 && missing.length >= 3) {
-      console.warn(
-        `[EmailAnalysis] Brief left ${missing.length} core sections empty (${missing.join(", ")}) — retrying once for completeness.`
-      );
-      try {
-        const retryPrompt =
-          `${prompt}\n\nIMPORTANT: A previous attempt left these sections EMPTY: ${missing.join(", ")}. ` +
-          `Re-analyse the inbox and populate every one of them that has ANY supporting material in the emails. ` +
-          `Do not return empty arrays out of brevity — extract implicit actions, dated events, scoreable risks, cross-email patterns, deadline collisions.`;
-        const retry = await aiClient.createChat(retryPrompt);
-        if (isUsableBrief(retry)) brief = mergeBriefs(brief, normalizeBrief(retry));
-      } catch (retryErr) {
-        console.warn("[EmailAnalysis] Completeness retry failed, keeping first brief:", retryErr.message);
-      }
-    }
-
-    return { brief, source: "live", matchedKeywordsSummary };
+    const { brief, source } = await generateBriefFromPrompt(prompt, {
+      periodLabel: meta.periodLabel || "",
+      emailCount: filteredEmails.length,
+    });
+    return { brief, source, matchedKeywordsSummary };
   } catch (err) {
     console.error("[EmailAnalysis] Brief engine fell back (AI unavailable):", err.message);
     if (filteredEmails.length) {
@@ -357,4 +377,4 @@ export async function generateBrief(emails = [], yesterdayRisks = [], meta = {})
   }
 }
 
-export default { generateBrief };
+export default { generateBrief, generateBriefFromPrompt, normalizeBrief, fallbackBriefFromEmails };

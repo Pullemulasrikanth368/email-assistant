@@ -10,8 +10,29 @@ import prioritizeService from "./prioritize.service";
 import { generateBrief } from "./briefEngine";
 import { getActiveKnowledgeBaseConfig } from "./knowledgeBase.service";
 import { getReportConfig } from "./reportConfig.service";
+import { generatePreMeetingBrief } from "./preMeetingBrief.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Same "is this a meeting, not just a deadline/shipment?" check the client
+// uses to decide which events get an info button (BriefDashboard.jsx).
+const MEETING_TYPE_RE = /meeting|call|sync|standup|stand-up|1:1|one-on-one|interview|demo|review|webinar|discussion|catch-?up/i;
+
+/**
+ * Pre-generate (and cache) the pre-meeting brief for every meeting-like event
+ * in this report, right when the report itself is built — so opening the
+ * "Pre-meeting brief" info button later is an instant read instead of
+ * triggering a fresh AI call. Best-effort per event: one failure must not
+ * fail the whole report.
+ */
+async function preGenerateMeetingBriefs(email, brief) {
+  const meetingEvents = (brief?.events || [])
+    .filter((e) => e?.sourceId && MEETING_TYPE_RE.test(`${e.type || ""} ${e.title || ""}`));
+  if (!meetingEvents.length) return;
+  await Promise.all(meetingEvents.map((e) =>
+    generatePreMeetingBrief(email, { meetingSourceId: e.sourceId }).catch((err) =>
+      console.error("[PreMeeting] pre-generate failed for", e.sourceId, err.message))));
+}
 
 /**
  * Best-effort: post the freshly generated brief to the connected Microsoft
@@ -98,7 +119,7 @@ function briefCounts(brief) {
 }
 
 /** Map a stored mail doc to the engine's email shape (see CONTRACT.md). */
-function toEmailShape(mail) {
+export function toEmailShape(mail) {
   return {
     id: mail.providerMessageId || String(mail._id),
     from: mail.from || "",
@@ -251,6 +272,21 @@ function detectCollisionsFromEvents(events, mails) {
   return collisions;
 }
 
+/**
+ * Drop todo items sourced from meeting/scheduling emails — meetings belong in
+ * events, not the to-do list. Catches LLM-derived items the prompt missed.
+ */
+function stripMeetingTodos(brief, mails) {
+  if (!brief?.todoList?.length) return brief;
+  const meetingIds = new Set(
+    mails
+      .filter((m) => EVENT_CATEGORIES.includes(m.category))
+      .map((m) => String(m.providerMessageId || m._id))
+  );
+  brief.todoList = brief.todoList.filter((t) => !meetingIds.has(String(t.sourceId || "")));
+  return brief;
+}
+
 /** Dedup key for todo/event items so code-derived and LLM-derived entries don't double up. */
 function itemKey(x) {
   return `${x.sourceId}|${(x.task || x.title || "").toLowerCase()}`;
@@ -353,7 +389,9 @@ export async function generateDailyReport(email, opts = {}) {
   const codeEvents = buildEventsFromMails(mails);
   mergeTodoList(brief, codeTodos);
   mergeEvents(brief, codeEvents);
+  stripMeetingTodos(brief, mails);
   mergeCollisions(brief, detectCollisionsFromEvents(codeEvents, mails));
+  await preGenerateMeetingBriefs(email, brief);
 
   const counts = briefCounts(brief);
 
@@ -449,7 +487,9 @@ export async function generateWeeklyReport(email, opts = {}) {
   const codeEventsWeek = buildEventsFromMails(mails);
   mergeTodoList(brief, codeTodosWeek);
   mergeEvents(brief, codeEventsWeek);
+  stripMeetingTodos(brief, mails);
   mergeCollisions(brief, detectCollisionsFromEvents(codeEventsWeek, mails));
+  await preGenerateMeetingBriefs(email, brief);
 
   let report = existing || new EmailAnalysisReport({ email, reportType: "week", periodStart: start });
   report.periodEnd = end;

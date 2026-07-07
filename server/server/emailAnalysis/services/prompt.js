@@ -124,7 +124,7 @@ ANALYSIS RULES:
    - If matchedKeywords field is selected, list which KB keywords triggered classification in a "matchedKeywords" field on triage items.
    - If reason field is selected, include a clear "reason" for classification.
 4. decisionQueue: ONLY items the recipient must personally decide today (title, why, deadline, sourceId).
-5. todoList: ONLY the recipient's own tasks, each {task, deadline, status:"Open", sourceId}, sorted by deadline.
+5. todoList: ONLY the recipient's own tasks, each {task, deadline, status:"Open", sourceId}, sorted by deadline. Do NOT include meetings, calls, appointments, or calendar invites — attending something is not a task; those belong ONLY in events. A meeting email produces a todoList item only when it asks the recipient to DO something beyond attending (e.g. prepare a document, send materials).
 6. actions: the FULL action register across all emails {task, owner, deadline, sourceId}.
 7. collisions: detect schedule clashes — meetings, inspections, audits, reviews, and deadlines that overlap. Each {type, summary, when, items:[sourceId...], suggestion}.
 8. events: list every event mentioned in emails when relevant. Each {title, when, type, owner, sourceId}. Include both calendar-style events and business events, but do not invent dates.
@@ -179,4 +179,230 @@ ${JSON.stringify(safeEmails)}
 `;
 }
 
-export default { buildBriefPrompt };
+/**
+ * Small prompt that turns a meeting invitation into discussion topics /
+ * keywords, used to retrieve the relevant emails for the pre-meeting brief.
+ * Runs through the SAME aiClient (OpenAI/Ollama) as every other AI call.
+ *
+ * @param {Object} meeting - { title, whenText, participants[], description, organizer }
+ * @returns {string} prompt (expects a JSON object back: { topics:[], keywords:[] })
+ */
+export function buildMeetingTopicsPrompt(meeting = {}) {
+  const title = String(meeting.title || '').slice(0, 300);
+  const when = String(meeting.whenText || '').slice(0, 120);
+  const organizer = String(meeting.organizer || '').slice(0, 200);
+  const participants = (meeting.participants || []).slice(0, 30).join(', ');
+  const description = String(meeting.description || '')
+    .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000);
+
+  return `You are preparing an executive for an upcoming meeting. From the meeting invitation below, infer the concrete DISCUSSION TOPICS and SEARCH KEYWORDS that would help find related emails in the executive's mailbox.
+
+MEETING TITLE: ${title || '(none)'}
+WHEN: ${when || '(unknown)'}
+ORGANIZER: ${organizer || '(unknown)'}
+PARTICIPANTS: ${participants || '(unknown)'}
+DESCRIPTION / AGENDA:
+${description || '(none provided)'}
+
+Return ONLY a valid JSON object (no markdown) with EXACTLY these keys:
+{
+  "topics": [string],    // 3-8 short discussion topics likely to come up
+  "keywords": [string]   // 5-15 distinctive search terms (project names, products, clients, systems, acronyms) — single words or short phrases, no generic filler
+}
+Base everything strictly on the invitation. Do NOT invent client or project names that are not implied by the text.`;
+}
+
+/**
+ * Build the chat messages for a PRE-MEETING BRIEF. Unlike buildBriefPrompt this
+ * is NOT a JSON-mode call — the model must return the meeting-specific HTML
+ * document defined below verbatim (structure only; content is per-meeting), so
+ * the client can render it directly (after sanitising). The candidate emails
+ * passed in are a ranked (not pre-filtered) window of the account's recent mail
+ * (see preMeetingBrief.service.retrieveCandidateEmails) — the model itself must
+ * decide which ones are actually relevant to this meeting using the criteria
+ * below, and must not fall back to summarising the whole inbox.
+ *
+ * @param {Object} meeting - { title, when, whenText, participants[], description, organizer, location }
+ * @param {Array}  emails  - relevant emails: {sourceId, threadId, subject, from, to, receivedAt, body, category}
+ * @returns {Array<{role:string, content:string}>} chat messages for aiClient.chatCompletion
+ */
+export function buildPreMeetingBriefPrompt(meeting = {}, emails = []) {
+  const safeEmails = emails.map((e) => ({
+    sourceId: e.sourceId,
+    threadId: e.threadId || '',
+    subject: e.subject || '',
+    from: e.from || '',
+    to: e.to || '',
+    receivedAt: e.receivedAt,
+    body: String(e.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+  }));
+
+  const attendees = (meeting.participants || []).slice(0, 40).join(', ') || 'Not available in the related emails';
+  const dateObj = meeting.when ? new Date(meeting.when) : null;
+  const meetingDate = dateObj && !Number.isNaN(dateObj.getTime())
+    ? dateObj.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+    : (meeting.whenText || 'Not available in the related emails');
+  const meetingStartTime = dateObj && !Number.isNaN(dateObj.getTime())
+    ? dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : 'Not specified';
+  const description = String(meeting.description || '')
+    .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000) || 'Not available in the related emails';
+
+  const now = new Date();
+  const todayLabel = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+  const todayIso = now.toISOString();
+
+  const system = `You are generating a pre-meeting brief for a selected calendar event.
+
+Today's date and time is ${todayLabel} (${todayIso}). Use it to judge what is overdue, upcoming, or stale, and to reason about how "today", "this week" or similar relative phrases in the emails map to actual dates.
+
+You are given a ranked window of this account's recent emails — it is NOT pre-filtered to only this meeting. Your task is to analyze all of it and decide for yourself, using the criteria below, which emails and threads are actually relevant to the selected meeting, then base the brief only on those. Do not summarize the complete inbox, and do not treat an email as relevant just because it appears in the list.
+
+Instructions:
+
+1. Identify only emails related to the selected meeting using:
+   * Meeting title
+   * Subject similarity
+   * Organizer and attendee email addresses
+   * Thread ID
+   * Reply and forwarded message relationships
+   * Meeting description
+   * Project, product, client, batch, audit or department names
+   * Dates, deadlines and action items connected to the meeting
+
+2. Exclude unrelated content such as:
+   * Newsletters
+   * Marketing or promotional emails
+   * General company announcements
+   * Employee joining announcements
+   * Automated notifications unrelated to the meeting
+   * Emails that only contain generic words such as "meeting", "today", "important" or "urgent" without contextual relevance
+
+3. Group emails from the same conversation into one thread.
+   * Treat subjects beginning with RE:, FW: or FWD: as part of the original thread when context matches.
+   * Do not repeat the same subject multiple times.
+   * Give priority to the latest message and current thread status.
+
+4. Extract useful meeting information:
+   * Meeting objective, important background, latest updates, key discussion points, previous decisions, pending action items, action owners, deadlines, risks or blockers, questions requiring answers, documents or reports to prepare.
+
+5. Do not classify emails as Critical, Important or Low unless that classification directly helps the meeting preparation.
+
+6. Do not display inbox statistics such as total emails in the inbox, number of critical/important emails, or general keyword-based inbox triage.
+
+7. Do not invent facts. When information is unavailable, write "Not available in the related emails", "Owner not specified", or "Deadline not specified" as appropriate.
+
+8. Return ONLY the HTML document described below — no preamble, no JSON, no markdown, no code fences, no <html>/<head>/<body> wrapper, no <script> or <style> tags and no "style"/"class"/"on*" attributes. Use ONLY these tags: h1, h2, h3, p, ul, ol, li, strong, em, span. Escape any literal "<" or "&" found in the source emails as "&lt;"/"&amp;" so they never break the markup.
+
+9. Return a clear and concise brief using this EXACT structure (keep every heading, omit nothing, use "No previous decisions found" / "Not available in the related emails" where a section has nothing to report):
+
+<h1>Pre-Meeting Brief</h1>
+
+<h2>Meeting</h2>
+<ul>
+<li><strong>Title:</strong> ...</li>
+<li><strong>Date and time:</strong> ...</li>
+<li><strong>Organizer:</strong> ...</li>
+<li><strong>Attendees:</strong> ...</li>
+<li><strong>Location or link:</strong> ...</li>
+</ul>
+
+<h2>Meeting Objective</h2>
+<p>1-3 sentences explaining why the meeting is being held.</p>
+
+<h2>Executive Summary</h2>
+<p>A concise summary of the most important information from the related email threads.</p>
+
+<h2>Relevant Email Threads</h2>
+<h3>1. {Thread Subject}</h3>
+<ul>
+<li><strong>Latest update:</strong> ...</li>
+<li><strong>Participants:</strong> ...</li>
+<li><strong>Current status:</strong> ...</li>
+<li><strong>Pending response or action:</strong> ...</li>
+</ul>
+(repeat the h3/ul pair per unique, relevant thread)
+
+<h2>Key Discussion Points</h2>
+<ul><li>Topics that should be discussed during the meeting.</li></ul>
+
+<h2>Previous Decisions</h2>
+<ul><li>Decisions already made in related emails, or "No previous decisions found".</li></ul>
+
+<h2>Pending Actions</h2>
+<ul>
+<li><strong>Action:</strong> ... — <strong>Owner:</strong> ... — <strong>Deadline:</strong> ... — <strong>Status:</strong> ...</li>
+</ul>
+
+<h2>Risks and Blockers</h2>
+<ul><li>Production, operational, compliance, quality, customer or delivery risks.</li></ul>
+
+<h2>Questions to Raise</h2>
+<ul><li>Unresolved questions that should be asked during the meeting.</li></ul>
+
+<h2>Suggested Preparation</h2>
+<ul><li>Reports, documents, metrics, files or approvals that should be prepared.</li></ul>
+
+<h2>Required Outcomes</h2>
+<ul><li>Decisions or confirmations expected from the meeting.</li></ul>
+
+10. If NONE of the provided emails are actually relevant to this meeting (or none were provided), do NOT use the structure above. Instead return this ALTERNATE structure, using ONLY the calendar event details — never invent specific figures, batch numbers, people, deadlines or incidents:
+
+<h1>Pre-Meeting Brief</h1>
+
+<h2>Meeting</h2>
+<ul>
+<li><strong>Title:</strong> ...</li>
+<li><strong>Date and time:</strong> ...</li>
+<li><strong>Organizer:</strong> ...</li>
+<li><strong>Attendees:</strong> ...</li>
+<li><strong>Location or link:</strong> ...</li>
+</ul>
+
+<h2>Available Context</h2>
+<p>No previous email thread, decision, action item or meeting history was found for this meeting.</p>
+
+<h2>Likely Meeting Objective</h2>
+<p>Infer the likely objective ONLY from the meeting title and description, and clearly label it "Inferred from the meeting title." Never present this as a confirmed fact.</p>
+
+<h2>Suggested Discussion Points</h2>
+<ul><li>Practical discussion points inferred from the meeting title/subject area (e.g. for a production review: current production status, planned vs actual output, delays or downtime, material availability, quality issues, equipment/maintenance problems, staffing constraints, regulatory/safety concerns, pending approvals, next-period plan). Adapt to whatever subject area the title implies.</li></ul>
+
+<h2>Information to Prepare</h2>
+<ul><li>Reports or data worth having on hand for this type of meeting (e.g. latest status report, plan-vs-actual figures, open issues log, relevant approvals) — generic to the subject area, not fabricated specifics.</li></ul>
+
+<h2>Questions to Raise</h2>
+<ul><li>Useful generic questions for this type of meeting (e.g. is this on schedule, are there blockers, what needs management approval, what are the priorities before the next review).</li></ul>
+
+<h2>Expected Outcomes</h2>
+<ul><li>Confirm current position, identify major risks/blockers, assign owners for pending actions, confirm deadlines, agree next priorities.</li></ul>
+
+<h2>Context Status</h2>
+<p>No matching previous emails were found. This brief was generated from the calendar event details only.</p>
+
+The final output must be a meeting-specific preparation brief, not an inbox summary. Never return a bare "no context" message with no structure.`;
+
+  const user = `Today's date and time: ${todayLabel} (${todayIso})
+
+Selected meeting details:
+
+* Title: ${meeting.title || '(untitled meeting)'}
+* Date: ${meetingDate}
+* Start time: ${meetingStartTime}
+* Start timestamp (ISO): ${dateObj && !Number.isNaN(dateObj.getTime()) ? dateObj.toISOString() : 'Not specified'}
+* End time: Not specified
+* Organizer: ${meeting.organizer || 'Not available in the related emails'}
+* Attendees: ${attendees}
+* Description: ${description}
+* Location or meeting link: ${meeting.location || 'Not available in the related emails'}
+
+Available email data (${safeEmails.length} email(s) from this account, ranked by likely relevance but NOT pre-filtered — decide relevance yourself; each has an exact "receivedAt" timestamp):
+${JSON.stringify(safeEmails)}`;
+
+  return [
+    { role: 'system', content: system },
+    { role: 'user', content: user },
+  ];
+}
+
+export default { buildBriefPrompt, buildMeetingTopicsPrompt, buildPreMeetingBriefPrompt };

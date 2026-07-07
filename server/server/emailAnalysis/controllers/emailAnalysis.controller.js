@@ -40,6 +40,9 @@ import reportConfigService from "../services/reportConfig.service";
 /**@AI Reply */
 import aiReplyService from "../services/aiReply.service";
 
+/**@Pre-Meeting Brief */
+import preMeetingBriefService from "../services/preMeetingBrief.service";
+
 /**
  * Convert a stored attachment savedPath ("server/upload/email-analysis/<file>")
  * into a public URL. The server serves <server>/server/upload at "/images".
@@ -1420,6 +1423,28 @@ async function getReportMarkdown(req, res) {
   res.type("text/markdown").send(renderBriefMarkdown(report));
 }
 
+/* ====================== PRE-MEETING BRIEF ====================== */
+
+/**
+ * Generate (or return the cached) pre-meeting brief for a meeting-like event
+ * surfaced in a report ("Events mentioned" info button).
+ * Body: { email?, meetingSourceId }, force?
+ */
+async function generatePreMeetingBrief(req, res) {
+  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  try {
+    const brief = await preMeetingBriefService.generatePreMeetingBrief(email, {
+      meetingSourceId: req.body?.meetingSourceId,
+      meeting: req.body?.meeting,
+      force: !!req.body?.force,
+    });
+    return res.json({ respCode: 200, respMessage: "Pre-meeting brief generated.", brief });
+  } catch (err) {
+    return res.json({ errorCode: 9401, errorMessage: err.message });
+  }
+}
+
 /* ====================== KNOWLEDGE BASE ====================== */
 
 async function getKnowledgeBase(req, res) {
@@ -1527,6 +1552,7 @@ export default {
   getReportByDate,
   getMailBySource,
   getReportMarkdown,
+  generatePreMeetingBrief,
   prioritizeEmailAnalysisMails,
   getBriefTime,
   setBriefTime,

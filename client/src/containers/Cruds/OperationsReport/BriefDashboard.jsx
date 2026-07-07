@@ -5,7 +5,11 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
-import { Info, Mail } from 'lucide-react';
+import DOMPurify from 'dompurify';
+import {
+  Info, Mail, CalendarClock, ListChecks, History, ClipboardList, ClipboardCheck,
+  AlertTriangle, HelpCircle, CheckCircle2, Users, FileText,
+} from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import { url } from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
@@ -57,6 +61,78 @@ const sanitizeSummaryHtml = (html = '') => {
     .replace(/\u0000(\d+)\u0000/g, (_, i) => kept[Number(i)]);
 };
 
+// Pre-meeting brief HTML (see preMeetingBrief.service.js) is a flat h1/h2/p/ul
+// fragment. We regroup it client-side into icon-tagged cards — split on each
+// h2, match its heading text against known section names for an icon + tone,
+// and keep whatever sits before the first h2 as a highlighted "at a glance" lead.
+const MEETING_SECTION_STYLES = [
+  { match: /discussion|topic/i, Icon: ListChecks, tone: 'blue' },
+  { match: /decision/i, Icon: History, tone: 'violet' },
+  { match: /action/i, Icon: ClipboardList, tone: 'teal' },
+  { match: /risk|blocker/i, Icon: AlertTriangle, tone: 'crit' },
+  { match: /question/i, Icon: HelpCircle, tone: 'amber' },
+  { match: /prepar/i, Icon: ClipboardCheck, tone: 'violet' },
+  { match: /outcome/i, Icon: CheckCircle2, tone: 'green' },
+  { match: /^meeting$|attendee|participant/i, Icon: Users, tone: 'blue' },
+  { match: /email|thread/i, Icon: Mail, tone: 'blue' },
+];
+const meetingSectionStyle = (heading = '') =>
+  MEETING_SECTION_STYLES.find((s) => s.match.test(heading)) || { Icon: FileText, tone: 'default' };
+
+// Groups the sanitized brief fragment into { title, leadHtml, sections }.
+const groupMeetingBriefHtml = (sanitizedHtml) => {
+  if (!sanitizedHtml || typeof DOMParser === 'undefined') return { title: '', leadHtml: '', sections: [] };
+  const doc = new DOMParser().parseFromString(`<div>${sanitizedHtml}</div>`, 'text/html');
+  const nodes = [...(doc.body.firstElementChild?.children || [])];
+  let title = '';
+  const leadNodes = [];
+  const sections = [];
+  let current = null;
+  nodes.forEach((node) => {
+    if (node.tagName === 'H1') {
+      title = node.textContent || '';
+      return;
+    }
+    if (node.tagName === 'H2') {
+      current = { heading: node.textContent || '', nodes: [] };
+      sections.push(current);
+      return;
+    }
+    if (current) current.nodes.push(node); else leadNodes.push(node);
+  });
+  return {
+    title,
+    leadHtml: leadNodes.map((n) => n.outerHTML).join(''),
+    sections: sections.map((s) => {
+      const base = {
+        heading: s.heading,
+        ...meetingSectionStyle(s.heading),
+        bodyHtml: s.nodes.map((n) => n.outerHTML).join(''),
+      };
+      // The email-threads section lists one h3 per thread — split those out so
+      // the card can render each thread as a collapsible accordion row.
+      if (/email|thread/i.test(s.heading) && s.nodes.some((n) => n.tagName === 'H3')) {
+        const intro = [];
+        const threads = [];
+        let cur = null;
+        s.nodes.forEach((n) => {
+          if (n.tagName === 'H3') {
+            cur = { title: n.textContent || '', nodes: [] };
+            threads.push(cur);
+          } else if (cur) cur.nodes.push(n);
+          else intro.push(n);
+        });
+        base.introHtml = intro.map((n) => n.outerHTML).join('');
+        base.threads = threads.map((t) => ({
+          title: t.title,
+          bodyHtml: t.nodes.map((n) => n.outerHTML).join(''),
+        }));
+      }
+      return base;
+    }),
+  };
+};
+
 const TIER_RANK = { Critical: 3, Important: 2, Low: 1 };
 const tierColor = (tier) =>
   tier === 'Critical' ? 'var(--crit)' : tier === 'Important' ? 'var(--high)' : 'var(--muted)';
@@ -78,6 +154,11 @@ const parseEventWhen = (when) => {
     time: hasTime ? d.toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' }) : null,
   };
 };
+
+// Which "events mentioned" rows can offer a pre-meeting brief — meeting-like
+// occurrences only (a shipment or audit deadline has no brief to prepare).
+const MEETING_TYPE_RE = /meeting|call|sync|standup|stand-up|1:1|one-on-one|interview|demo|review|webinar|discussion|catch-?up/i;
+const isMeetingEvent = (event) => !!event.sourceId && MEETING_TYPE_RE.test(`${event.type || ''} ${event.title || ''}`);
 
 // Copy shown in the "what is this section?" info modal, keyed by section id.
 const SECTION_INFO = {
@@ -273,6 +354,31 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     } catch {
       showToasterMessage('Could not load markdown file', 'error');
       setMdDialog({ visible: false, loading: false, content: '' });
+    }
+  };
+
+  /* -------- pre-meeting brief (info button on meeting-like events) -------- */
+  const [meetingBrief, setMeetingBrief] = useState({ visible: false, loading: false, event: null, brief: null });
+
+  const openMeetingBrief = async (event, e) => {
+    e?.stopPropagation();
+    setMeetingBrief({ visible: true, loading: true, event, brief: null });
+    try {
+      // The brief is pre-generated alongside the report itself (see
+      // preGenerateMeetingBriefs in report.service.js), so this is normally
+      // an instant cache read — no force, no waiting on a fresh AI call.
+      const res = await fetchMethodRequest('POST', 'email-analysis/pre-meeting-briefs/generate', {
+        meetingSourceId: event.sourceId,
+      });
+      if (res?.respCode && res.brief) {
+        setMeetingBrief({ visible: true, loading: false, event, brief: res.brief });
+      } else {
+        showToasterMessage(res?.errorMessage || 'Could not prepare meeting brief', 'warning');
+        setMeetingBrief({ visible: false, loading: false, event: null, brief: null });
+      }
+    } catch {
+      showToasterMessage('Could not prepare meeting brief', 'error');
+      setMeetingBrief({ visible: false, loading: false, event: null, brief: null });
     }
   };
 
@@ -775,6 +881,16 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                   {event.owner && <span className="who"><i className="pi pi-user" />{event.owner}</span>}
                 </div>
               </div>
+              {isMeetingEvent(event) && (
+                <button
+                  type="button"
+                  className="orm-event-info"
+                  title="Pre-meeting brief"
+                  onClick={(e) => openMeetingBrief(event, e)}
+                >
+                  <Info size={14} />
+                </button>
+              )}
             </div>
           );
         })}
@@ -875,13 +991,82 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
         )}
       </Dialog>
 
+      {/* Pre-meeting brief: AI-generated HTML brief for a meeting event, regrouped into icon-tagged cards */}
+      <Dialog
+        header={null}
+        showHeader={false}
+        visible={meetingBrief.visible}
+        modal
+        draggable={false}
+        className="orm-mb-dialog"
+        style={{ width: '880px', maxWidth: '92vw' }}
+        onHide={() => setMeetingBrief({ visible: false, loading: false, event: null, brief: null })}
+      >
+        <div className="orm-mb-head">
+          <span className="orm-mb-head-icon"><CalendarClock size={15} /></span>
+          <div className="orm-mb-head-text">
+            <span className="orm-mb-head-label">Pre-meeting brief</span>
+            <span className="orm-mb-head-title">{meetingBrief.event?.title || 'Meeting brief'}</span>
+          </div>
+          <button
+            type="button"
+            className="orm-mb-close"
+            aria-label="Close"
+            onClick={() => setMeetingBrief({ visible: false, loading: false, event: null, brief: null })}
+          >
+            <i className="pi pi-times" />
+          </button>
+        </div>
+        {meetingBrief.loading ? (
+          <div style={{ padding: 24, textAlign: 'center' }}><i className="pi pi-spin pi-spinner" style={{ fontSize: 22 }} /></div>
+        ) : !meetingBrief.brief?.briefHtml ? (
+          <p className="orm-info-body" style={{ padding: '4px 20px 20px' }}>No prior context found for this meeting.</p>
+        ) : (() => {
+          const sanitized = DOMPurify.sanitize(meetingBrief.brief.briefHtml, {
+            ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'ul', 'ol', 'li', 'strong', 'em', 'span'],
+            ALLOWED_ATTR: [],
+          });
+          const { leadHtml, sections } = groupMeetingBriefHtml(sanitized);
+          return (
+            <div className="orm-meeting-brief">
+              {leadHtml && <div className="orm-mb-lead" dangerouslySetInnerHTML={{ __html: leadHtml }} />}
+              <div className="orm-mb-sections">
+                {sections.map((s, i) => (
+                  <div className={`orm-mb-section tone-${s.tone}`} key={i}>
+                    <div className="orm-mb-section-head">
+                      <span className="orm-mb-section-icon"><s.Icon size={12} /></span>
+                      {s.heading}
+                    </div>
+                    {s.threads ? (
+                      <div className="orm-mb-section-body">
+                        {s.introHtml && <div dangerouslySetInnerHTML={{ __html: s.introHtml }} />}
+                        <div className="orm-mb-threads">
+                          {s.threads.map((t, j) => (
+                            <details className="orm-mb-thread" key={j}>
+                              <summary>{t.title}</summary>
+                              <div className="orm-mb-thread-body" dangerouslySetInnerHTML={{ __html: t.bodyHtml }} />
+                            </details>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="orm-mb-section-body" dangerouslySetInnerHTML={{ __html: s.bodyHtml }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+      </Dialog>
+
       {/* Confirm "is this completed?" before sending an AI reply */}
       <Dialog
         header="Mark this action as completed?"
         visible={confirm.visible}
         modal
         draggable={false}
-        style={{ width: '460px', maxWidth: '94vw' }}
+        style={{ width: '460px', maxWidth: '84vw' }}
         onHide={() => { if (!completing) setConfirm({ visible: false, todo: null }); }}
       >
         <p style={{ margin: '0 0 10px', color: '#3c4043', fontSize: 12, lineHeight: 1.55 }}>

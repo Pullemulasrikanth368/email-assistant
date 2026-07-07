@@ -53,6 +53,13 @@ router.get("/reports/:id/md", asyncHandler(emailAnalysisCtrl.getReportMarkdown))
 router.get("/reports/:id", asyncHandler(emailAnalysisCtrl.getEmailAnalysisReport));
 
 /**
+ * Pre-Meeting Brief — generates (and caches) a preparation brief for a
+ * meeting-like "event" surfaced in a report, from the account's
+ * already-analyzed mail. Powers the info button on meeting events.
+ */
+router.post("/pre-meeting-briefs/generate", asyncHandler(emailAnalysisCtrl.generatePreMeetingBrief));
+
+/**
  * Brief schedule time (drives the dynamic report cron).
  */
 router.get("/brief-time", asyncHandler(emailAnalysisCtrl.getBriefTime));

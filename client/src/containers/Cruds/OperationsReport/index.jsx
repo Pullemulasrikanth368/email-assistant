@@ -628,7 +628,7 @@ const OperationsReport = () => {
       </div>
 
       <Sheet open={emailDrawer.visible} onOpenChange={(o) => !o && setEmailDrawer((p) => ({ ...p, visible: false }))}>
-        <SheetContent side="right" className="min-w-[30vw] w-[720px] !max-w-[96vw] sm:!max-w-[720px] overflow-y-auto bg-white">
+        <SheetContent side="right" className="min-w-[30vw] w-[70vw] !max-w-[96vw] sm:!max-w-[720px] overflow-y-auto bg-white">
           {renderEmailDrawer()}
         </SheetContent>
       </Sheet>
