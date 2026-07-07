@@ -134,6 +134,157 @@ function attachMailCategories(brief, mails) {
   return brief;
 }
 
+// Categories that already carry the meaning of "to-do" / "event" — no extra
+// AI call needed, the sync-time category (prioritize.service.js) is enough.
+const ACTION_CATEGORIES = ["Action Required"];
+const EVENT_CATEGORIES = ["Meetings & Scheduling"];
+
+const TIME_RE = /\b(\d{1,2}(:\d{2})?\s?(am|pm))\b/i;
+const RELATIVE_DAY_RE = /\b(today|tomorrow|yesterday)\b/i;
+const MONTH_DAY_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}\b/i;
+
+/** Plain-code guess at a "when" string from subject/body — no AI involved. */
+function extractWhen(mail) {
+  const hay = `${mail.subject || ""} ${String(mail.body || mail.snippet || "").slice(0, 300)}`;
+  const day = hay.match(RELATIVE_DAY_RE)?.[1];
+  const time = hay.match(TIME_RE)?.[1];
+  const monthDay = hay.match(MONTH_DAY_RE)?.[0];
+  if (day && time) return `${day[0].toUpperCase()}${day.slice(1)} ${time}`;
+  if (monthDay && time) return `${monthDay} ${time}`;
+  if (day) return day[0].toUpperCase() + day.slice(1);
+  if (monthDay) return monthDay;
+  if (time) return time;
+  return mail.receivedAt ? new Date(mail.receivedAt).toDateString() : "";
+}
+
+/**
+ * Resolve a "when" string into a real Date, anchored on the mail's
+ * receivedAt so relative words ("Today 12:00 PM") resolve correctly.
+ */
+function resolveWhenDate(whenText, receivedAt) {
+  const anchor = receivedAt ? new Date(receivedAt) : new Date();
+  const text = String(whenText || "").trim();
+  if (!text) return anchor;
+  const relative = text
+    .replace(/\btoday\b/i, anchor.toDateString())
+    .replace(/\btomorrow\b/i, new Date(anchor.getTime() + DAY_MS).toDateString())
+    .replace(/\byesterday\b/i, new Date(anchor.getTime() - DAY_MS).toDateString());
+  const parsed = new Date(relative);
+  return Number.isNaN(parsed.getTime()) ? anchor : parsed;
+}
+
+/**
+ * Build the to-do list straight from mails already categorized "Action
+ * Required" at sync time (prioritize.service.js) — plain code, no AI call.
+ */
+function buildTodoListFromMails(mails) {
+  return mails
+    .filter((m) => ACTION_CATEGORIES.includes(m.category))
+    .map((m) => ({
+      task: m.subject || "(no subject)",
+      deadline: "",
+      status: "Open",
+      sourceId: m.providerMessageId || String(m._id),
+    }));
+}
+
+/**
+ * Build the events list straight from mails already categorized "Meetings &
+ * Scheduling" at sync time — plain code, no AI call.
+ */
+function buildEventsFromMails(mails) {
+  return mails
+    .filter((m) => EVENT_CATEGORIES.includes(m.category))
+    .map((m) => ({
+      title: m.subject || "(no subject)",
+      when: extractWhen(m),
+      type: "meeting",
+      owner: "",
+      sourceId: m.providerMessageId || String(m._id),
+    }));
+}
+
+/**
+ * Detect schedule collisions from the events built above — same-day
+ * crowding (3+) or two events within 2 hours of each other on the same day.
+ */
+function detectCollisionsFromEvents(events, mails) {
+  const receivedById = new Map(mails.map((m) => [String(m.providerMessageId || m._id), m.receivedAt]));
+  const withDates = events.map((e) => ({ e, date: resolveWhenDate(e.when, receivedById.get(e.sourceId)) }));
+
+  const byDay = new Map();
+  for (const entry of withDates) {
+    const dayKey = entry.date.toDateString();
+    if (!byDay.has(dayKey)) byDay.set(dayKey, []);
+    byDay.get(dayKey).push(entry);
+  }
+
+  const collisions = [];
+  for (const [dayKey, entries] of byDay) {
+    if (entries.length < 2) continue;
+
+    if (entries.length >= 3) {
+      collisions.push({
+        type: "Meeting",
+        summary: `${entries.length} meetings/events land on the same day`,
+        when: dayKey,
+        items: entries.map((x) => x.e.sourceId),
+        suggestion: "Review and reschedule lower-priority items to spread the load.",
+      });
+      continue;
+    }
+
+    const sorted = [...entries].sort((a, b) => a.date - b.date);
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const gapMs = sorted[i + 1].date - sorted[i].date;
+      if (gapMs <= 2 * 60 * 60 * 1000) {
+        collisions.push({
+          type: "Meeting",
+          summary: `"${sorted[i].e.title}" and "${sorted[i + 1].e.title}" fall within 2 hours of each other`,
+          when: dayKey,
+          items: [sorted[i].e.sourceId, sorted[i + 1].e.sourceId],
+          suggestion: "Confirm timing or delegate one of the two.",
+        });
+      }
+    }
+  }
+  return collisions;
+}
+
+/** Dedup key for todo/event items so code-derived and LLM-derived entries don't double up. */
+function itemKey(x) {
+  return `${x.sourceId}|${(x.task || x.title || "").toLowerCase()}`;
+}
+
+/** Merge code-derived to-do items into brief.todoList, deduping by sourceId+task. */
+function mergeTodoList(brief, todos) {
+  if (!brief || !todos?.length) return brief;
+  const existing = new Set((brief.todoList || []).map(itemKey));
+  const fresh = todos.filter((t) => !existing.has(itemKey(t)));
+  brief.todoList = [...(brief.todoList || []), ...fresh];
+  return brief;
+}
+
+/** Merge code-derived events into brief.events, deduping by sourceId+title. */
+function mergeEvents(brief, events) {
+  if (!brief || !events?.length) return brief;
+  const existing = new Set((brief.events || []).map(itemKey));
+  const fresh = events.filter((e) => !existing.has(itemKey(e)));
+  brief.events = [...(brief.events || []), ...fresh];
+  return brief;
+}
+
+/** Merge code-derived collisions into brief.collisions, deduping by when+items. */
+function mergeCollisions(brief, collisions) {
+  if (!brief || !collisions?.length) return brief;
+  const existing = new Set(
+    (brief.collisions || []).map((c) => `${c.when}|${[...(c.items || [])].sort().join(",")}`)
+  );
+  const fresh = collisions.filter((c) => !existing.has(`${c.when}|${[...(c.items || [])].sort().join(",")}`));
+  brief.collisions = [...(brief.collisions || []), ...fresh];
+  return brief;
+}
+
 /**
  * Resolve which day to report on. Defaults to the most recent day that has
  * mail for this account ("the last day"), so the first report after the
@@ -198,6 +349,11 @@ export async function generateDailyReport(email, opts = {}) {
     reportConfig,
   });
   attachMailCategories(brief, mails);
+  const codeTodos = buildTodoListFromMails(mails);
+  const codeEvents = buildEventsFromMails(mails);
+  mergeTodoList(brief, codeTodos);
+  mergeEvents(brief, codeEvents);
+  mergeCollisions(brief, detectCollisionsFromEvents(codeEvents, mails));
 
   const counts = briefCounts(brief);
 
@@ -289,6 +445,11 @@ export async function generateWeeklyReport(email, opts = {}) {
     reportConfig,
   });
   attachMailCategories(brief, mails);
+  const codeTodosWeek = buildTodoListFromMails(mails);
+  const codeEventsWeek = buildEventsFromMails(mails);
+  mergeTodoList(brief, codeTodosWeek);
+  mergeEvents(brief, codeEventsWeek);
+  mergeCollisions(brief, detectCollisionsFromEvents(codeEventsWeek, mails));
 
   let report = existing || new EmailAnalysisReport({ email, reportType: "week", periodStart: start });
   report.periodEnd = end;
