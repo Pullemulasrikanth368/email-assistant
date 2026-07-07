@@ -70,6 +70,17 @@ const OutlookUserSchema = new mongoose.Schema({
     type: String,
   },
 
+  // Delta cursors for the other synced folders (each folder needs its own).
+  junkDeltaLink: {
+    type: String,
+  },
+  sentDeltaLink: {
+    type: String,
+  },
+  draftDeltaLink: {
+    type: String,
+  },
+
   // Whether the one-time initial backfill (last 30 days) has run.
   initialSyncDone: {
     type: Boolean,

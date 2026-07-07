@@ -1,5 +1,6 @@
 import axios from 'axios';
 import EmailAnalysisUser from '../models/emailAnalysisUser.model';
+import OutlookUser from '../../microsoft/models/outlookUser.model';
 import OutlookAuthService from './outlook.auth.service';
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
@@ -16,15 +17,27 @@ export default class OutlookDraftService {
   constructor(email) {
     this.email = email;
     this.user = null;
+    this.userModel = null;
     this.auth = new OutlookAuthService();
   }
 
   async #loadUser() {
-    const user = await EmailAnalysisUser.findOne({
+    let user = await EmailAnalysisUser.findOne({
       email: this.email,
       active: true,
       provider: { $in: ['outlook', 'microsoft'] },
     });
+    this.userModel = EmailAnalysisUser;
+
+    if (!user) {
+      user = await OutlookUser.findOne({
+        email: this.email,
+        active: true,
+        purpose: { $ne: 'send' },
+      });
+      this.userModel = OutlookUser;
+    }
+
     if (!user) throw new Error(`No connected Outlook account for ${this.email}`);
     if (!user.refreshToken) throw new Error(`Missing Microsoft refresh token for ${this.email}. Reconnect Outlook.`);
     this.user = user;
@@ -40,7 +53,7 @@ export default class OutlookDraftService {
     this.user.accessToken = tokens.access_token;
     if (tokens.refresh_token) this.user.refreshToken = tokens.refresh_token;
     if (tokens.expiry_date) this.user.expiryDate = tokens.expiry_date;
-    await EmailAnalysisUser.saveData(this.user);
+    await this.userModel.saveData(this.user);
     return this.user.accessToken;
   }
 
@@ -76,8 +89,31 @@ export default class OutlookDraftService {
     }
   }
 
-  async createDraft({ to, cc, bcc, subject, body, isHtml = true, conversationId }) {
+  async createDraft({ to, cc, bcc, subject, body, isHtml = true, conversationId, replyToMessageId }) {
     await this.#loadUser();
+
+    // If we know which message this is replying to, create the draft via
+    // Graph's createReply action so it's a real threaded reply (correct
+    // conversationId/conversationIndex + In-Reply-To/References), not a
+    // brand-new, unlinked message.
+    if (replyToMessageId) {
+      const reply = await this.#graph(
+        'POST',
+        `/me/messages/${encodeURIComponent(replyToMessageId)}/createReply`,
+        { data: {} }
+      );
+      await this.#graph('PATCH', `/me/messages/${encodeURIComponent(reply.id)}`, {
+        data: {
+          subject: subject || reply.subject,
+          body: { contentType: isHtml ? 'HTML' : 'Text', content: body || '' },
+          toRecipients: to && to.length ? recipientList(to) : reply.toRecipients,
+          ccRecipients: recipientList(cc || []),
+          bccRecipients: recipientList(bcc || []),
+        },
+      });
+      return { id: reply.id, conversationId: reply.conversationId };
+    }
+
     const message = {
       subject: subject || '(no subject)',
       body: { contentType: isHtml ? 'HTML' : 'Text', content: body || '' },
@@ -86,7 +122,7 @@ export default class OutlookDraftService {
       bccRecipients: recipientList(bcc || []),
     };
     if (conversationId) message.conversationId = conversationId;
-    return this.#graph('POST', '/me/messages', { data: message });
+    return this.#graph('POST', '/me/mailFolders/drafts/messages', { data: message });
   }
 
   async updateDraft({ messageId, to, cc, bcc, subject, body, isHtml = true }) {

@@ -16,7 +16,9 @@ import { createMailService } from "../services/mailProvider.service";
 
 /**@Report engine + scheduling */
 import reportService from "../services/report.service";
+import { renderBriefMarkdown } from "../services/renderMd";
 import prioritizeService from "../services/prioritize.service";
+import { rescueImportantJunk } from "../services/junkRescue.service";
 import analyticsService from "../services/analytics.service";
 import syncProgress from "../services/syncProgress";
 import aiClient from "../services/aiClient";
@@ -523,6 +525,26 @@ async function listEmailAnalysisMails(req, res) {
     query.$or = [{ subject: rx }, { from: rx }, { to: rx }, { snippet: rx }];
   }
 
+  // Optional folder filter (inbox | sent | drafts | junk). Matches on the
+  // sourceFolder tag and, for mail synced before tagging existed, the Gmail
+  // labels. Self-sent Gmail mail (SENT + INBOX) stays in the inbox.
+  const folder = String(filter.folder || "").toLowerCase();
+  const folderConds = {
+    junk: [{ $or: [{ isJunk: true }, { sourceFolder: "junk" }, { labels: { $in: ["SPAM", "JUNK"] } }] }],
+    sent: [{ $or: [{ sourceFolder: "sent" }, { $and: [{ labels: "SENT" }, { labels: { $ne: "INBOX" } }] }] }],
+    drafts: [{ $or: [{ sourceFolder: "draft" }, { labels: "DRAFT" }] }],
+    inbox: [
+      { isJunk: { $ne: true } },
+      { sourceFolder: { $nin: ["junk", "sent", "draft"] } },
+      { labels: { $nin: ["SPAM", "JUNK", "DRAFT"] } },
+      { $or: [{ labels: { $ne: "SENT" } }, { labels: "INBOX" }] },
+    ],
+  };
+  if (folderConds[folder]) query.$and = folderConds[folder];
+
+  // Optional AI category filter.
+  if (filter.category) query.category = filter.category;
+
   // Optional received-date range: fromDate/toDate as YYYY-MM-DD (inclusive).
   if (filter.fromDate || filter.toDate) {
     const range = {};
@@ -684,6 +706,80 @@ async function getMailConversation(req, res) {
     return res.json({ mails: mails.map((m) => ({ ...m, attachments: mapAttachments(m.attachments || []) })) });
   } catch (err) {
     return res.json({ errorCode: 9109, errorMessage: err.message });
+  }
+}
+
+/**
+ * Edit a synced provider draft (a mail in the Drafts folder) in place.
+ * Body: { subject?, body? } — recipients stay as-is. Updates the draft at the
+ * provider (Gmail/Outlook) and mirrors the change onto the stored mail.
+ */
+async function updateMailDraft(req, res) {
+  const mail = await EmailAnalysisMail.findOne({ _id: req.params.id, active: true });
+  if (!mail) return res.json({ errorCode: 9002, errorMessage: "Mail not found." });
+
+  const isDraft = mail.sourceFolder === "draft" || (mail.labels || []).includes("DRAFT");
+  if (!isDraft) return res.json({ errorCode: 9315, errorMessage: "This mail is not a draft." });
+
+  const subject = req.body?.subject !== undefined ? String(req.body.subject) : (mail.subject || "");
+  const body = req.body?.body !== undefined ? String(req.body.body) : (mail.body || "");
+  const to = String(mail.to || "").split(",").map((s) => s.trim()).filter(Boolean);
+
+  try {
+    const service = await createMailService(mail.email);
+    if (typeof service.updateDraftByMessageId !== "function") {
+      return res.json({ errorCode: 9316, errorMessage: "Draft editing is not supported for this account." });
+    }
+    const result = await service.updateDraftByMessageId({
+      messageId: mail.providerMessageId,
+      to,
+      subject,
+      body,
+      threadId: mail.threadId || null,
+    });
+    // Gmail draft updates mint a new message id — keep our pointer in sync.
+    if (result?.newMessageId) mail.providerMessageId = result.newMessageId;
+
+    mail.subject = subject;
+    mail.body = body;
+    mail.snippet = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+    await EmailAnalysisMail.saveData(mail);
+
+    const out = mail.toObject();
+    out.attachments = mapAttachments(out.attachments);
+    return res.json({ respCode: 200, respMessage: "Draft updated.", mail: out });
+  } catch (err) {
+    return res.json({ errorCode: 9317, errorMessage: err.message });
+  }
+}
+
+/**
+ * Send a synced provider draft (a mail in the Drafts folder) as-is.
+ */
+async function sendMailDraft(req, res) {
+  const mail = await EmailAnalysisMail.findOne({ _id: req.params.id, active: true });
+  if (!mail) return res.json({ errorCode: 9002, errorMessage: "Mail not found." });
+
+  const isDraft = mail.sourceFolder === "draft" || (mail.labels || []).includes("DRAFT");
+  if (!isDraft) return res.json({ errorCode: 9318, errorMessage: "This mail is not a draft." });
+
+  try {
+    const service = await createMailService(mail.email);
+    if (typeof service.sendDraftByMessageId !== "function") {
+      return res.json({ errorCode: 9319, errorMessage: "Sending drafts is not supported for this account." });
+    }
+    await service.sendDraftByMessageId(mail.providerMessageId);
+
+    // The draft is now a sent message at the provider — deactivate the local
+    // draft record; the next sync will pick up the real sent message under Sent.
+    mail.active = false;
+    mail.removedAt = new Date();
+    mail.removedReason = "draft-sent";
+    await EmailAnalysisMail.saveData(mail);
+
+    return res.json({ respCode: 200, respMessage: "Email sent." });
+  } catch (err) {
+    return res.json({ errorCode: 9320, errorMessage: err.message });
   }
 }
 
@@ -1234,6 +1330,12 @@ async function prioritizeEmailAnalysisMails(req, res) {
     ? await prioritizeService.prioritizeDay(email, req.body.date, { force })
     : await prioritizeService.prioritizePendingForAccount(email, { force });
 
+  // Single-day runs bypass prioritizePendingForAccount's built-in rescue.
+  if (req.body?.date) {
+    await rescueImportantJunk(email)
+      .catch((err) => console.error(`[EmailAnalysis] Junk rescue failed for ${email}:`, err.message));
+  }
+
   return res.json({ respCode: 200, respMessage: `Prioritized ${count} mail(s).`, count });
 }
 
@@ -1292,14 +1394,15 @@ async function getMailBySource(req, res) {
 }
 
 /**
- * Serve the rendered .md dashboard for a report (raw markdown).
+ * Serve the report as raw markdown, rendered on demand from the stored brief
+ * (no .md files are written to disk).
  */
 async function getReportMarkdown(req, res) {
   const report = await EmailAnalysisReport.findOne({ _id: req.params.id, active: true }).lean();
-  if (!report || !report.mdPath || !fs.existsSync(report.mdPath)) {
+  if (!report || !report.brief) {
     return res.status(404).json({ errorCode: 9006, errorMessage: "Markdown not found." });
   }
-  res.type("text/markdown").send(fs.readFileSync(report.mdPath, "utf8"));
+  res.type("text/markdown").send(renderBriefMarkdown(report));
 }
 
 /* ====================== KNOWLEDGE BASE ====================== */
@@ -1364,6 +1467,14 @@ async function updateReportConfigCtrl(req, res) {
   return res.json({ respCode: 200, respMessage: "Report config updated.", config });
 }
 
+async function setDefaultReportConfigCtrl(req, res) {
+  const email = await resolveAccount(req.body?.email);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await reportConfigService.setDefaultReportConfig(email, req.params.id);
+  if (!config) return res.json({ errorCode: 9002, errorMessage: "Report config not found." });
+  return res.json({ respCode: 200, respMessage: "Default report config set.", config });
+}
+
 async function deleteReportConfigCtrl(req, res) {
   const email = await resolveAccount(req.query.email || req.body?.email);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
@@ -1392,6 +1503,8 @@ export default {
   markMailReadState,
   searchProviderMails,
   getMailConversation,
+  updateMailDraft,
+  sendMailDraft,
   downloadAttachment,
   generateEmailAnalysisReport,
   listEmailAnalysisReports,
@@ -1421,30 +1534,72 @@ export default {
   getReportConfigById,
   createReportConfigCtrl,
   updateReportConfigCtrl,
+  setDefaultReportConfigCtrl,
   deleteReportConfigCtrl,
   generateAiReply,
 };
 
+// In-flight AI reply generations keyed by mail id, so a background prefetch
+// (fired when the mail is opened) and a user click share one AI call.
+const pendingAiReplies = new Map();
+
 /**
- * Generate an AI-drafted reply for a given email.
+ * Generate an AI-drafted reply for a given email — once. The reply is cached
+ * on the mail document and returned from there on every later call; pass
+ * { force: true } (the UI's "Regenerate") to overwrite the cached copy.
  * GET param :id is the EmailAnalysisMail._id.
- * Optional body: { tone } — defaults to "professional".
+ * Optional body: { tone, force } — tone defaults to "professional".
  *
- * Response: { respCode, reply, provider, threadCount }
+ * Response: { respCode, reply, provider, threadCount, cached }
  */
 async function generateAiReply(req, res) {
   const mail = await EmailAnalysisMail.findOne({ _id: req.params.id, active: true }).lean();
   if (!mail) return res.json({ errorCode: 9002, errorMessage: "Email not found." });
 
   const tone = String(req.body?.tone || req.query?.tone || "professional").trim();
+  const force = req.body?.force === true;
+
+  if (!force && mail.aiReply && mail.aiReply.text) {
+    return res.json({
+      respCode: 200,
+      reply: mail.aiReply.text,
+      provider: mail.aiReply.provider || "",
+      threadCount: mail.aiReply.threadCount || 0,
+      cached: true,
+    });
+  }
 
   try {
-    const result = await aiReplyService.generateReply(mail, { tone });
+    const key = String(mail._id);
+    let job = pendingAiReplies.get(key);
+    if (!job || force) {
+      job = aiReplyService.generateReply(mail, { tone })
+        .then(async (result) => {
+          await EmailAnalysisMail.updateOne(
+            { _id: mail._id },
+            {
+              $set: {
+                aiReply: {
+                  text: result.reply,
+                  provider: result.provider,
+                  threadCount: result.threadCount,
+                  generatedAt: new Date(),
+                },
+              },
+            }
+          );
+          return result;
+        })
+        .finally(() => pendingAiReplies.delete(key));
+      pendingAiReplies.set(key, job);
+    }
+    const result = await job;
     return res.json({
       respCode: 200,
       reply: result.reply,
       provider: result.provider,
       threadCount: result.threadCount,
+      cached: false,
     });
   } catch (err) {
     console.error("[EmailAnalysis] AI reply generation failed:", err.message);

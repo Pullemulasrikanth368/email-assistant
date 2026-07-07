@@ -27,6 +27,10 @@ router.get("/mails/search", asyncHandler(emailAnalysisCtrl.searchProviderMails))
 // by-source (sourceId == providerMessageId) drill-down — before /mails/:id
 router.get("/mails/by-source/:sourceId", asyncHandler(emailAnalysisCtrl.getMailBySource));
 router.get("/mails/:id/conversation", asyncHandler(emailAnalysisCtrl.getMailConversation));
+// Edit a synced provider draft (subject/body) in place.
+router.put("/mails/:id/draft", asyncHandler(emailAnalysisCtrl.updateMailDraft));
+// Send a synced provider draft as-is.
+router.post("/mails/:id/draft/send", asyncHandler(emailAnalysisCtrl.sendMailDraft));
 router.get("/mails/:id/attachments/:file/download", asyncHandler(emailAnalysisCtrl.downloadAttachment));
 router.get("/mails/:id", asyncHandler(emailAnalysisCtrl.getEmailAnalysisMail));
 router.post("/mail/send", asyncHandler(emailAnalysisCtrl.sendMail));
@@ -71,6 +75,7 @@ router.get("/report-configs", asyncHandler(emailAnalysisCtrl.listReportConfigs))
 router.post("/report-configs", asyncHandler(emailAnalysisCtrl.createReportConfigCtrl));
 router.get("/report-configs/:id", asyncHandler(emailAnalysisCtrl.getReportConfigById));
 router.put("/report-configs/:id", asyncHandler(emailAnalysisCtrl.updateReportConfigCtrl));
+router.patch("/report-configs/:id/default", asyncHandler(emailAnalysisCtrl.setDefaultReportConfigCtrl));
 router.delete("/report-configs/:id", asyncHandler(emailAnalysisCtrl.deleteReportConfigCtrl));
 
 /**

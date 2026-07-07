@@ -1,6 +1,6 @@
 /* Shared dashboard renderer (wireframe screen 02) used by the Reports screen
    and the Daily Brief screen. */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import ReactMarkdown from 'react-markdown';
@@ -9,27 +9,9 @@ import { Info, Mail } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import { url } from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
+import { normalizeRows } from './reportLayout';
 
 const todoKey = (t) => `${t.sourceId || ''}::${t.task || ''}`;
-
-// Viewport caps how many columns can actually fit well, regardless of what's configured:
-// mobile gets 1, small/tablet gets at most 2, desktop gets 3, and only extra-large screens get 4.
-const maxColumnsForWidth = (w) => {
-  if (w < 640) return 1;
-  if (w < 1300) return 2;
-  if (w < 1800) return 3;
-  return 4;
-};
-
-const useResponsiveColumnCap = () => {
-  const [cap, setCap] = useState(() => (typeof window !== 'undefined' ? maxColumnsForWidth(window.innerWidth) : 3));
-  useEffect(() => {
-    const onResize = () => setCap(maxColumnsForWidth(window.innerWidth));
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  return cap;
-};
 
 // Risk score -> severity colour tier (score drives colour, not decoration).
 export const scoreColor = (score) => {
@@ -40,6 +22,47 @@ export const scoreColor = (score) => {
 };
 
 const TREND_LABEL = { New: 'new', Escalating: 'escalating', Cooling: 'cooling', Stable: 'stable' };
+
+// Sender display name + address from a raw `Name <addr>` from-header.
+const parseSender = (raw = '') => {
+  const match = String(raw).match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
+  if (match) {
+    const name = (match[1] || '').trim();
+    const email = (match[2] || '').trim().toLowerCase();
+    return { name: name || email, email };
+  }
+  const trimmed = String(raw).trim();
+  return { name: trimmed || 'Unknown sender', email: trimmed.includes('@') ? trimmed.toLowerCase() : '' };
+};
+
+// Older stored reports may carry raw HTML in triage summaries — show text only.
+const stripHtml = (s = '') =>
+  String(s).replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+// Category summaries arrive with a small set of inline tags the brief prompt
+// allows (<b>, <strong>, <em>, <mark>, <span class="danger">). Escape everything,
+// then restore ONLY those exact tags — anything else the AI (or an email) sneaks
+// in renders as visible text instead of live HTML.
+const SAFE_SUMMARY_TAG = /<\s*\/?\s*(b|strong|em|mark)\s*>|<\s*span\s+class="danger"\s*>|<\s*\/\s*span\s*>/gi;
+const sanitizeSummaryHtml = (html = '') => {
+  const kept = [];
+  const masked = String(html).replace(SAFE_SUMMARY_TAG, (tag) => {
+    kept.push(tag.replace(/\s+/g, ' ').replace(/\s*([<>/])\s*/g, '$1').toLowerCase());
+    return `\u0000${kept.length - 1}\u0000`;
+  });
+  return masked
+    .replace(/&(?!(amp|lt|gt|quot|#\d+);)/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\u0000(\d+)\u0000/g, (_, i) => kept[Number(i)]);
+};
+
+const TIER_RANK = { Critical: 3, Important: 2, Low: 1 };
+const tierColor = (tier) =>
+  tier === 'Critical' ? 'var(--crit)' : tier === 'Important' ? 'var(--high)' : 'var(--muted)';
+const tierClass = (tier) => (tier === 'Critical' ? 'crit' : tier === 'Important' ? 'imp' : 'low');
+const topTierOf = (items = []) =>
+  items.reduce((best, t) => (TIER_RANK[t.tier] > TIER_RANK[best] ? t.tier : best), 'Low');
 
 // Turn an event's "when" into calendar-tile parts; null when it isn't a parseable date
 // (free-text like "next week" then falls back to being shown as-is).
@@ -58,21 +81,8 @@ const parseEventWhen = (when) => {
   };
 };
 
-const DEFAULT_SECTION_ORDER = [
-  'narrativeSummary', 'mailBriefs', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
-  'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
-];
-
 // Copy shown in the "what is this section?" info modal, keyed by section id.
 const SECTION_INFO = {
-  narrativeSummary: {
-    title: 'Narrative summary',
-    description: 'A plain-English overview of everything that happened in your inbox for this period. The AI condenses all analyzed emails into a few key points so you can catch up at a glance without opening each mail. Expand a point’s "Mails" toggle to see and open the source emails behind it.',
-  },
-  mailBriefs: {
-    title: 'Mail briefs',
-    description: 'Short, one-paragraph summaries of individual noteworthy emails — the subject, who sent it, and the gist of what it says. Click a brief to open the original email.',
-  },
   decisionQueue: {
     title: 'Decisions needed today',
     description: 'Emails where someone is waiting on a decision from you. Each item shows what needs deciding, why it matters, and the deadline when one was mentioned. Click an item to open the source email.',
@@ -103,12 +113,47 @@ const SECTION_INFO = {
   },
   inboxTriage: {
     title: 'Inbox triage',
-    description: 'Every analyzed email sorted into Critical, Important, or Low priority using the keywords and rules from your knowledge base. Each entry shows why it was placed in that tier; click it to open the email. Only the highest tier starts expanded.',
+    description: 'Every analyzed email sorted into Critical, Important, or Low priority using the keywords and rules from your knowledge base. A short AI summary of each email category appears at the top, followed by the emails grouped by sender. Each entry shows why it was placed in that tier; click it to open the email.',
   },
   actionRegister: {
     title: 'Action register',
     description: 'The full list of action items extracted from your emails — including ones owned by other people — with the owner and deadline for each. Broader than "Your to-do", which only shows tasks assigned to you.',
   },
+};
+
+// Tinted chip colors per email category — hues from a CVD-validated categorical
+// palette, text darkened for contrast on the tint. Unknown categories hash into
+// the same set so a category keeps its color across reports.
+const CATEGORY_CHIP_STYLES = [
+  { color: '#1c5cab', background: 'rgba(42, 120, 214, .10)', borderColor: 'rgba(42, 120, 214, .35)' },  // blue
+  { color: '#0c6b4c', background: 'rgba(27, 175, 122, .12)', borderColor: 'rgba(27, 175, 122, .40)' },  // teal
+  { color: '#7a5200', background: 'rgba(237, 161, 0, .14)', borderColor: 'rgba(237, 161, 0, .45)' },    // amber
+  { color: '#045c04', background: 'rgba(0, 131, 0, .10)', borderColor: 'rgba(0, 131, 0, .35)' },        // green
+  { color: '#43349c', background: 'rgba(74, 58, 167, .10)', borderColor: 'rgba(74, 58, 167, .35)' },    // violet
+  { color: '#ab2f2e', background: 'rgba(227, 73, 72, .10)', borderColor: 'rgba(227, 73, 72, .38)' },    // red
+  { color: '#9c2458', background: 'rgba(232, 123, 164, .15)', borderColor: 'rgba(216, 81, 129, .40)' }, // magenta
+  { color: '#973a10', background: 'rgba(235, 104, 52, .12)', borderColor: 'rgba(235, 104, 52, .40)' },  // orange
+];
+const CATEGORY_CHIP_NEUTRAL = { color: '#5f6368', background: 'rgba(95, 99, 104, .10)', borderColor: 'rgba(95, 99, 104, .35)' };
+
+const KNOWN_CATEGORY_SLOT = {
+  'Action Required': 5,          // red — urgency
+  'Meetings & Scheduling': 0,    // blue
+  'Finance & Invoices': 4,       // violet
+  'Sales & Leads': 1,            // teal
+  'Support & Complaints': 7,     // orange
+  'Notifications & Updates': 2,  // amber
+  'Newsletters': 6,              // magenta
+  'Promotions & Marketing': 3,   // green
+};
+
+const categoryChipStyle = (category) => {
+  const name = String(category || '').trim();
+  if (!name || name === 'Personal' || name === 'Junk' || name === 'Other') return CATEGORY_CHIP_NEUTRAL;
+  if (KNOWN_CATEGORY_SLOT[name] !== undefined) return CATEGORY_CHIP_STYLES[KNOWN_CATEGORY_SLOT[name]];
+  let hash = 7;
+  for (let i = 0; i < name.length; i += 1) hash = ((hash * 31) + name.charCodeAt(i)) >>> 0;
+  return CATEGORY_CHIP_STYLES[hash % CATEGORY_CHIP_STYLES.length];
 };
 
 const TRIAGE_MATRIX_POSITION = {
@@ -132,12 +177,14 @@ const triageToMatrixRisk = (item = {}) => {
   };
 };
 
-const buildRiskMatrixItems = (risks = [], triage = []) => {
-  const usedSourceIds = new Set(risks.map((r) => r.sourceId).filter(Boolean));
-  const triagePoints = triage
+const buildRiskMatrixItems = (risks, triage) => {
+  const safeRisks = Array.isArray(risks) ? risks : [];
+  const safeTriage = Array.isArray(triage) ? triage : [];
+  const usedSourceIds = new Set(safeRisks.map((r) => r?.sourceId).filter(Boolean));
+  const triagePoints = safeTriage
     .filter((t) => t?.sourceId && !usedSourceIds.has(t.sourceId))
     .map(triageToMatrixRisk);
-  return [...risks, ...triagePoints];
+  return [...safeRisks, ...triagePoints];
 };
 
 /* The signature 5x5 likelihood × impact matrix. */
@@ -179,7 +226,6 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
  */
 export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { }, onOpenRisk }) => {
   const brief = report?.brief || {};
-  const responsiveColumnCap = useResponsiveColumnCap();
 
   // Layout/visibility (sections, fields, order, columns) is a display concern, so the
   // live report-config always wins; the report's own snapshot is only a fallback for
@@ -191,7 +237,6 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
   const sectionEnabled = (key) => !enabledSections || enabledSections.includes(key);
   const fieldEnabled = (key) => !selectedFields || selectedFields.includes(key);
 
-  const mailBriefs = brief.mailBriefs || [];
   const keyPoints = brief.narrativeKeyPoints || [];
   const risks = [...(brief.risks || [])].sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
   const decisions = brief.decisionQueue || [];
@@ -199,6 +244,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
   const todos = brief.todoList || [];
   const patterns = brief.patterns || [];
   const triage = brief.triage || [];
+  const categorySummaries = brief.categorySummaries || [];
   const actions = brief.actions || [];
   const events = brief.events || [];
   const riskMatrixItems = buildRiskMatrixItems(risks, triage);
@@ -264,23 +310,48 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     }
   };
 
-  const tierGroups = {
-    Critical: triage.filter((t) => t.tier === 'Critical'),
-    Important: triage.filter((t) => t.tier === 'Important'),
-    Low: triage.filter((t) => t.tier === 'Low'),
-  };
+  // Inbox triage grouped by sender: a sender with several mails collapses
+  // into one accordion, its mails bucketed per AI category (largest first).
+  // Groups sort by highest tier present, then by mail count.
+  const senderGroups = (() => {
+    const map = new Map();
+    triage.forEach((t, idx) => {
+      const s = parseSender(t.from);
+      const key = s.email || s.name.toLowerCase();
+      if (!map.has(key)) map.set(key, { key, name: s.name, email: s.email, items: [], categories: new Map() });
+      const g = map.get(key);
+      g.items.push({ ...t, idx });
+      const cat = t.category || 'Other';
+      if (!g.categories.has(cat)) g.categories.set(cat, []);
+      g.categories.get(cat).push({ ...t, idx });
+    });
+    const groups = [...map.values()];
+    groups.forEach((g) => {
+      g.topTier = g.items.reduce((best, t) => (TIER_RANK[t.tier] > TIER_RANK[best] ? t.tier : best), 'Low');
+      g.catList = [...g.categories.entries()].sort((a, b) => b[1].length - a[1].length);
+      g.tierCounts = {
+        Critical: g.items.filter((t) => t.tier === 'Critical').length,
+        Important: g.items.filter((t) => t.tier === 'Important').length,
+        Low: g.items.filter((t) => t.tier !== 'Critical' && t.tier !== 'Important').length,
+      };
+    });
+    groups.sort((a, b) => (TIER_RANK[b.topTier] - TIER_RANK[a.topTier]) || (b.items.length - a.items.length));
+    return groups;
+  })();
 
   const isQuiet = !decisions.length && !risks.length && !collisions.length;
 
   /* -------- collapsible panels: every section header toggles its body -------- */
-  // Mail Briefs starts collapsed. Inside Inbox Triage only the highest-severity
-  // tier that has items starts open; the other tiers start collapsed.
+  // Every multi-mail sender accordion starts collapsed; inside
+  // a sender, only its FIRST category group starts open.
   const [collapsedKeys, setCollapsedKeys] = useState(() => {
-    const init = new Set(['mailBriefs']);
-    ['Critical', 'Important', 'Low']
-      .filter((tier) => tierGroups[tier].length > 0)
-      .slice(1)
-      .forEach((tier) => init.add(`triage:${tier}`));
+    const init = new Set();
+    senderGroups
+      .filter((g) => g.items.length > 1)
+      .forEach((g) => {
+        init.add(`triage-sender:${g.key}`);
+        g.catList.slice(1).forEach(([cat]) => init.add(`triage-cat:${g.key}:${cat}`));
+      });
     return init;
   });
   const toggleSection = (key) => setCollapsedKeys((prev) => {
@@ -328,6 +399,14 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     );
   };
 
+  // One accordion per triage category summary: opening it reveals the mail tags.
+  const [expandedCatSums, setExpandedCatSums] = useState(() => new Set());
+  const toggleCatSum = (key) => setExpandedCatSums((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
   // One accordion per key point: the "Mails (n)" toggle reveals that point's mail badges.
   const [expandedKpMails, setExpandedKpMails] = useState(() => new Set());
   const toggleKpMails = (key) => setExpandedKpMails((prev) => {
@@ -338,7 +417,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
 
   const renderKeyPoints = (points) => (
     <ul className="orm-kp-list">
-      {points.map((kp, i) => {
+      {points?.map((kp, i) => {
         const open = expandedKpMails.has(i);
         return (
           <li className="orm-kp" key={i}>
@@ -361,7 +440,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                 </div>
                 {open && (
                   <div className="orm-kp-mails">
-                    {kp.mails.map((m, j) => (
+                    {kp.mails?.map((m, j) => (
                       <span
                         className="orm-kp-mail"
                         key={j}
@@ -385,25 +464,12 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     </ul>
   );
 
-  /* -------- section renderers, keyed the same as the report-config's sectionOrder -------- */
+  /* -------- section renderers, keyed the same as the report-config's rows -------- */
   const sectionNodes = {
-    mailBriefs: sectionEnabled('mailBriefs') && mailBriefs.length > 0 && panel(
-      'mailBriefs', 'Mail briefs', mailBriefs.length,
-      <>
-        {mailBriefs.map((m, i) => (
-          <div className="orm-mailbrief" key={i} onClick={() => onOpenSource(m.sourceId)} role="button" tabIndex={0}>
-            <div className="mb-subject">{m.subject || '(no subject)'}</div>
-            {m.from && <div className="mb-from">From: {m.from}</div>}
-            {m.brief && <div className="mb-brief">{m.brief}</div>}
-          </div>
-        ))}
-      </>
-    ),
-
     decisionQueue: sectionEnabled('decisionQueue') && decisions.length > 0 && panel(
       'decisionQueue', 'Decisions needed today', decisions.length,
       <>
-        {decisions.map((d, i) => (
+        {decisions?.map((d, i) => (
           <div className="orm-dec" key={i} onClick={() => onOpenSource(d.sourceId)} role="button" tabIndex={0}>
             <div className="t">{d.title}</div>
             {d.why && <div className="w">{d.why}</div>}
@@ -416,7 +482,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     riskRadar: sectionEnabled('riskRadar') && risks.length > 0 && panel(
       'riskRadar', 'Risk radar', risks.length,
       <>
-        {risks.map((r, i) => (
+        {risks?.map((r, i) => (
           <div className="orm-risk" key={i} onClick={() => openRisk(r)} role="button" tabIndex={0}>
             {fieldEnabled('riskScore') && (
               <div className="orm-score" style={{ background: scoreColor(r.riskScore) }}>
@@ -448,52 +514,152 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
 
     patterns: sectionEnabled('patterns') && patterns.length > 0 && panel(
       'patterns', 'Patterns', null,
-      <>{patterns.map((p, i) => <div className="orm-pattern" key={i}>{p}</div>)}</>
+      <>{patterns?.map((p, i) => <div className="orm-pattern" key={i}>{p}</div>)}</>
     ),
 
     inboxTriage: sectionEnabled('inboxTriage') && triage.length > 0 && panel(
       'inboxTriage', 'Inbox triage', triage.length,
       <>
-        {['Critical', 'Important', 'Low'].map((tier) => (
-          tierGroups[tier].length > 0 && (
-            <div key={tier}>
-              <div
-                className={`orm-tier orm-tier-toggle ${tier.toLowerCase()}`}
-                role="button"
-                tabIndex={0}
-                aria-expanded={!collapsedKeys.has(`triage:${tier}`)}
-                onClick={() => toggleSection(`triage:${tier}`)}
-                onKeyDown={(e) => { if (e.key === 'Enter') toggleSection(`triage:${tier}`); }}
-              >
-                <i className={`pi ${collapsedKeys.has(`triage:${tier}`) ? 'pi-chevron-right' : 'pi-chevron-down'}`} />
-                {tier} · {tierGroups[tier].length}
-              </div>
-              {!collapsedKeys.has(`triage:${tier}`) && tierGroups[tier].map((t, i) => (
-                <div className={`orm-trow orm-trow-rich t-${tier.toLowerCase()}`} key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
-                  <Mail className="orm-mail-icon" style={{ color: tier === 'Critical' ? 'var(--crit)' : tier === 'Important' ? 'var(--high)' : 'var(--muted)' }} />
-                  <div className="orm-trow-body">
-                    <div className="orm-trow-head">
-                      {t.subject && <span className="subject">{t.subject}</span>}
-                      {t.from && <span className="from">{t.from}</span>}
-                    </div>
-                    <span className="reason">{t.reason}</span>
-                    {t.summary && <div className="summary">{t.summary}</div>}
-                    {fieldEnabled('matchedKeywords') && t.matchedKeywords?.length > 0 && (
-                      <span className="orm-chip kw" style={{ marginTop: 4 }}>{t.matchedKeywords.join(', ')}</span>
+        {categorySummaries.length > 0 && (
+          <div className="orm-cat-summaries">
+            {categorySummaries?.map((c, i) => {
+              const open = expandedCatSums.has(i);
+              const mails = c.mails || [];
+              return (
+                <div className="orm-cat-summary" key={i}>
+                  <div
+                    className="orm-cat-head"
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={open}
+                    onClick={() => toggleCatSum(i)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') toggleCatSum(i); }}
+                  >
+                    <i className={`pi ${open ? 'pi-chevron-down' : 'pi-chevron-right'}`} />
+                    <span className="orm-chip cat" style={categoryChipStyle(c.category)}>{c.category || 'Other'}</span>
+                    {(c.count != null || mails.length > 0) && (
+                      <span className="cnt">{c.count != null ? c.count : mails.length}</span>
                     )}
                   </div>
+                  <div className="txt" dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(c.summary) }} />
+                  {(c.keyPoints || []).length > 0 && (
+                    <ul className={`orm-cat-kps${(c.keyPoints || []).length > 5 ? ' two-col' : ''}`}>
+                      {(c.keyPoints || []).map((k, j) => (
+                        <li key={j} dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(k) }} />
+                      ))}
+                    </ul>
+                  )}
+                  {open && mails.length > 0 && (
+                    <div className="orm-kp-mails">
+                      {mails?.map((m, j) => (
+                        <span
+                          className="orm-kp-mail"
+                          key={j}
+                          title={m.from ? `From: ${m.from}` : m.subject}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => onOpenSource(m.sourceId)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') onOpenSource(m.sourceId); }}
+                        >
+                          <Mail className="orm-kp-mail-icon" />
+                          {m.subject || '(no subject)'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
+              );
+            })}
+          </div>
+        )}
+        {senderGroups?.map((g) => {
+          const triageRow = (t) => (
+            <div className={`orm-trow orm-trow-rich t-${(t.tier || 'low').toLowerCase()}`} key={t.idx} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
+              <Mail className="orm-mail-icon" style={{ color: tierColor(t.tier) }} />
+              <div className="orm-trow-body">
+                <div className="orm-trow-head">
+                  {t.subject && <span className="subject">{t.subject}</span>}
+                  {t.from && <span className="from">{t.from}</span>}
+                  <span className="orm-chip" style={{ color: tierColor(t.tier) }}>{t.tier}</span>
+                </div>
+                {t.reason && t.reason !== t.subject && <span className="reason">{t.reason}</span>}
+                {t.summary && <div className="summary">{stripHtml(t.summary)}</div>}
+                {fieldEnabled('matchedKeywords') && t.matchedKeywords?.length > 0 && (
+                  <span className="orm-chip kw" style={{ marginTop: 4 }}>{t.matchedKeywords.join(', ')}</span>
+                )}
+              </div>
             </div>
-          )
-        ))}
+          );
+
+          // A sender with a single mail stays a plain row.
+          if (g.items.length === 1) return triageRow(g.items[0]);
+
+          const sgKey = `triage-sender:${g.key}`;
+          const collapsed = collapsedKeys.has(sgKey);
+          return (
+            <div className={`orm-sender-group tg-${tierClass(g.topTier)}`} key={g.key}>
+              <div
+                className="orm-sg-head"
+                role="button"
+                tabIndex={0}
+                aria-expanded={!collapsed}
+                title={g.email || g.name}
+                onClick={() => toggleSection(sgKey)}
+                onKeyDown={(e) => { if (e.key === 'Enter') toggleSection(sgKey); }}
+              >
+                <i className={`pi ${collapsed ? 'pi-chevron-right' : 'pi-chevron-down'}`} />
+                <Mail className="orm-mail-icon" style={{ color: tierColor(g.topTier) }} />
+                <span className="orm-sg-name">{g.name}</span>
+                <span className="orm-sg-count">{g.items.length} mails</span>
+                <span className="orm-sg-tiers">
+                  {g.tierCounts.Critical > 0 && (
+                    <span className="orm-tier-badge crit" title={`${g.tierCounts.Critical} critical`}>{g.tierCounts.Critical}</span>
+                  )}
+                  {g.tierCounts.Important > 0 && (
+                    <span className="orm-tier-badge imp" title={`${g.tierCounts.Important} important`}>{g.tierCounts.Important}</span>
+                  )}
+                  {g.tierCounts.Low > 0 && (
+                    <span className="orm-tier-badge low" title={`${g.tierCounts.Low} low priority`}>{g.tierCounts.Low}</span>
+                  )}
+                </span>
+              </div>
+              {/* {collapsed && g.items[0]?.summary && (
+                <div className="orm-sg-preview">{stripHtml(g.items[0].summary)}</div>
+              )} */}
+              {!collapsed && (
+                <div className="orm-sg-body">
+                  {g.catList?.map(([cat, items]) => {
+                    const catKey = `triage-cat:${g.key}:${cat}`;
+                    const catCollapsed = collapsedKeys.has(catKey);
+                    return (
+                      <div key={cat}>
+                        <div
+                          className={`orm-sg-cat-head orm-sg-cat-toggle tg-${tierClass(topTierOf(items))}`}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={!catCollapsed}
+                          onClick={() => toggleSection(catKey)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') toggleSection(catKey); }}
+                        >
+                          <i className={`pi ${catCollapsed ? 'pi-chevron-right' : 'pi-chevron-down'}`} />
+                          {cat} <span className="n">{items.length}</span>
+                        </div>
+                        {!catCollapsed && items?.map(triageRow)}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </>
     ),
 
     actionRegister: sectionEnabled('actionRegister') && actions.length > 0 && panel(
       'actionRegister', 'Action register', actions.length,
       <>
-        {actions.map((a, i) => (
+        {actions?.map((a, i) => (
           <div className="orm-action" key={i} onClick={() => onOpenSource(a.sourceId)} role="button" tabIndex={0}>
             <div className="task">{a.task}</div>
             <div className="meta">
@@ -508,7 +674,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     calendarConflicts: sectionEnabled('calendarConflicts') && collisions.length > 0 && panel(
       'calendarConflicts', 'Schedule collisions', collisions.length,
       <>
-        {collisions.map((c, i) => (
+        {collisions?.map((c, i) => (
           <div className="orm-coll" key={i}>
             <div className="ct">{c.type}</div>
             <div className="cs">{c.summary}{c.when ? ` · ${c.when}` : ''}</div>
@@ -522,7 +688,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     todoList: sectionEnabled('todoList') && todos.length > 0 && panel(
       'todoList', 'Your to-do', todos.length,
       <>
-        {todos.map((t, i) => {
+        {todos?.map((t, i) => {
           const done = isTodoDone(t);
           return (
             <div className={`orm-todo${done ? ' done' : ''}`} key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
@@ -548,7 +714,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     events: sectionEnabled('events') && events.length > 0 && panel(
       'events', 'Events mentioned', events.length,
       <>
-        {events.map((event, i) => {
+        {events?.map((event, i) => {
           const w = parseEventWhen(event.when);
           return (
             <div className="orm-event" key={i} onClick={() => onOpenSource(event.sourceId)} role="button" tabIndex={0}>
@@ -583,33 +749,22 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     ),
   };
 
-  const configuredColumnCount = Math.min(4, Math.max(1, Number(rcSnap?.columnCount) || 2));
-  // Viewport may force fewer columns than configured — use the layout the user specifically
-  // designed for THAT column count (col-1/col-2/col-3 are remembered independently), not a
-  // re-derived one, so resizing the window shows what was actually set up for that width.
-  const columnCount = Math.min(configuredColumnCount, responsiveColumnCap);
-  const activeLayout = rcSnap?.columnLayouts?.[columnCount] || rcSnap?.columnLayouts?.[String(columnCount)] || null;
-
-  const legacyOrder = rcSnap?.sectionOrder?.length ? rcSnap.sectionOrder : DEFAULT_SECTION_ORDER;
-  const configuredOrder = activeLayout?.sectionOrder?.length ? activeLayout.sectionOrder : legacyOrder;
-  const orderedKeys = [
-    ...configuredOrder.filter((key) => key !== 'narrativeSummary' && sectionNodes[key]),
-    ...DEFAULT_SECTION_ORDER.filter((key) => key !== 'narrativeSummary' && sectionNodes[key] && !configuredOrder.includes(key)),
-  ];
-
-  // Explicit column placement wins; anything unassigned round-robins (item 1 -> col 1,
-  // item 2 -> col 2, item 3 -> col 3, item 4 -> col 1, ...) so older configs still lay out sensibly.
-  const columnAssignments = activeLayout?.columnAssignments || rcSnap?.columnAssignments || {};
-  const columns = Array.from({ length: columnCount }, () => []);
-  orderedKeys.forEach((key, i) => {
-    const assigned = columnAssignments[key];
-    const col = Number.isInteger(assigned) && assigned >= 0 && assigned < columnCount ? assigned : i % columnCount;
-    columns[col].push(key);
-  });
+  // Row-based layout: rows of col-N columns, each column stacking one or more sections
+  // with an optional per-row max height. normalizeRows also converts legacy
+  // columnCount/columnLayouts configs and old reportConfigSnapshots.
+  const layoutRows = (normalizeRows(rcSnap || {}) || [])
+    .map((row) => ({
+      ...row,
+      columns: (row?.columns || [])
+        .map((col) => ({ ...col, sections: (col?.sections || []).filter((key) => sectionNodes[key]) }))
+        .filter((col) => col.sections.length),
+    }))
+    .filter((row) => row.columns.length);
 
   return (
     <div className="orm-dash">
-      {report?.mdPath && (
+      {/* Markdown is rendered on demand by the server — any stored report can be viewed. */}
+      {report?._id && (
         <div className="orm-md-bar">
           <Button
             label="View Report File"
@@ -617,29 +772,6 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
             className="p-button-sm p-button-outlined orm-md-btn"
             onClick={openMd}
           />
-        </div>
-      )}
-
-      {/* Narrative summary: always a full-width row at the top; the key points
-          inside it flow in a fixed 2-column grid. */}
-      {sectionEnabled('narrativeSummary') && (keyPoints.length > 0 || brief.narrative) && (
-        <div className="orm-narr">
-          <div
-            className="orm-ph orm-ph-toggle orm-narr-head"
-            onClick={() => toggleSection('narrativeSummary')}
-            onKeyDown={(e) => { if (e.key === 'Enter') toggleSection('narrativeSummary'); }}
-            role="button"
-            tabIndex={0}
-            aria-expanded={!collapsedKeys.has('narrativeSummary')}
-          >
-            <i className={`pi ${collapsedKeys.has('narrativeSummary') ? 'pi-chevron-right' : 'pi-chevron-down'} orm-ph-chev`} />
-            Narrative summary
-            {keyPoints.length > 0 && <span className="n">{keyPoints.length}</span>}
-            {infoButton('narrativeSummary')}
-          </div>
-          {!collapsedKeys.has('narrativeSummary') && (
-            keyPoints.length > 0 ? renderKeyPoints(keyPoints) : <p>{brief.narrative}</p>
-          )}
         </div>
       )}
 
@@ -663,13 +795,19 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
         })()
       )}
 
-      <div className="orm-grid" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
-        {columns.map((colKeys, colIdx) => (
-          <div key={colIdx}>
-            {colKeys.map((key) => sectionNodes[key])}
-          </div>
-        ))}
-      </div>
+      {layoutRows?.map((row, rowIdx) => (
+        <div className="orm-brow" key={rowIdx}>
+          {row.columns?.map((col, colIdx) => (
+            <div
+              key={colIdx}
+              className={`orm-bcol orm-bcol-${col.width}`}
+              style={row.maxHeight ? { maxHeight: row.maxHeight, overflowY: 'auto' } : undefined}
+            >
+              {col.sections?.map((key) => sectionNodes[key])}
+            </div>
+          ))}
+        </div>
+      ))}
 
       {/* "What is this section?" explainer */}
       <Dialog

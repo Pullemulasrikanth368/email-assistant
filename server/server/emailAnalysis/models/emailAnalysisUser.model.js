@@ -70,6 +70,17 @@ const EmailAnalysisUserSchema = new mongoose.Schema({
   deltaLink: {
     type: String,
   },
+  // Microsoft Graph delta cursors for the other synced folders (each Outlook
+  // folder needs its own incremental cursor).
+  junkDeltaLink: {
+    type: String,
+  },
+  sentDeltaLink: {
+    type: String,
+  },
+  draftDeltaLink: {
+    type: String,
+  },
   // Whether the one-time initial backfill (last 7 days) has run.
   initialSyncDone: {
     type: Boolean,

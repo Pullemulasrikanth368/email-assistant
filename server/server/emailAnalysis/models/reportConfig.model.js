@@ -5,12 +5,12 @@ import httpStatus from 'http-status';
 import APIError from '../../helpers/APIError';
 
 const ALL_SECTIONS = [
-  'narrativeSummary', 'mailBriefs', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
+  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
   'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
 ];
 
 const DEFAULT_SECTIONS = [
-  'narrativeSummary', 'mailBriefs', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
+  'narrativeSummary', 'decisionQueue', 'riskRadar', 'riskMatrix', 'todoList',
   'events', 'calendarConflicts', 'patterns', 'inboxTriage', 'actionRegister',
 ];
 
@@ -49,6 +49,12 @@ const ReportConfigSchema = new mongoose.Schema({
   // user actually designed for 1/2/3 columns instead of re-deriving one when the viewport
   // forces a narrower column count than what's configured.
   columnLayouts: { type: mongoose.Schema.Types.Mixed, default: {} },
+
+  // Row-based layout: [{ maxHeight, columns: [{ width (1-12), sections: [sectionKey] }] }].
+  // Widths within a row total 12; each section key appears at most once across all rows.
+  // When present this supersedes columnCount/columnLayouts, which are kept only so older
+  // docs and reportConfigSnapshots still parse.
+  rows: { type: mongoose.Schema.Types.Mixed, default: [] },
 
   /**
    * User-facing generation requirement, e.g.

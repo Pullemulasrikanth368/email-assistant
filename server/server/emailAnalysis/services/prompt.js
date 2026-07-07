@@ -20,6 +20,7 @@ export function buildBriefPrompt(emails = [], yesterdayRisks = [], meta = {}) {
     body: String(e.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 4000),
     receivedAt: e.receivedAt,
     meetingTime: e.meetingTime || null,
+    category: e.category || '',
   }));
 
   // ---- Knowledge Base context ----
@@ -46,19 +47,38 @@ export function buildBriefPrompt(emails = [], yesterdayRisks = [], meta = {}) {
     : '';
 
   // ---- Report config context ----
+  // UI section keys -> JSON output keys the model must fill for that section.
+  const SECTION_OUTPUT_KEYS = {
+    narrativeSummary: ['narrative', 'narrativeKeyPoints'],
+    inboxTriage: ['triage', 'categorySummaries'],
+    decisionQueue: ['decisionQueue'],
+    riskRadar: ['risks'],
+    riskMatrix: ['risks'],
+    todoList: ['todoList'],
+    events: ['events'],
+    calendarConflicts: ['collisions'],
+    patterns: ['patterns'],
+    actionRegister: ['actions'],
+  };
   const enabledSections = Array.isArray(rc.enabledSections) && rc.enabledSections.length
     ? rc.enabledSections
     : null; // null = all sections enabled (default)
+  const enabledOutputKeys = enabledSections
+    ? [...new Set([
+        ...enabledSections.flatMap((s) => SECTION_OUTPUT_KEYS[s] || []),
+        'deadlines', // always extracted — feeds collisions and dated views
+      ])]
+    : null;
   const selectedFields = Array.isArray(rc.selectedFields) && rc.selectedFields.length
     ? rc.selectedFields
     : null;
   const outputStyle = rc.outputStyle || 'detailed';
   const reportPromptInstruction = String(rc.promptInstruction || '').trim();
 
-  const sectionInstruction = enabledSections
-    ? `\nENABLED REPORT SECTIONS (only populate these in the output; leave other arrays empty):
-${enabledSections.map((s) => `  - ${s}`).join('\n')}\n`
-    : '';
+  const sectionInstruction = enabledOutputKeys
+    ? `\nREQUIRED OUTPUT KEYS — you MUST populate ALL of these JSON keys thoroughly (only keys NOT in this list may be left as empty arrays):
+${enabledOutputKeys.map((k) => `  - ${k}`).join('\n')}\n`
+    : '\nALL report sections are enabled: populate EVERY key in the output JSON thoroughly.\n';
 
   const fieldInstruction = selectedFields
     ? `\nSELECTED DETAIL FIELDS (include these fields in each item where applicable):
@@ -115,7 +135,20 @@ ANALYSIS RULES:
     - "title": a short headline for the point/category (e.g. "Google security alerts", "Payment issue").
     - "summary": 1-2 sentences with enough concrete info (who, what, deadline, what to do) that the reader doesn't need to open the emails.
     - "mails": [{ "sourceId", "subject", "from" }] — one entry per email backing this point, so the UI can link each mail beside the point. Never leave it empty.
-13. mailBriefs: for EVERY email in the inbox, produce a short, plain-language brief (2-3 sentences) explaining what the email is about, who it's from/for, and why it matters. Each {sourceId, subject, from, brief}. Do not skip any email.
+13. categorySummaries: group the emails by their "category" field (emails with no category go under "Other"). For EACH distinct category produce { "category", "count", "summary", "keyPoints", "mails" }:
+    - "summary": 2-3 COMPLETE sentences covering what the emails in that category were about — who they're from, the common theme, and anything needing attention. Write full sentences; never truncate or end with an ellipsis. Format it with ONLY these inline HTML tags so the UI can style it: <b>…</b> around key entities (people, companies, batch/order/invoice numbers, dates, amounts), <mark>…</mark> around phrases the reader should notice, and <span class="danger">…</span> around genuinely urgent or risky words (e.g. recall, failure, deviation, overdue, urgent, breach, complaint, shortage, escalation). Use tags sparingly — highlight words or short phrases, never whole sentences; no other tags and no attributes except class="danger".
+    - "keyPoints": 0-8 ultra-short phrases, AT MOST 4-5 words each, naming the concrete items in the category (e.g. "CAPA submission <span class="danger">overdue</span>", "Batch <b>B-102</b> deviation", "Audit on <b>Jul 12</b>"). Same inline tags allowed. Leave the array empty for trivial categories like newsletters. DEDUPLICATE: two emails about the same thing produce ONE key point.
+    - The summary and keyPoints must NOT repeat each other: the summary describes the overall theme and what needs attention; keyPoints name the individual items. Never enumerate subject lines inside the summary.
+    - "mails": [{ "sourceId", "subject", "from" }] — one entry for EVERY email in that category, so the UI can link each mail under the summary.
+    One entry per category — never skip a category that has at least one email. Do NOT use these HTML tags anywhere else in the output — plain text everywhere except categorySummaries.
+
+COMPLETENESS REQUIREMENTS — apply to every required output key; an empty array is acceptable ONLY when no email contains any relevant material, never for brevity:
+- risks: examine EVERY Critical and Important email for operational, compliance, financial, schedule, customer, security, or relationship risk. Most inboxes contain at least 1-3 scoreable risks — extract and score each one with likelihood, impact, riskScore, category, clock, affectedArea, mitigation and trend.
+- actions: the action register must capture EVERY task, request, or commitment across ALL emails — including implicit ones ("please review", "can you send", "waiting on your reply", "let me know"). Any email asking the recipient or anyone else to do something produces an action.
+- events: extract EVERY meeting, call, appointment, audit, inspection, review, launch, webinar, interview, travel, shipment, release, campaign, or dated occurrence mentioned anywhere in any email. An email containing a date/time and an activity produces an event.
+- collisions: after building events and deadlines, compare ALL dated items against each other. Report every time overlap, same-day crowding (3+ commitments on one day), or deadline landing on a meeting-heavy day, with a concrete suggestion.
+- patterns: ALWAYS provide 2-5 cross-email observations when there are 2 or more emails — recurring senders, repeated topics, escalating threads, clusters of similar notifications, rising urgency, unanswered follow-ups.
+- deadlines: every dated commitment from any email, even if it also appears in events, actions, or todoList.
 
 Base EVERY field strictly on the emails provided — do NOT fabricate issues, names, dates, or numbers.
 Every array item MUST carry a "sourceId" equal to the "id" of the email it came from.
@@ -125,8 +158,8 @@ Return ONLY a valid JSON object (no markdown) with EXACTLY these keys:
 {
   "narrative": string,
   "narrativeKeyPoints": [{ "title": string, "summary": string, "mails": [{ "sourceId": string, "subject": string, "from": string }] }],
-  "mailBriefs": [{ "sourceId": string, "subject": string, "from": string, "brief": string }],
   "triage": [{ "sourceId": string, "tier": "Critical"|"Important"|"Low", "reason": string, "subject": string, "from": string, "summary": string, "matchedKeywords": [string] }],
+  "categorySummaries": [{ "category": string, "count": number, "summary": string, "keyPoints": [string], "mails": [{ "sourceId": string, "subject": string, "from": string }] }],
   "decisionQueue": [{ "title": string, "why": string, "deadline": string, "sourceId": string }],
   "risks": [{ "category": string, "summary": string, "likelihood": number, "impact": number, "riskScore": number, "clock": string, "affectedArea": string, "mitigation": string, "trend": "New"|"Escalating"|"Stable"|"Cooling", "sourceId": string }],
   "todoList": [{ "task": string, "deadline": string, "status": "Open", "sourceId": string }],

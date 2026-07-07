@@ -397,11 +397,25 @@
     align-items: center;
     justify-content: center;
     text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .12);
+    transition: box-shadow .12s;
+
+    &:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, .15);
+    }
 
     &.lg {
       width: 44px;
       height: 44px;
       font-size: 18px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+    }
+
+    &.sm {
+      width: 28px;
+      height: 28px;
+      font-size: 11px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .1);
     }
   }
 
@@ -668,8 +682,15 @@
     display: none;
   }
 
-  .ea-dialog-content {
-    padding: 0 18px 18px;
+  /* Priority mode opens the mail in-screen (no modal) — always show Back */
+  &.priority-mode .ea-reader-toolbar .ea-back-btn {
+    display: inline-flex;
+  }
+
+  .ea-prio-body .ea-reader {
+    background: #fff;
+    max-width: 1100px;
+    margin: 0 auto;
   }
 
   .ea-snippet {
@@ -724,9 +745,19 @@
   .ea-reader-meta {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 24px 14px;
+    gap: 14px;
+    padding: 16px 24px;
     border-bottom: 1px solid var(--ea-line);
+    background: linear-gradient(to bottom, #fafbfc, #fff);
+    transition: background .15s;
+
+    &:hover {
+      background: linear-gradient(to bottom, #f3f5f7, #fff);
+    }
+
+    &.ea-thread-toggle:hover {
+      background: linear-gradient(to bottom, #f0f2f5, #fff);
+    }
 
     .ea-meta-text {
       flex: 1;
@@ -735,9 +766,10 @@
 
     .ea-meta-line {
       display: flex;
-      align-items: baseline;
-      gap: 6px;
+      align-items: center;
+      gap: 8px;
       flex-wrap: wrap;
+      margin-bottom: 6px;
     }
 
     .ea-from-name {
@@ -752,16 +784,19 @@
     }
 
     .ea-meta-sub {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--ea-muted);
-      margin-top: 2px;
+      margin-top: 0;
     }
 
     .ea-meta-date {
-      font-size: 12.5px;
+      font-size: 12px;
       color: var(--ea-faint);
       white-space: nowrap;
-      align-self: flex-start;
+      align-self: center;
+      margin-left: auto;
+      padding-left: 12px;
+      border-left: 1px solid #e8eaed;
     }
   }
 
@@ -952,8 +987,7 @@
   }
 }
 
-/* One-click quick replies. Top-level (not nested) because the reader is also
-   rendered inside a portaled Dialog in priority mode. */
+/* One-click quick replies. */
 .ea-quick {
   display: flex;
   align-items: center;
@@ -1442,5 +1476,506 @@
     margin-top: 0;
     padding-top: 0;
     border-top: 0;
+  }
+}
+/* ================================================================== */
+/* Folder bar, category filter & conversation thread                  */
+/* ================================================================== */
+.email-analysis-mails {
+
+  /* ---- folder buttons (Inbox / Sent / Drafts / Junk) ---- */
+  .ea-folderbar {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 8px;
+  }
+
+  .ea-folder-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ea-muted);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .12s, color .12s, box-shadow .12s;
+
+    svg { flex: none; }
+  }
+
+  /* Gmail look: rounded pills, blue-tinted active chip */
+  &.ea-provider-gmail .ea-folder-btn {
+    border-radius: 14px;
+
+    &:hover { background: #f1f3f4; color: var(--ea-ink); }
+
+    &.active {
+      background: #d3e3fd;
+      color: #041e49;
+    }
+  }
+
+  /* Outlook look: squared tabs with a bottom accent line */
+  &.ea-provider-outlook .ea-folder-btn {
+    border-radius: 4px 4px 0 0;
+    box-shadow: inset 0 -2px 0 transparent;
+
+    &:hover { background: #f0f4f9; color: var(--ea-ink); }
+
+    &.active {
+      color: #0f6cbd;
+      box-shadow: inset 0 -2px 0 #0f6cbd;
+      background: transparent;
+    }
+  }
+
+  /* ---- AI category dropdown ---- */
+  .ea-cat-filter {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 8px;
+    margin-right: 6px;
+    border: 1px dashed #c5cbd3;
+    border-radius: 13px;
+    color: var(--ea-muted);
+    background: transparent;
+    transition: background .12s, border-color .12s, color .12s;
+
+    &:hover { background: #eef0f2; color: var(--ea-ink); }
+
+    &.active {
+      color: #111827;
+      background: #e8eaf0;
+      border: 1px solid #b6bdc9;
+    }
+
+    .ea-cat-select {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 600;
+      color: inherit;
+      padding-right: 14px;
+      max-width: 150px;
+      cursor: pointer;
+      outline: none;
+      text-overflow: ellipsis;
+    }
+
+    .ea-cat-caret {
+      position: absolute;
+      right: 7px;
+      pointer-events: none;
+    }
+  }
+
+  /* ---- category chip in the list row ---- */
+  .ea-cat-chip {
+    flex: none;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 16px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    color: #374151;
+    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    border: 1px solid #d1d5db;
+    transition: background .12s, border-color .12s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+
+    &:hover {
+      background: linear-gradient(135deg, #e5e7eb, #d1d5db);
+      border-color: #9ca3af;
+    }
+  }
+
+  .ea-avatar.sm {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+
+  /* ---- conversation thread ---- */
+  .ea-thread {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+
+    /* subtle divider between messages */
+    & > *:not(:last-child) {
+      position: relative;
+    }
+  }
+
+  .ea-thread-count {
+    flex: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #5f6368;
+    background: #eef0f2;
+    border-radius: 12px;
+    padding: 4px 10px;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    &::before {
+      content: '';
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.7;
+    }
+  }
+
+  /* badge container for mail type + category tags */
+  .ea-badges-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* priority badge for thread */
+  .ea-priority-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    white-space: nowrap;
+
+    &::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+  }
+
+  /* collapsed message: single summary line, Gmail-style */
+  .ea-thread-collapsed {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 24px;
+    border: 0;
+    border-bottom: 1px solid #e8eaed;
+    background: linear-gradient(to right, rgba(59, 130, 246, 0.02), transparent);
+    cursor: pointer;
+    text-align: left;
+    transition: background .15s;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: linear-gradient(to bottom, #3b82f6, #60a5fa);
+      border-radius: 0 2px 2px 0;
+      opacity: 0;
+      transition: opacity .12s;
+    }
+
+    &:hover {
+      background: linear-gradient(to right, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+
+      &::before {
+        opacity: 0.8;
+      }
+    }
+
+    .ea-thread-sender {
+      flex: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ea-ink);
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ea-thread-snippet {
+      flex: 1;
+      min-width: 0;
+      font-size: 12.5px;
+      color: var(--ea-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding-left: 8px;
+    }
+
+    .ea-thread-date {
+      flex: none;
+      font-size: 11.5px;
+      color: var(--ea-faint);
+      white-space: nowrap;
+    }
+  }
+
+  /* expanded message block */
+  .ea-thread-msg {
+    border-bottom: 1px solid var(--ea-line);
+
+    &:last-child { border-bottom: 0; }
+
+    &:nth-child(odd) {
+      background: #f9fafb;
+    }
+
+    &:nth-child(even) {
+      background: #fff;
+    }
+
+    .ea-reader-meta.ea-thread-toggle {
+      cursor: pointer;
+      position: relative;
+
+      &::after {
+        content: '⋯';
+        position: absolute;
+        right: 24px;
+        opacity: 0;
+        transition: opacity .12s;
+        color: var(--ea-muted);
+      }
+
+      &:hover::after {
+        opacity: 0.6;
+      }
+    }
+  }
+}
+
+/* ---- draft markers (Outlook-style) ---- */
+.email-analysis-mails {
+  .ea-draft-tag {
+    color: #c50f1f;
+    font-weight: 700;
+    margin-right: 5px;
+  }
+
+  .ea-draft-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 24px 0;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    color: #8a1a1a;
+    background: #fdf3f4;
+    border: 1px solid #f3c6cb;
+    border-radius: 6px;
+
+    b { color: #c50f1f; }
+
+    .pi { font-size: 12px; color: #c50f1f; }
+  }
+
+  /* mail type tag (Received / Sent / Draft / Junk) inside the opened mail */
+  .ea-mail-tag {
+    flex: none;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 16px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    text-transform: capitalize;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: box-shadow .12s, transform .12s;
+
+    &::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.7;
+    }
+
+    &:hover {
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .12);
+      transform: translateY(-1px);
+    }
+  }
+
+  .ea-meta-line .ea-mail-tag {
+    margin-left: auto;
+  }
+
+  .ea-thread-collapsed .ea-mail-tag {
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  /* ---- quoted-text collapse (Gmail-style •••) ---- */
+  .ea-quote-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 2px 24px 14px;
+    padding: 2px 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ea-muted);
+    font-size: 12px;
+    cursor: pointer;
+
+    .ea-quote-dots {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 8px;
+      border-radius: 8px;
+      background: #e8eaed;
+      color: #3c4043;
+      font-weight: 700;
+      letter-spacing: 1px;
+      line-height: 14px;
+    }
+
+    &:hover {
+      color: var(--ea-ink);
+      .ea-quote-dots { background: #dadce0; }
+    }
+  }
+
+  /* ---- reader toolbar actions (delete) ---- */
+  .ea-reader-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    flex: none;
+  }
+
+  /* Plain icon button — no border/box, just the icon with a soft hover circle. */
+  .ea-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    transition: background .12s;
+
+    &:disabled { opacity: .5; cursor: default; }
+
+    &--danger {
+      color: #c50f1f;
+      &:hover:not(:disabled) { background: #fdf3f4; }
+    }
+  }
+
+  /* ---- inline draft editor (shown in place of a draft's rendered body) ---- */
+  .ea-draft-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 24px 18px;
+
+    .ea-draft-inline-subject {
+      height: 34px;
+      padding: 0 10px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ea-ink);
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      outline: none;
+
+      &:focus { border-color: #9aa5b1; }
+    }
+
+    .ea-draft-inline-body {
+      width: 100%;
+      padding: 10px 12px;
+      font: 13.5px/1.6 Roboto, Arial, Helvetica, sans-serif;
+      color: var(--ea-ink);
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      resize: vertical;
+      outline: none;
+
+      &:focus { border-color: #9aa5b1; }
+    }
+
+    .ea-draft-inline-foot {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ea-draft-savestate {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 600;
+
+      .pi { font-size: 10px; }
+
+      &--saving { color: var(--ea-muted); }
+      &--saved { color: #188038; }
+      &--failed { color: #c50f1f; }
+      &--idle { visibility: hidden; }
+    }
+
+    .ea-draft-inline-btns {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .ea-draft-discard-btn {
+      color: #c50f1f;
+      border-color: #f3c6cb;
+
+      &:hover { background: #fdf3f4; }
+    }
+
+    .ea-draft-send-btn {
+      background: #0b57d0;
+
+      &:hover { background: #0a4bb8; }
+    }
   }
 }

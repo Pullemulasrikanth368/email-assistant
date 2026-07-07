@@ -44,6 +44,9 @@ const EmailAnalysisMailSchema = new mongoose.Schema({
   threadId: { type: String },
   receivedAt: { type: Date },
 
+  // Set when this row mirrors an app-created draft from email_drafts.
+  localDraftId: { type: mongoose.Schema.Types.ObjectId, ref: 'emailDraft', default: null, index: true },
+
   attachments: { type: [EmailAnalysisAttachmentSchema], default: [] },
   hasAttachments: { type: Boolean, default: false },
   isRepliedMail: { type: Boolean, default: false },
@@ -54,6 +57,23 @@ const EmailAnalysisMailSchema = new mongoose.Schema({
   intent: { type: String, default: null },          // e.g. approval-request, deadline, fyi
   priorityReason: { type: String, default: null },
   prioritizedAt: { type: Date, default: null },
+  // AI mail category (assigned alongside priority).
+  category: { type: String, default: null },        // e.g. Action Required, Finance, Newsletters
+
+  // Cached AI-drafted reply — generated once when the mail is read, reused on
+  // every later open; "Regenerate" in the UI overwrites it.
+  aiReply: {
+    text: { type: String, default: null },
+    provider: { type: String, default: null },
+    threadCount: { type: Number, default: 0 },
+    generatedAt: { type: Date, default: null },
+  },
+
+  // Which provider folder the mail was synced from, and whether it was junk.
+  sourceFolder: { type: String, default: 'inbox' }, // inbox | junk
+  isJunk: { type: Boolean, default: false },
+  // Set when an important junk mail was auto-moved back to the inbox.
+  junkRescuedAt: { type: Date, default: null },
 
   active: { type: Boolean, default: true },
   // Set when removed via one-click cleanup (soft-delete). Drives dashboard

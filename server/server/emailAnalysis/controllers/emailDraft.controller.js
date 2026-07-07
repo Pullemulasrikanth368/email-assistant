@@ -63,7 +63,7 @@ const draftCtrl = {
     const {
       email, loginUserEmailId, provider,
       to, cc, bcc, subject, body,
-      inReplyTo, references, threadId, conversationId,
+      inReplyTo, references, threadId, conversationId, replyToMessageId,
     } = req.body;
     try {
       const draft = await draftSyncService.createDraft({
@@ -79,6 +79,7 @@ const draftCtrl = {
         references: references || null,
         threadId: threadId || null,
         conversationId: conversationId || null,
+        replyToMessageId: replyToMessageId || null,
         attachments: [],
       });
       return res.json({ respCode: 200, respMessage: 'Draft created', data: mapDraft(draft) });

@@ -21,8 +21,10 @@ const EmailDraftSchema = new mongoose.Schema({
   // Provider-side draft IDs for bidirectional sync
   gmailDraftId: { type: String, default: null },
   outlookDraftId: { type: String, default: null },
+  providerMessageId: { type: String, default: null, index: true },
 
   // Email content
+  fromName: { type: String, default: '' },
   subject: { type: String, default: '' },
   body: { type: String, default: '' },
 
@@ -37,6 +39,10 @@ const EmailDraftSchema = new mongoose.Schema({
   references: { type: String, default: null },
   threadId: { type: String, default: null },
   conversationId: { type: String, default: null },
+  // providerMessageId of the original email being replied to (Outlook uses
+  // this to create the draft via Graph's createReply so it's a real
+  // threaded reply instead of a standalone new message).
+  replyToMessageId: { type: String, default: null },
 
   attachments: { type: [DraftAttachmentSchema], default: [] },
 

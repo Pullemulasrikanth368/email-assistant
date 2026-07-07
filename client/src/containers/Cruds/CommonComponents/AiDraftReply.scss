@@ -111,6 +111,28 @@
   letter-spacing: 0.06em;
 }
 
+// Draft auto-save indicator ("Saving… / Saved to Drafts / Draft not saved")
+.aidr-save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+
+  .pi { font-size: 10px; }
+
+  &--saving { color: #5f6368; }
+  &--saved { color: #188038; }
+  &--failed { color: #c50f1f; }
+  &--idle { display: none; }
+}
+
+// keep the provider tag pinned right even with the save state present
+.aidr-provider-tag + .aidr-save-state { margin-left: 8px; }
+
 // Loading state
 .aidr-spinner-wrap {
   display: flex;

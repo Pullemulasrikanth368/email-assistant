@@ -1,47 +1,388 @@
-.rc-page {
+/* Report Configuration screen: fixed (sticky) header + fixed left rail, scrollable
+   main area of row accordions. Reuses rc-* board/field styles from OperationsReport.scss
+   (the main area carries the .rc-panel class). */
+
+.rcfg-page {
   background: #fff;
   border: 1px solid #d9dcd6;
   border-radius: 10px;
-  padding: 24px 20px 40px;
   min-height: calc(100vh - 20px);
   font-family: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
   color: #14181f;
+  display: flex;
+  flex-direction: column;
 
-  .rc-page-header {
-    margin-bottom: 24px;
-    border-bottom: 1px solid #eaecee;
-    padding-bottom: 18px;
+  .rcfg-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #687180;
+    padding: 30px;
   }
 
-  .rc-page-eyebrow {
+  /* ---------- fixed header ---------- */
+  .rcfg-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #fff;
+    border-bottom: 1px solid #eaecee;
+    border-radius: 10px 10px 0 0;
+    padding: 16px 20px 12px;
+  }
+
+  .rcfg-eyebrow {
     font-size: 11px;
     letter-spacing: .07em;
     text-transform: uppercase;
     color: #687180;
+    margin-bottom: 2px;
+  }
+
+  .rcfg-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+
+  .rcfg-sub {
+    font-size: 12.5px;
+    color: #687180;
+    margin: 0 0 12px;
+    max-width: 640px;
+  }
+
+  .rcfg-header-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+  }
+
+  .rcfg-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    > label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #2a3340;
+    }
+  }
+
+  .rcfg-view-select {
+    min-width: 200px;
+  }
+
+  .rcfg-name-input {
+    border: 1px solid #d9dcd6;
+    border-radius: 7px;
+    padding: 7px 10px;
+    font-size: 13px;
+    min-width: 210px;
+    color: #14181f;
+
+    &:focus {
+      outline: none;
+      border-color: #1f6f6b;
+    }
+  }
+
+  .rcfg-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .rcfg-danger {
+    color: #b3261e;
+    border-color: rgba(179, 38, 30, .4);
+
+    &:hover {
+      background: rgba(179, 38, 30, .06);
+    }
+  }
+
+  /* ---------- body: fixed rail + scrollable main ---------- */
+  .rcfg-body {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    align-items: start;
+    flex: 1;
+  }
+
+  .rcfg-rail {
+    position: sticky;
+    // Keep the rail below the sticky header; header height varies with wrapping,
+    // so leave generous headroom and let the rail scroll internally.
+    top: 150px;
+    max-height: calc(100vh - 170px);
+    overflow-y: auto;
+    border-right: 1px solid #eaecee;
+    padding: 14px 12px;
+  }
+
+  .rcfg-rail-group {
+    margin-bottom: 18px;
+  }
+
+  .rcfg-rail-head {
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #9aa2ac;
+    margin-bottom: 6px;
+
+    .n {
+      font-weight: 700;
+      color: #1f6f6b;
+      margin-left: 4px;
+    }
+  }
+
+  .rcfg-rail-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 12px;
+    padding: 4px 4px;
+    border-radius: 6px;
+    color: #2a3340;
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex: none;
+      background: #1f6f6b;
+    }
+
+    .lbl {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-tag {
+      font-size: 10px;
+      color: #687180;
+      background: #eef4f8;
+      border-radius: 8px;
+      padding: 1px 6px;
+      flex: none;
+    }
+
+    &.used {
+      cursor: pointer;
+
+      &:hover {
+        background: #eef4f8;
+      }
+    }
+
+    &.pending {
+      color: #9aa2ac;
+
+      .dot {
+        background: #d9dcd6;
+      }
+    }
+  }
+
+  .rcfg-rail-empty {
+    font-size: 11px;
+    color: #9aa2ac;
+    padding: 2px 4px;
+  }
+
+  .rcfg-main {
+    padding: 14px 18px 40px;
+    min-width: 0;
+  }
+
+  /* ---------- row accordions ---------- */
+  .rcfg-row {
+    border: 1px solid #d9dcd6;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+
+  .rcfg-row-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+
+    > .pi {
+      font-size: 11px;
+      color: #687180;
+    }
+  }
+
+  .rcfg-row-title {
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .rcfg-row-meta {
+    font-size: 11.5px;
+    color: #687180;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rcfg-row-actions {
+    display: flex;
+    gap: 4px;
+
+    button {
+      border: 1px solid #d9dcd6;
+      background: #fff;
+      border-radius: 6px;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      color: #2a3340;
+
+      .pi {
+        font-size: 11px;
+      }
+
+      &:hover:not(:disabled) {
+        background: #eef4f8;
+      }
+
+      &:disabled {
+        opacity: .4;
+        cursor: default;
+      }
+    }
+
+    .rcfg-row-remove {
+      color: #b3261e;
+      border-color: rgba(179, 38, 30, .35);
+    }
+  }
+
+  .rcfg-row-body {
+    border-top: 1px solid #eaecee;
+    padding: 12px;
+  }
+
+  .rcfg-row-settings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  .rcfg-cols-select {
+    min-width: 130px;
+  }
+
+  .rcfg-height-input {
+    border: 1px solid #d9dcd6;
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-size: 13px;
+    width: 130px;
+
+    &:focus {
+      outline: none;
+      border-color: #1f6f6b;
+    }
+  }
+
+  .rcfg-hint {
+    display: block;
+    font-size: 10.5px;
+    color: #9aa2ac;
+    margin-top: 3px;
+    max-width: 220px;
+  }
+
+  /* ---------- column board additions (on top of rc-col-board styles) ---------- */
+  .rcfg-col-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
     margin-bottom: 4px;
   }
 
-  .rc-page-title {
-    font-size: 22px;
-    font-weight: 700;
-    margin: 0 0 6px;
-    color: #14181f;
+  .rcfg-width-select {
+    height: 26px;
+    font-size: 11px;
+    padding: 0 8px;
+    width: 84px;
+    min-width: 84px;
   }
 
-  .rc-page-sub {
-    font-size: 13px;
-    color: #687180;
-    margin: 0;
-    max-width: 560px;
+  .rcfg-chip-label {
+    flex: 1;
+    font-size: 12px;
+    color: #2a3340;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .rc-page-body {
-    max-width: 700px;
+  .rcfg-chip-remove {
+    border: none;
+    background: none;
+    color: #9aa2ac;
+    cursor: pointer;
+    padding: 2px;
 
-    // override sheet-mode padding since this is a full page
-    .rc-panel,
-    .rc-form {
-      padding: 0;
+    .pi {
+      font-size: 10px;
+    }
+
+    &:hover {
+      color: #b3261e;
+    }
+  }
+
+  .rcfg-add-select {
+    height: 28px;
+    font-size: 11.5px;
+    color: #1f6f6b;
+    border-style: dashed;
+    margin-top: 2px;
+  }
+
+  .rcfg-addrow {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0 20px;
+  }
+
+  @media (max-width: 900px) {
+    .rcfg-body {
+      grid-template-columns: 1fr;
+    }
+
+    .rcfg-rail {
+      position: static;
+      max-height: none;
+      border-right: none;
+      border-bottom: 1px solid #eaecee;
     }
   }
 }

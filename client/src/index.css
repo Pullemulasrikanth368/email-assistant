@@ -25,4 +25,13 @@
     --ring: 213 70% 35%;
     --radius: 0.5rem;
   }
+
+  /* Chrome autofill paints inputs pale blue — keep them white and legible */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #fff inset;
+    -webkit-text-fill-color: hsl(var(--foreground));
+    caret-color: hsl(var(--foreground));
+  }
 }

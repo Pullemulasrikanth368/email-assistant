@@ -11,7 +11,6 @@ import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
 import { BriefDashboard } from './BriefDashboard';
 import KnowledgeBaseSettings from './KnowledgeBaseSettings';
-import ReportConfigPanel from './ReportConfigPanel';
 import './OperationsReport.scss';
 
 /* ------------------------------------------------------------------ */
@@ -110,9 +109,8 @@ const OperationsReport = () => {
 
   // Settings panels
   const [kbSheetOpen, setKbSheetOpen] = useState(false);
-  const [rcSheetOpen, setRcSheetOpen] = useState(false);
 
-  // Live report-config (sections/order/columns) — always wins over a report's own
+  // Live report-config (rows layout, sections, fields) — always wins over a report's own
   // snapshot so layout changes show up immediately without regenerating the brief.
   const [reportConfig, setReportConfig] = useState(null);
   const fetchReportConfig = useCallback(async () => {
@@ -123,6 +121,18 @@ const OperationsReport = () => {
     } catch { /* non-fatal — BriefDashboard falls back to each report's own snapshot */ }
   }, []);
   useEffect(() => { fetchReportConfig(); }, [fetchReportConfig]);
+
+  // Configuration now lives on its own screen — refresh the layout when the user
+  // comes back to this tab/window after editing it there.
+  useEffect(() => {
+    const onFocus = () => fetchReportConfig();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [fetchReportConfig]);
 
   /* ---------------- fetch list ---------------- */
   const fetchReports = useCallback(async (preserveSelection) => {
@@ -544,9 +554,9 @@ const OperationsReport = () => {
             <i className="pi pi-book" />
             <span>KB</span>
           </button> */}
-          <button type="button" className="orm-settings-btn" onClick={() => setRcSheetOpen(true)} title="Report Requirements">
+          <button type="button" className="orm-settings-btn" onClick={() => navigate('/reportConfig')} title="Report Configuration">
             <i className="pi pi-sliders-h" />
-            <span>Requirements</span>
+            <span>Configure</span>
           </button>
           <button type="button" className="orm-runbrief-btn" onClick={runBrief} disabled={generating}>
             <i className={generating ? 'pi pi-spin pi-spinner' : 'pi pi-bolt'} />
@@ -584,19 +594,6 @@ const OperationsReport = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Report Requirements sheet */}
-      <Sheet
-        open={rcSheetOpen}
-        onOpenChange={(o) => { setRcSheetOpen(o); if (!o) fetchReportConfig(); }}
-      >
-        <SheetContent side="right" className="w-[560px] !max-w-[96vw] overflow-y-auto bg-white">
-          <div className="orm-sheet-head">
-            <h3>Report Requirements</h3>
-            <p className="orm-sheet-sub">Choose what the generated report should show. Email analysis rules stay in Knowledge Base.</p>
-          </div>
-          <ReportConfigPanel onClose={() => { setRcSheetOpen(false); fetchReportConfig(); }} />
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };

@@ -1,7 +1,4 @@
 /**@Report service - builds + stores a brief from synced mail */
-import fs from "fs";
-import path from "path";
-
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
 import EmailAnalysisReport from "../models/emailAnalysisReport.model";
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
@@ -11,29 +8,10 @@ import MicrosoftTeamsService from "../../microsoft/services/microsoftTeams.servi
 import { createMailService } from "./mailProvider.service";
 import prioritizeService from "./prioritize.service";
 import { generateBrief } from "./briefEngine";
-import { renderBriefMarkdown } from "./renderMd";
 import { getActiveKnowledgeBaseConfig } from "./knowledgeBase.service";
 import { getReportConfig } from "./reportConfig.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const OUTPUT_DIR = path.resolve(__dirname, "../output");
-
-/** Write the rendered .md dashboard for a report; returns the file path. */
-function writeBriefMarkdown(report) {
-  try {
-    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    const safeEmail = String(report.email || "account").replace(/[^a-z0-9._-]/gi, "_");
-    const day = new Date(report.periodStart).toISOString().slice(0, 10);
-    const file = path.join(OUTPUT_DIR, `brief-${safeEmail}-${day}.md`);
-    fs.writeFileSync(file, renderBriefMarkdown(report));
-    // Also keep a "latest.md" convenience copy.
-    fs.writeFileSync(path.join(OUTPUT_DIR, "latest.md"), renderBriefMarkdown(report));
-    return file;
-  } catch (err) {
-    console.error("[EmailAnalysis] Failed to write brief .md:", err.message);
-    return "";
-  }
-}
 
 /**
  * Best-effort: post the freshly generated brief to the connected Microsoft
@@ -130,11 +108,30 @@ function toEmailShape(mail) {
     labels: mail.labels || [],
     hasAttachments: !!mail.hasAttachments || (mail.attachments || []).length > 0,
     isRepliedMail: !!mail.isRepliedMail,
+    isJunk: !!mail.isJunk,
+    sourceFolder: mail.sourceFolder || "inbox",
+    category: mail.category || "",
     priority: mail.priority || "",
     priorityScore: mail.priorityScore || null,
     intent: mail.intent || "",
     priorityReason: mail.priorityReason || "",
   };
+}
+
+/**
+ * Attach each mail's stored AI category to its triage item (matched by
+ * sourceId), so the report UI can group a sender's mails per category without
+ * relying on the brief AI to echo it back.
+ */
+function attachMailCategories(brief, mails) {
+  if (!brief) return brief;
+  const catById = new Map(
+    mails.map((m) => [String(m.providerMessageId || m._id), m.category || ""])
+  );
+  for (const t of brief.triage || []) {
+    if (!t.category) t.category = catById.get(String(t.sourceId)) || "";
+  }
+  return brief;
 }
 
 /**
@@ -172,10 +169,13 @@ export async function generateDailyReport(email, opts = {}) {
     if (existing) return existing;
   }
 
+  // Brief covers INCOMING mail only: the user's own sent replies and drafts
+  // are excluded, while junk/spam stays in so nothing important is missed.
   const mails = await EmailAnalysisMail.find({
     email,
     active: true,
     receivedAt: { $gte: start, $lt: end },
+    sourceFolder: { $nin: ["sent", "draft"] },
   }).sort({ receivedAt: 1 }).lean();
 
   const emails = mails.map(toEmailShape);
@@ -197,6 +197,7 @@ export async function generateDailyReport(email, opts = {}) {
     knowledgeBaseConfig,
     reportConfig,
   });
+  attachMailCategories(brief, mails);
 
   const counts = briefCounts(brief);
 
@@ -223,15 +224,13 @@ export async function generateDailyReport(email, opts = {}) {
     reportName: reportConfig.reportName,
     enabledSections: reportConfig.enabledSections,
     selectedFields: reportConfig.selectedFields,
+    rows: reportConfig.rows,
     outputStyle: reportConfig.outputStyle,
     promptInstruction: reportConfig.promptInstruction,
   };
   report.matchedKeywordsSummary = matchedKeywordsSummary;
   report.reportSectionsUsed = reportConfig.enabledSections || [];
   report.selectedFieldsUsed = reportConfig.selectedFields || [];
-
-  // Render the self-contained .md dashboard from the analysis.
-  report.mdPath = writeBriefMarkdown(report);
 
   const saved = await EmailAnalysisReport.saveData(report);
 
@@ -263,10 +262,13 @@ export async function generateWeeklyReport(email, opts = {}) {
     return { report: existing, created: false };
   }
 
+  // Same scope as the daily brief: incoming mail only (junk/spam included),
+  // never the user's own sent replies or drafts.
   const mails = await EmailAnalysisMail.find({
     email,
     active: true,
     receivedAt: { $gte: start, $lt: end },
+    sourceFolder: { $nin: ["sent", "draft"] },
   }).sort({ receivedAt: 1 }).lean();
 
   const emails = mails.map(toEmailShape);
@@ -286,6 +288,7 @@ export async function generateWeeklyReport(email, opts = {}) {
     knowledgeBaseConfig,
     reportConfig,
   });
+  attachMailCategories(brief, mails);
 
   let report = existing || new EmailAnalysisReport({ email, reportType: "week", periodStart: start });
   report.periodEnd = end;
@@ -295,7 +298,6 @@ export async function generateWeeklyReport(email, opts = {}) {
   report.generatedAt = new Date();
   report.counts = briefCounts(brief);
   report.active = true;
-  report.mdPath = writeBriefMarkdown(report);
 
   report.knowledgeBaseSnapshot = {
     keywords: knowledgeBaseConfig.keywords,
@@ -308,6 +310,7 @@ export async function generateWeeklyReport(email, opts = {}) {
     reportName: reportConfig.reportName,
     enabledSections: reportConfig.enabledSections,
     selectedFields: reportConfig.selectedFields,
+    rows: reportConfig.rows,
     outputStyle: reportConfig.outputStyle,
     promptInstruction: reportConfig.promptInstruction,
   };

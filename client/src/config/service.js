@@ -160,7 +160,7 @@ const sendRequestToServer = (method, url, body, headers, route) => {
                 // credentials: config.credentials ? "include" : undefined,
 
             },)
-        } else if (method === 'POST' || method === 'PUT') {
+        } else if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
 
             const isFormData = body instanceof FormData;
 
@@ -177,7 +177,7 @@ const sendRequestToServer = (method, url, body, headers, route) => {
                 request = fetch(`${baseUrl}${url}`, {
                     method: method,
                     headers: reqHeaders,
-                    body: JSON.stringify(body),
+                    body: JSON.stringify(body == null ? {} : body),
                 });
             }
         }

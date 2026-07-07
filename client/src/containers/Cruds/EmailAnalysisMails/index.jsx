@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useCallback } from 'rea
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
-import { RefreshCw, Trash2, Flag, Link, ChevronLeft, ChevronRight, CalendarDays, X } from 'lucide-react';
+import { RefreshCw, Trash2, Flag, Link, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays, X, Inbox, Send, FileText, Ban, ChevronDown, Tag } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
@@ -146,9 +146,64 @@ const VIEW_OPTIONS = [
   { label: 'Priority', value: 'priority', icon: 'pi pi-flag' },
 ];
 
+// Provider folders (styled like Gmail or Outlook depending on the connected account).
+const FOLDERS = [
+  { key: 'inbox', label: 'Inbox', Icon: Inbox },
+  { key: 'sent', label: 'Sent', Icon: Send },
+  { key: 'drafts', label: 'Drafts', Icon: FileText },
+  { key: 'junk', label: 'Junk', Icon: Ban },
+];
+
+// AI categories assigned during sync (must match the server's list).
+const MAIL_CATEGORIES = [
+  'Action Required',
+  'Meetings & Scheduling',
+  'Finance & Invoices',
+  'Sales & Leads',
+  'Support & Complaints',
+  'Notifications & Updates',
+  'Newsletters',
+  'Promotions & Marketing',
+  'Personal',
+  'Junk',
+];
+
 // Rank used to sort highest -> lowest priority within a day.
 const sortValue = (m) =>
   (Number.isFinite(m.priorityScore) ? m.priorityScore : 0) + (PRIORITY_RANK[m.priority] || 0) * 0.001;
+
+// Is this mail an unsent draft?
+const isDraftMail = (m) => m?.sourceFolder === 'draft' || (m?.labels || []).includes('DRAFT');
+
+// Plain-text extraction from a stored HTML body (for editing drafts).
+const htmlToText = (html = '') => {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = String(html)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n');
+  return (tmp.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+};
+
+// Wrap edited plain text back into the HTML shape drafts are stored/sent in.
+const textToHtml = (text = '') =>
+  `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;line-height:1.6;white-space:pre-wrap">${
+    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }</div>`;
+
+// Mail type tag (Received / Sent / Draft / Junk) shown next to each mail.
+const MAIL_TAGS = {
+  received: { label: 'Received', color: '#188038', bg: '#e6f4ea' },
+  sent: { label: 'Sent', color: '#1a73e8', bg: '#e8f0fe' },
+  draft: { label: 'Draft', color: '#c50f1f', bg: '#fdf3f4' },
+  junk: { label: 'Junk', color: '#b3261e', bg: '#fbe9e7' },
+};
+const mailTag = (m) => {
+  const labels = m?.labels || [];
+  if (isDraftMail(m)) return MAIL_TAGS.draft;
+  if (m?.isJunk || m?.sourceFolder === 'junk' || labels.includes('SPAM') || labels.includes('JUNK')) return MAIL_TAGS.junk;
+  if (m?.sourceFolder === 'sent' || (labels.includes('SENT') && !labels.includes('INBOX'))) return MAIL_TAGS.sent;
+  return MAIL_TAGS.received;
+};
 
 const dayHeading = (dateStr) => {
   const d = moment(dateStr);
@@ -163,14 +218,17 @@ const dayHeading = (dateStr) => {
 /* ------------------------------------------------------------------ */
 const MailBody = ({ body, snippet }) => {
   const frameRef = useRef(null);
+  const [showQuoted, setShowQuoted] = useState(false);
 
-  const srcDoc = useMemo(() => {
+  // Build the full document, plus a "trimmed" variant with the quoted parent
+  // mail (reply history) removed so it can collapse behind a ••• toggle.
+  const { fullDoc, trimmedDoc, hasQuoted } = useMemo(() => {
     const raw = (body || snippet || '').trim();
     if (!raw) {
-      return wrapFragment('<p class="ea-empty-body">This message has no content.</p>');
+      return { fullDoc: wrapFragment('<p class="ea-empty-body">This message has no content.</p>'), trimmedDoc: null, hasQuoted: false };
     }
     if (!looksLikeHtml(raw)) {
-      return wrapFragment(`<pre class="ea-plain">${escapeHtml(raw)}</pre>`);
+      return { fullDoc: wrapFragment(`<pre class="ea-plain">${escapeHtml(raw)}</pre>`), trimmedDoc: null, hasQuoted: false };
     }
     // WHOLE_DOCUMENT keeps <head><style> blocks (otherwise head CSS is dropped
     // and emails like Google Alerts render unstyled). The iframe is sandboxed
@@ -179,8 +237,35 @@ const MailBody = ({ body, snippet }) => {
       WHOLE_DOCUMENT: true,
       ADD_ATTR: ['target'],
     });
-    return injectIntoDocument(clean);
+    const full = injectIntoDocument(clean);
+
+    try {
+      const doc = new DOMParser().parseFromString(clean, 'text/html');
+      // Outlook reply separators: the quoted mail is the marker + everything after it.
+      const markers = [...doc.querySelectorAll('#divRplyFwdMsg, [id^="x_divRplyFwdMsg"], #appendonsend, .OutlookMessageHeader')];
+      markers.forEach((marker) => {
+        let cur = marker;
+        while (cur) {
+          const next = cur.nextElementSibling;
+          cur.remove();
+          cur = next;
+        }
+      });
+      // Gmail (and generic) quoted history containers.
+      const quotes = [...doc.querySelectorAll('.gmail_quote, blockquote')]
+        .filter((n) => n.isConnected && !(n.parentElement && n.parentElement.closest('.gmail_quote, blockquote')));
+      quotes.forEach((n) => n.remove());
+
+      const removedAny = markers.length > 0 || quotes.length > 0;
+      const remainingText = (doc.body?.textContent || '').trim();
+      if (removedAny && remainingText) {
+        return { fullDoc: full, trimmedDoc: injectIntoDocument(doc.documentElement.outerHTML), hasQuoted: true };
+      }
+    } catch { /* fall back to the full document */ }
+    return { fullDoc: full, trimmedDoc: null, hasQuoted: false };
   }, [body, snippet]);
+
+  const srcDoc = hasQuoted && !showQuoted ? trimmedDoc : fullDoc;
 
   const handleLoad = useCallback(() => {
     const frame = frameRef.current;
@@ -213,14 +298,139 @@ const MailBody = ({ body, snippet }) => {
   }, []);
 
   return (
-    <iframe
-      ref={frameRef}
-      title="email-body"
-      className="ea-mail-frame"
-      sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
-      srcDoc={srcDoc}
-      onLoad={handleLoad}
-    />
+    <>
+      <iframe
+        ref={frameRef}
+        title="email-body"
+        className="ea-mail-frame"
+        sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+        srcDoc={srcDoc}
+        onLoad={handleLoad}
+      />
+      {hasQuoted && (
+        <button
+          type="button"
+          className="ea-quote-toggle"
+          onClick={() => setShowQuoted((v) => !v)}
+          title={showQuoted ? 'Hide quoted text' : 'Show quoted text'}
+        >
+          <span className="ea-quote-dots">•••</span>
+          {showQuoted ? 'Hide quoted text' : 'Show quoted text'}
+        </button>
+      )}
+    </>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/* Inline draft editor — shown in place of a draft's rendered body      */
+/* ------------------------------------------------------------------ */
+const DRAFT_AUTOSAVE_MS = 900;
+
+const DraftThreadEditor = ({ msg, onSave, onSaved, onSend, onDiscard }) => {
+  const [subject, setSubject] = useState(msg.subject || '');
+  const [text, setText] = useState(() => htmlToText(msg.body || msg.snippet || ''));
+  const [saveState, setSaveState] = useState('');
+  const [sending, setSending] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+
+  const subjectRef = useRef(subject);
+  const textRef = useRef(text);
+  const dirtyRef = useRef(false);
+  const timer = useRef(null);
+
+  const persist = useCallback(async () => {
+    setSaveState('saving');
+    const saved = await onSave(msg, { subject: subjectRef.current, text: textRef.current });
+    if (saved) {
+      dirtyRef.current = false;
+      setSaveState('saved');
+      if (onSaved) onSaved(saved);
+    } else {
+      setSaveState('failed');
+    }
+  }, [msg, onSave, onSaved]);
+
+  const scheduleSave = () => {
+    dirtyRef.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(persist, DRAFT_AUTOSAVE_MS);
+  };
+
+  // Flush any unsaved edit when the editor unmounts (mail switched / screen left).
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+    if (dirtyRef.current) onSave(msg, { subject: subjectRef.current, text: textRef.current });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSubjectChange = (v) => { setSubject(v); subjectRef.current = v; scheduleSave(); };
+  const handleTextChange = (v) => { setText(v); textRef.current = v; scheduleSave(); };
+
+  const handleSend = async () => {
+    setSending(true);
+    if (timer.current) clearTimeout(timer.current);
+    if (dirtyRef.current) await persist();
+    const ok = await onSend(msg);
+    if (!ok) setSending(false);
+  };
+
+  const handleDiscard = async () => {
+    setDiscarding(true);
+    if (timer.current) clearTimeout(timer.current);
+    const ok = await onDiscard(msg);
+    if (!ok) setDiscarding(false);
+  };
+
+  const busy = sending || discarding;
+
+  return (
+    <div className="ea-draft-inline">
+      <input
+        type="text"
+        className="ea-draft-inline-subject"
+        value={subject}
+        onChange={(e) => handleSubjectChange(e.target.value)}
+        placeholder="Subject"
+        disabled={busy}
+      />
+      <textarea
+        className="ea-draft-inline-body"
+        rows={8}
+        value={text}
+        onChange={(e) => handleTextChange(e.target.value)}
+        placeholder="Write your draft…"
+        disabled={busy}
+      />
+      <div className="ea-draft-inline-foot">
+        <span className={cn('ea-draft-savestate', `ea-draft-savestate--${saveState || 'idle'}`)}>
+          {saveState === 'saving' && (<><i className="pi pi-spin pi-spinner" /> Saving…</>)}
+          {saveState === 'saved' && (<><i className="pi pi-check" /> Saved</>)}
+          {saveState === 'failed' && (<><i className="pi pi-exclamation-triangle" /> Not saved</>)}
+        </span>
+        <div className="ea-draft-inline-btns">
+          <Button
+            size="sm"
+            variant="outline"
+            className="ea-draft-discard-btn"
+            onClick={handleDiscard}
+            disabled={busy}
+          >
+            {discarding ? <i className="pi pi-spin pi-spinner" /> : <Trash2 size={13} />} Discard
+          </Button>
+          <Button
+            size="sm"
+            className="ea-draft-send-btn"
+            onClick={handleSend}
+            disabled={busy || !text.trim()}
+          >
+            {sending
+              ? (<><i className="pi pi-spin pi-spinner" style={{ marginRight: 4 }} /> Sending…</>)
+              : (<><Send size={13} /> Send</>)}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -254,6 +464,17 @@ const EmailAnalysisMails = () => {
   const [syncing, setSyncing] = useState(false);
   const [showReadingPaneMobile, setShowReadingPaneMobile] = useState(false);
 
+  // Connected provider ('gmail' | 'outlook') — drives the folder-bar styling.
+  const [provider, setProvider] = useState('gmail');
+  // Provider folder + AI category filters.
+  const [folder, setFolder] = useState('inbox');
+  const [category, setCategory] = useState('');
+
+  // Full conversation of the opened mail. Only messages whose providerMessageId
+  // is in `expandedMsgs` are shown expanded (the rest collapse to one line).
+  const [thread, setThread] = useState([]);
+  const [expandedMsgs, setExpandedMsgs] = useState(() => new Set());
+
   // One-click cleanup (remove junk / promotional / low-priority mail).
   const [cleanup, setCleanup] = useState({
     visible: false, loading: false, counts: null, removing: false,
@@ -262,10 +483,23 @@ const EmailAnalysisMails = () => {
 
   // 'inbox' = normal split view, 'priority' = grouped priority table
   const [viewMode, setViewMode] = useState('inbox');
-  const [mailDialog, setMailDialog] = useState(false); // mail viewer in priority mode
+  const [priorityReading, setPriorityReading] = useState(false); // full-screen mail viewer in priority mode
   const [prioritizing, setPrioritizing] = useState(false);
 
   const searchDebounce = useRef(null);
+
+  /* -------------------- provider detection (for folder-bar styling) ---- */
+  useEffect(() => {
+    (async () => {
+      try {
+        const outlook = await fetchMethodRequest('GET', 'auth/microsoft/outlook/status');
+        if (outlook?.connected) { setProvider('outlook'); return; }
+        const status = await fetchMethodRequest('GET', 'auth/google/email-analysis/status');
+        const p = String(status?.provider || '').toLowerCase();
+        setProvider(p.includes('outlook') || p.includes('microsoft') ? 'outlook' : 'gmail');
+      } catch { /* keep the gmail default */ }
+    })();
+  }, []);
 
   /* -------------------- data fetching -------------------- */
   const fetchMails = useCallback(async (page, limit, searchTerm, range) => {
@@ -279,6 +513,8 @@ const EmailAnalysisMails = () => {
         direction: 'desc',
         search: searchTerm || '',
         loginUserEmailId: getLoginEmail(),
+        folder,
+        ...(category ? { category } : {}),
         ...(range?.from ? { fromDate: range.from } : {}),
         ...(range?.to ? { toDate: range.to } : {}),
       };
@@ -293,7 +529,22 @@ const EmailAnalysisMails = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [folder, category]);
+
+  // Changing folder/category restarts from the first page and closes the reader.
+  const selectFolder = (key) => {
+    if (key === folder) return;
+    setFolder(key);
+    setFirst(0);
+    setSelectedId(null);
+    setSelectedMail(null);
+    setShowReadingPaneMobile(false);
+  };
+
+  const selectCategory = (value) => {
+    setCategory(value);
+    setFirst(0);
+  };
 
   useEffect(() => {
     const page = Math.floor(first / rows) + 1;
@@ -325,10 +576,34 @@ const EmailAnalysisMails = () => {
     setMailLoading(true);
     setMailError(null);
     setSelectedMail(null);
+    setThread([]);
+    setExpandedMsgs(new Set());
+
+    // Mark as read in the real mailbox too (fire-and-forget, like Gmail/Outlook).
+    if ((mail.labels || []).includes('UNREAD') && mail.providerMessageId) {
+      fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
+        messageIds: [mail.providerMessageId],
+        isRead: true,
+        loginUserEmailId: getLoginEmail(),
+      }).catch(() => {});
+      setMails(prev => prev.map(m => (
+        m._id === mail._id ? { ...m, labels: (m.labels || []).filter(l => l !== 'UNREAD') } : m
+      )));
+    }
+
     try {
       const res = await fetchMethodRequest('GET', `email-analysis/mails/${mail._id}`);
       if (res?.mail) {
         setSelectedMail(res.mail);
+        // Only the first message of the conversation starts expanded.
+        setExpandedMsgs(new Set([res.mail.providerMessageId]));
+        loadThread(mail._id, res.mail);
+        // Pre-generate the AI reply in the background the first time the mail is
+        // read — the server caches it on the mail, so the "AI draft reply" button
+        // (and every later open) returns instantly instead of re-generating.
+        if (!isDraftMail(res.mail) && !res.mail.aiReply?.text) {
+          fetchMethodRequest('POST', `email-analysis/mails/${mail._id}/generate-reply`, {}).catch(() => {});
+        }
       } else {
         setMailError('This email could not be found.');
       }
@@ -338,6 +613,140 @@ const EmailAnalysisMails = () => {
       setMailLoading(false);
     }
   }, []);
+
+  // Fetch the whole conversation the opened mail belongs to (oldest first).
+  const loadThread = async (mailId, openedMail) => {
+    try {
+      const res = await fetchMethodRequest('GET', `email-analysis/mails/${mailId}/conversation`);
+      let msgs = Array.isArray(res?.mails) ? res.mails : [];
+      // Make sure the opened mail itself is present, then sort chronologically.
+      if (!msgs.some(m => m.providerMessageId === openedMail.providerMessageId)) {
+        msgs = [...msgs, openedMail];
+      }
+      msgs.sort((a, b) => new Date(a.receivedAt || 0) - new Date(b.receivedAt || 0));
+      setThread(msgs);
+      setExpandedMsgs(new Set([msgs[0]?.providerMessageId].filter(Boolean)));
+    } catch {
+      setThread([openedMail]);
+      setExpandedMsgs(new Set([openedMail.providerMessageId]));
+    }
+  };
+
+  const toggleThreadMsg = (id) => {
+    setExpandedMsgs(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  /* -------------------- mail actions (delete) --------------------------- */
+  const [deletingMail, setDeletingMail] = useState(false);
+
+  const closeReader = () => {
+    setSelectedId(null);
+    setSelectedMail(null);
+    setThread([]);
+    setShowReadingPaneMobile(false);
+    if (viewMode === 'priority') setPriorityReading(false);
+  };
+
+  // Delete the opened mail — provider + local. (Drafts use their own inline
+  // Discard button instead, since discarding also needs to clear the editor.)
+  const deleteOpenMail = async () => {
+    if (!selectedMail?.providerMessageId) return;
+    if (!window.confirm('Delete this email? It will also be removed from your mailbox.')) return;
+    setDeletingMail(true);
+    try {
+      const res = await fetchMethodRequest('POST', 'email-analysis/mail/delete', {
+        messageIds: [selectedMail.providerMessageId],
+        loginUserEmailId: getLoginEmail(),
+      });
+      if (res?.respCode) {
+        showToasterMessage('Email deleted', 'success');
+        closeReader();
+        refresh();
+      } else {
+        showToasterMessage(res?.errorMessage || 'Could not delete', 'error');
+      }
+    } catch {
+      showToasterMessage('Delete failed. Please try again.', 'error');
+    } finally {
+      setDeletingMail(false);
+    }
+  };
+
+  // Discard a draft message shown inline in the thread — deletes it at the
+  // provider (Drafts folder) and locally, then closes the reader.
+  const discardDraftMessage = async (msg) => {
+    if (!msg?.providerMessageId && !msg?.localDraftId) return false;
+    if (!window.confirm('Discard this draft?')) return false;
+    try {
+      const res = msg.localDraftId
+        ? await fetchMethodRequest('DELETE', `email-analysis/drafts/${msg.localDraftId}`)
+        : await fetchMethodRequest('POST', 'email-analysis/mail/delete', {
+            messageIds: [msg.providerMessageId],
+            loginUserEmailId: getLoginEmail(),
+          });
+      if (res?.respCode) {
+        showToasterMessage('Draft discarded', 'success');
+        closeReader();
+        refresh();
+        return true;
+      }
+      showToasterMessage(res?.errorMessage || 'Could not discard draft', 'error');
+    } catch {
+      showToasterMessage('Discard failed. Please try again.', 'error');
+    }
+    return false;
+  };
+
+  // Send a draft message shown inline in the thread as-is.
+  const sendDraftMessage = async (msg) => {
+    if (!msg?._id) return false;
+    try {
+      const res = msg.localDraftId
+        ? await fetchMethodRequest('POST', `email-analysis/drafts/${msg.localDraftId}/send`)
+        : await fetchMethodRequest('POST', `email-analysis/mails/${msg._id}/draft/send`, {});
+      if (res?.respCode === 200) {
+        showToasterMessage('Email sent', 'success');
+        closeReader();
+        refresh();
+        return true;
+      }
+      showToasterMessage(res?.errorMessage || 'Send failed. Please try again.', 'error');
+    } catch {
+      showToasterMessage('Send failed. Please try again.', 'error');
+    }
+    return false;
+  };
+
+  // Persist inline edits to a draft (used for both debounced auto-save and
+  // the flush-on-unmount when the user moves to another mail/screen).
+  const saveDraftMessage = async (msg, { subject, text }) => {
+    if (!msg?._id) return null;
+    try {
+      const body = textToHtml(text);
+      if (msg.localDraftId) {
+        const res = await fetchMethodRequest('POST', `email-analysis/drafts/${msg.localDraftId}/autosave`, {
+          subject,
+          body,
+        });
+        if (res?.respCode === 200) {
+          return {
+            ...msg,
+            subject,
+            body,
+            snippet: text.replace(/\s+/g, ' ').trim().slice(0, 200),
+          };
+        }
+        return null;
+      }
+      const res = await fetchMethodRequest('PUT', `email-analysis/mails/${msg._id}/draft`, { subject, body });
+      if (res?.respCode === 200 && res?.mail) return res.mail;
+    } catch { /* surfaced via the editor's own save-state indicator */ }
+    return null;
+  };
 
   /* -------------------- sync now -------------------- */
   const onSyncNow = async () => {
@@ -505,12 +914,22 @@ const EmailAnalysisMails = () => {
     }
   };
 
-  const openMailPriority = (mail) => { openMail(mail); setMailDialog(true); };
+  const openMailPriority = (mail) => { openMail(mail); setPriorityReading(true); };
+
+  const closePriorityReading = () => {
+    setPriorityReading(false);
+    setSelectedId(null);
+    setSelectedMail(null);
+  };
 
   /* -------------------- render: list item -------------------- */
   const renderListItem = (mail) => {
     const { name } = parseAddress(mail.from);
-    const isRead = readIds.has(mail._id) || !(mail.labels || []).includes('UNREAD');
+    const isDraft = isDraftMail(mail);
+    // Outlook/Gmail style: drafts are listed by recipient, prefixed "[Draft]" in red.
+    const recipient = parseAddress(mail.to).name || 'No recipient';
+    const displayName = isDraft ? recipient : name;
+    const isRead = isDraft || readIds.has(mail._id) || !(mail.labels || []).includes('UNREAD');
     const isSelected = selectedId === mail._id;
     return (
       <div
@@ -521,12 +940,15 @@ const EmailAnalysisMails = () => {
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter') openMail(mail); }}
       >
-        <span className="ea-avatar" style={{ backgroundColor: colorFor(name) }}>
-          {initialOf(name)}
+        <span className="ea-avatar" style={{ backgroundColor: colorFor(displayName) }}>
+          {initialOf(displayName)}
         </span>
         <div className="ea-row-main">
           <div className="ea-row-top">
-            <span className="ea-sender" title={mail.from}>{name}</span>
+            <span className="ea-sender" title={isDraft ? mail.to : mail.from}>
+              {isDraft && <span className="ea-draft-tag">[Draft]</span>}
+              {displayName}
+            </span>
             <span className="ea-time">{formatListTime(mail.receivedAt)}</span>
           </div>
           <div className="ea-row-bottom">
@@ -543,6 +965,7 @@ const EmailAnalysisMails = () => {
               {mail.subject || '(no subject)'}
               {mail.snippet && <span className="ea-snippet"> — {mail.snippet}</span>}
             </span>
+            {mail.category && <span className="ea-cat-chip" title={`Category: ${mail.category}`}>{mail.category}</span>}
             {mail.hasAttachments && <i className="pi pi-paperclip ea-clip" />}
           </div>
         </div>
@@ -550,52 +973,47 @@ const EmailAnalysisMails = () => {
     );
   };
 
-  /* -------------------- render: reading pane -------------------- */
-  const renderReadingPane = () => {
-    if (mailLoading) {
-      return (
-        <div className="ea-reader-state">
-          <i className="pi pi-spin pi-spinner" />
-          <span>Loading email…</span>
-        </div>
-      );
-    }
-    if (mailError) {
-      return (
-        <div className="ea-reader-state">
-          <i className="pi pi-exclamation-triangle" />
-          <span>{mailError}</span>
-        </div>
-      );
-    }
-    if (!selectedMail) {
-      return (
-        <div className="ea-reader-empty">
-          <i className="pi pi-envelope" />
-          <h3>Select an email to read</h3>
-          <p>Choose a message from the list to view it here.</p>
-        </div>
-      );
-    }
+  /* -------------------- render: one message of a conversation ---------- */
+  const renderThreadMessage = (msg, idx, isExpanded, isOnly) => {
+    const from = parseAddress(msg.from);
+    const to = parseAddress(msg.to);
+    const attachments = msg.attachments || [];
+    const key = msg.providerMessageId || msg._id || idx;
 
-    const from = parseAddress(selectedMail.from);
-    const to = parseAddress(selectedMail.to);
-    const attachments = selectedMail.attachments || [];
+    if (!isExpanded) {
+      const tag = mailTag(msg);
+      return (
+        <button
+          type="button"
+          key={key}
+          className="ea-thread-collapsed"
+          onClick={() => toggleThreadMsg(msg.providerMessageId)}
+          title="Show this message"
+        >
+          <span className="ea-avatar sm" style={{ backgroundColor: colorFor(from.name) }}>
+            {initialOf(from.name)}
+          </span>
+          <span className="ea-thread-sender">{from.name}</span>
+          <span className="ea-thread-snippet">{msg.snippet || ''}</span>
+          <span className="ea-thread-date">{formatListTime(msg.receivedAt)}</span>
+          <span className="ea-mail-tag" style={{ color: tag.color, background: tag.bg, marginLeft: 'auto', flex: 'none' }}>{tag.label}</span>
+        </button>
+      );
+    }
 
     return (
-      <div className="ea-reader">
-        <div className="ea-reader-toolbar">
-          <Button
-            size="icon"
-            className="ea-back-btn"
-            onClick={() => setShowReadingPaneMobile(false)}
-            aria-label="Back"
-          >
-          </Button>
-          <p className="ea-reader-subject">{selectedMail.subject || '(no subject)'}</p>
-        </div>
-
-        <div className="ea-reader-meta">
+      <div className="ea-thread-msg" key={key}>
+        {isDraftMail(msg) && (
+          <div className="ea-draft-banner">
+            <i className="pi pi-pencil" />
+            <span><b>[Draft]</b> This message hasn&apos;t been sent.</span>
+          </div>
+        )}
+        <div
+          className={cn('ea-reader-meta', { 'ea-thread-toggle': !isOnly })}
+          onClick={() => { if (!isOnly) toggleThreadMsg(msg.providerMessageId); }}
+          role={isOnly ? undefined : 'button'}
+        >
           <span className="ea-avatar lg" style={{ backgroundColor: colorFor(from.name) }}>
             {initialOf(from.name)}
           </span>
@@ -603,18 +1021,47 @@ const EmailAnalysisMails = () => {
             <div className="ea-meta-line">
               <span className="ea-from-name">{from.name}</span>
               {from.email && <span className="ea-from-email">&lt;{from.email}&gt;</span>}
+              <div className="ea-badges-container">
+                {(() => { const t = mailTag(msg); return (
+                  <span className="ea-mail-tag" style={{ color: t.color, background: t.bg }}>{t.label}</span>
+                ); })()}
+                {msg.priority && PRIORITY_META[msg.priority] && (
+                  <span
+                    className="ea-priority-badge"
+                    style={{ color: PRIORITY_META[msg.priority].color, background: PRIORITY_META[msg.priority].bg }}
+                    title={msg.intent ? `${msg.priority} · ${msg.intent}` : msg.priority}
+                  >
+                    {msg.priority}
+                  </span>
+                )}
+                {msg.category && (
+                  <span className="ea-cat-chip" title={`Category: ${msg.category}`}>{msg.category}</span>
+                )}
+              </div>
             </div>
             <div className="ea-meta-sub">
               to {to.name || to.email || 'me'}
-              {(selectedMail.cc || []).length > 0 && `, cc: ${selectedMail.cc.join(', ')}`}
+              {(msg.cc || []).length > 0 && `, cc: ${msg.cc.join(', ')}`}
             </div>
           </div>
-          <div className="ea-meta-date">{formatFullDate(selectedMail.receivedAt)}</div>
+          <div className="ea-meta-date">{formatFullDate(msg.receivedAt)}</div>
         </div>
 
-
-
-        <MailBody body={selectedMail.body} snippet={selectedMail.snippet} />
+        {isDraftMail(msg) ? (
+          <DraftThreadEditor
+            key={msg._id}
+            msg={msg}
+            onSave={saveDraftMessage}
+            onSaved={(updated) => {
+              setThread((prev) => prev.map((m) => (m._id === updated._id ? updated : m)));
+              if (selectedMail?._id === updated._id) setSelectedMail(updated);
+            }}
+            onSend={sendDraftMessage}
+            onDiscard={discardDraftMessage}
+          />
+        ) : (
+          <MailBody body={msg.body} snippet={msg.snippet} />
+        )}
 
         {attachments.length > 0 && (
           <div className="ea-attachments">
@@ -651,16 +1098,98 @@ const EmailAnalysisMails = () => {
             </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  /* -------------------- render: reading pane -------------------- */
+  const renderReadingPane = () => {
+    if (mailLoading) {
+      return (
+        <div className="ea-reader-state">
+          <i className="pi pi-spin pi-spinner" />
+          <span>Loading email…</span>
+        </div>
+      );
+    }
+    if (mailError) {
+      return (
+        <div className="ea-reader-state">
+          <i className="pi pi-exclamation-triangle" />
+          <span>{mailError}</span>
+        </div>
+      );
+    }
+    if (!selectedMail) {
+      return (
+        <div className="ea-reader-empty">
+          <i className="pi pi-envelope" />
+          <h3>Select an email to read</h3>
+          <p>Choose a message from the list to view it here.</p>
+        </div>
+      );
+    }
+
+    // The conversation (oldest first); until it loads, show the opened mail alone.
+    const msgs = thread.length ? thread : [selectedMail];
+
+    return (
+      <div className="ea-reader">
+        <div className="ea-reader-toolbar">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="ea-back-btn"
+            onClick={() => {
+              if (viewMode === 'priority') closePriorityReading();
+              else setShowReadingPaneMobile(false);
+            }}
+            aria-label="Back to list"
+            title="Back to list"
+          >
+            <ArrowLeft size={16} />
+          </Button>
+          <p className="ea-reader-subject">{selectedMail.subject || '(no subject)'}</p>
+          {msgs.length > 1 && <span className="ea-thread-count">{msgs.length} messages</span>}
+          <div className="ea-reader-actions">
+            {!isDraftMail(selectedMail) && (
+              <button
+                type="button"
+                className="ea-icon-btn ea-icon-btn--danger"
+                onClick={deleteOpenMail}
+                disabled={deletingMail}
+                title="Delete email"
+                aria-label="Delete email"
+              >
+                {deletingMail ? <i className="pi pi-spin pi-spinner" /> : <Trash2 size={15} />}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="ea-thread">
+          {msgs.map((msg, idx) => renderThreadMessage(
+            msg,
+            idx,
+            msgs.length === 1 || expandedMsgs.has(msg.providerMessageId),
+            msgs.length === 1,
+          ))}
+        </div>
 
         {/* Quick replies + AI draft reply — sticky footer, Gmail-style:
-            stays visible while reading, settles into flow at the mail's end */}
-        <div className="ea-reply-section">
-          {/* <QuickReplies sourceId={selectedMail.providerMessageId} /> */}
-          <AiDraftReply
-            mailId={selectedMail._id}
-            sourceId={selectedMail.providerMessageId}
-          />
-        </div>
+            stays visible while reading, settles into flow at the mail's end.
+            Hidden for drafts (you don't reply to your own unsent mail). */}
+        {!isDraftMail(selectedMail) && (
+          <div className="ea-reply-section">
+            {/* <QuickReplies sourceId={selectedMail.providerMessageId} /> */}
+            <AiDraftReply
+              key={selectedMail._id}
+              mailId={selectedMail._id}
+              sourceId={selectedMail.providerMessageId}
+              mail={selectedMail}
+            />
+          </div>
+        )}
       </div>
     );
   };
@@ -776,12 +1305,12 @@ const EmailAnalysisMails = () => {
   };
 
   return (
-    <div className={cn('email-analysis-mails', { 'reading-mobile': showReadingPaneMobile, 'priority-mode': viewMode === 'priority' })}>
+    <div className={cn('email-analysis-mails', `ea-provider-${provider}`, { 'reading-mobile': showReadingPaneMobile, 'priority-mode': viewMode === 'priority' })}>
       {/* Header */}
       <div className="ea-header">
         <div className="ea-title">
           <i className="pi pi-envelope fw-bold" />
-          <span>Inbox</span>
+          <span>{FOLDERS.find((f) => f.key === folder)?.label || 'Inbox'}</span>
         </div>
         <div className="ea-search">
           <span className="ea-search-field">
@@ -805,7 +1334,11 @@ const EmailAnalysisMails = () => {
           </span>
         </div>
         <div className="ea-actions">
-          <Tabs value={viewMode} onValueChange={(v) => v && setViewMode(v)} className="ea-viewtoggle">
+          <Tabs
+            value={viewMode}
+            onValueChange={(v) => { if (v) { setViewMode(v); setPriorityReading(false); } }}
+            className="ea-viewtoggle"
+          >
             <TabsList>
               {VIEW_OPTIONS.map((o) => (
                 <TabsTrigger key={o.value} value={o.value}>
@@ -859,9 +1392,41 @@ const EmailAnalysisMails = () => {
 
       </div>
 
-      {/* Sub-toolbar: date filter + Gmail-style pager */}
+      {/* Sub-toolbar: folders + category filter + date filter + pager */}
       <div className="ea-subbar">
         <div className="ea-subbar-left">
+          {/* Provider folders — styled like Outlook or Gmail per the connected account */}
+          <div className="ea-folderbar" role="tablist" aria-label="Mail folders">
+            {FOLDERS.map(({ key, label, Icon }) => (
+              <button
+                type="button"
+                key={key}
+                role="tab"
+                aria-selected={folder === key}
+                className={cn('ea-folder-btn', { active: folder === key })}
+                onClick={() => selectFolder(key)}
+              >
+                <Icon size={14} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* AI category dropdown */}
+          <div className={cn('ea-cat-filter', { active: !!category })} title="Filter by AI category">
+            <Tag size={13} />
+            <select
+              className="ea-cat-select"
+              value={category}
+              onChange={(e) => selectCategory(e.target.value)}
+              aria-label="Filter by category"
+            >
+              <option value="">All categories</option>
+              {MAIL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <ChevronDown size={13} className="ea-cat-caret" />
+          </div>
+
           <button
             type="button"
             className={cn('ea-datefilter-btn', { active: hasDateFilter })}
@@ -915,15 +1480,11 @@ const EmailAnalysisMails = () => {
           <div className="ea-reader-pane">{renderReadingPane()}</div>
         </div>
       ) : (
-        <div className="ea-prio-body">{renderPriorityTable()}</div>
+        <div className="ea-prio-body">
+          {/* Gmail-style: clicking a row replaces the table with the full mail in-screen */}
+          {priorityReading ? renderReadingPane() : renderPriorityTable()}
+        </div>
       )}
-
-      {/* Mail viewer for priority mode (no side reading pane there) */}
-      <Dialog open={mailDialog} onOpenChange={(o) => !o && setMailDialog(false)}>
-        <DialogContent className="ea-dialog-content max-w-[720px] w-[96vw]">
-          {renderReadingPane()}
-        </DialogContent>
-      </Dialog>
 
       {/* Date-range filter popup */}
       <Dialog open={dateDialog} onOpenChange={(o) => !o && setDateDialog(false)}>

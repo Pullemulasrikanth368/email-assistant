@@ -4,7 +4,6 @@ import path from "path";
 
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
-import Settings from "../../models/settings.model";
 import OutlookAuthService from "./outlook.auth.service";
 import syncProgress from "./syncProgress";
 import { safeAttachmentFilename } from "../../utils/gmailMessage.util";
@@ -14,6 +13,16 @@ const UPLOAD_REL = "server/upload/email-analysis";
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 const BACKFILL_DAYS = 30;
 const INITIAL_MAX_RESULTS = 500;
+
+// Outlook folders we sync, with our sourceFolder tag and the user-doc field
+// holding each folder's incremental delta cursor.
+const SYNC_FOLDERS = [
+  { folder: "inbox", tag: "inbox", cursorField: "deltaLink" },
+  { folder: "junkemail", tag: "junk", cursorField: "junkDeltaLink" },
+  { folder: "sentitems", tag: "sent", cursorField: "sentDeltaLink" },
+  { folder: "drafts", tag: "draft", cursorField: "draftDeltaLink" },
+];
+const FOLDER_TAG = Object.fromEntries(SYNC_FOLDERS.map((f) => [f.folder, f.tag]));
 
 const escapeODataString = (value = "") => String(value).replace(/'/g, "''");
 
@@ -114,16 +123,6 @@ export default class OutlookMessagesService {
     }
   }
 
-  async #includeSpamEnabled() {
-    try {
-      const settings = await Settings.findOne({ active: true }).select("emailAnalysisIncludeSpam").lean();
-      return !!settings?.emailAnalysisIncludeSpam;
-    } catch (err) {
-      console.error("[EmailAnalysis] Could not read include-spam setting:", err.message);
-      return false;
-    }
-  }
-
   async syncForUser() {
     syncProgress.begin(this.email);
     try {
@@ -145,6 +144,7 @@ export default class OutlookMessagesService {
       await this.#loadUser();
       const messages = await this.#listRecentMessages(days);
       const saved = await this.#saveMessages(messages);
+      await this.#reconcileDrafts(messages, days);
       if (!this.user.deltaLink) await this.#baselineDelta();
       this.user.initialSyncDone = true;
       this.user.lastSyncedAt = new Date();
@@ -161,6 +161,7 @@ export default class OutlookMessagesService {
     console.log(`[EmailAnalysis] Outlook initial sync (last ${BACKFILL_DAYS}d) for ${this.email}`);
     const messages = await this.#listRecentMessages(BACKFILL_DAYS);
     const saved = await this.#saveMessages(messages);
+    await this.#reconcileDrafts(messages, BACKFILL_DAYS);
     await this.#baselineDelta();
     this.user.initialSyncDone = true;
     this.user.lastSyncedAt = new Date();
@@ -171,18 +172,17 @@ export default class OutlookMessagesService {
   async #incrementalSync() {
     console.log(`[EmailAnalysis] Outlook incremental sync for ${this.email}`);
     const messages = [];
-    let next = this.user.deltaLink;
+    const removed = [];
 
     try {
-      do {
-        const data = await this.#graph("GET", next);
-        messages.push(...(data.value || []).filter((m) => !m["@removed"]));
-        next = data["@odata.nextLink"];
-        if (data["@odata.deltaLink"]) {
-          this.user.deltaLink = data["@odata.deltaLink"];
-          next = null;
-        }
-      } while (next);
+      // Each synced folder keeps its own delta cursor. Accounts baselined
+      // before a folder was added won't have that cursor yet — baseline it
+      // on the fly (which also backfills that folder).
+      for (const { folder, tag, cursorField } of SYNC_FOLDERS) {
+        this.user[cursorField] = this.user[cursorField]
+          ? await this.#walkDelta(this.user[cursorField], messages, tag, removed)
+          : await this.#walkDelta(folder, messages);
+      }
     } catch (err) {
       console.warn(`[EmailAnalysis] Outlook delta expired for ${this.email}; re-baselining: ${err.message}`);
       await this.#baselineDelta();
@@ -192,18 +192,59 @@ export default class OutlookMessagesService {
     }
 
     const saved = await this.#saveMessages(messages);
+    const deleted = await this.#deactivateRemoved(removed);
     this.user.lastSyncedAt = new Date();
     await EmailAnalysisUser.saveData(this.user);
-    return { mode: "incremental", saved, deltaLink: this.user.deltaLink };
+    return { mode: "incremental", saved, deleted, deltaLink: this.user.deltaLink };
+  }
+
+  /**
+   * Soft-delete mails that were deleted/moved away at the provider (delta
+   * `@removed` entries), so drafts discarded or sent in Outlook — and mail
+   * deleted there — disappear here too.
+   */
+  async #deactivateRemoved(removedIds = []) {
+    const ids = [...new Set(removedIds.filter(Boolean))];
+    if (!ids.length) return 0;
+    const res = await EmailAnalysisMail.updateMany(
+      { email: this.email, provider: "outlook", providerMessageId: { $in: ids }, active: true },
+      { $set: { active: false, removedAt: new Date(), removedReason: "removed-at-provider" } }
+    );
+    const n = res?.modifiedCount || 0;
+    if (n) console.log(`[EmailAnalysis] Outlook: deactivated ${n} provider-removed mail(s) for ${this.email}`);
+    return n;
+  }
+
+  /**
+   * Reconcile drafts against the provider after a full folder listing: any
+   * stored draft in the sync window that no longer exists in Outlook's Drafts
+   * folder was discarded or sent — deactivate it. Skipped when the listing hit
+   * the result cap (the live set would be incomplete).
+   */
+  async #reconcileDrafts(messages, days) {
+    if ((messages || []).length >= INITIAL_MAX_RESULTS) return 0;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const liveIds = messages.filter((m) => m._sourceFolder === "draft").map((m) => m.id);
+    const res = await EmailAnalysisMail.updateMany(
+      {
+        email: this.email,
+        provider: "outlook",
+        sourceFolder: "draft",
+        active: true,
+        receivedAt: { $gte: since },
+        providerMessageId: { $nin: liveIds },
+      },
+      { $set: { active: false, removedAt: new Date(), removedReason: "draft-removed-at-provider" } }
+    );
+    return res?.modifiedCount || 0;
   }
 
   async #listRecentMessages(days) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-    const includeSpam = await this.#includeSpamEnabled();
-    const folders = includeSpam ? ["inbox", "junkemail"] : ["inbox"];
     const all = [];
 
-    for (const folder of folders) {
+    // Read ALL mail types: inbox, junk, sent and drafts folders.
+    for (const { folder, tag } of SYNC_FOLDERS) {
       let url = `/me/mailFolders/${folder}/messages`;
       let params = {
         $top: 50,
@@ -214,7 +255,10 @@ export default class OutlookMessagesService {
 
       do {
         const data = await this.#graph("GET", url, { params });
-        all.push(...(data.value || []));
+        (data.value || []).forEach((m) => {
+          m._sourceFolder = tag;
+          all.push(m);
+        });
         url = data["@odata.nextLink"];
         params = null;
       } while (url && all.length < INITIAL_MAX_RESULTS);
@@ -223,17 +267,40 @@ export default class OutlookMessagesService {
     return all.slice(0, INITIAL_MAX_RESULTS);
   }
 
-  async #baselineDelta() {
-    let url = `/me/mailFolders/inbox/messages/delta`;
-    let params = { $select: this.#selectFields(), $top: 50 };
+  /**
+   * Walk a delta feed to its end, collecting non-removed messages (tagged with
+   * `_sourceFolder`) into `sink`. Accepts either a stored delta link or a
+   * folder name (to start a fresh baseline). Returns the new delta link.
+   */
+  async #walkDelta(linkOrFolder, sink = [], sourceFolder = null, removed = []) {
+    const isFolder = !!FOLDER_TAG[linkOrFolder];
+    const folderTag = sourceFolder || FOLDER_TAG[linkOrFolder] || "inbox";
+    let url = isFolder ? `/me/mailFolders/${linkOrFolder}/messages/delta` : linkOrFolder;
+    let params = isFolder ? { $select: this.#selectFields(), $top: 50 } : null;
     let deltaLink = null;
+
     do {
       const data = await this.#graph("GET", url, { params });
+      (data.value || []).forEach((m) => {
+        if (m["@removed"]) {
+          if (m.id) removed.push(m.id);
+          return;
+        }
+        m._sourceFolder = folderTag;
+        sink.push(m);
+      });
       deltaLink = data["@odata.deltaLink"] || deltaLink;
-      url = data["@odata.nextLink"];
+      url = data["@odata.deltaLink"] ? null : data["@odata.nextLink"];
       params = null;
     } while (url);
-    this.user.deltaLink = deltaLink;
+
+    return deltaLink;
+  }
+
+  async #baselineDelta() {
+    for (const { folder, cursorField } of SYNC_FOLDERS) {
+      this.user[cursorField] = await this.#walkDelta(folder);
+    }
   }
 
   #selectFields() {
@@ -279,7 +346,21 @@ export default class OutlookMessagesService {
           provider: "outlook",
           providerMessageId: message.id,
         });
-        if (existing) continue;
+        if (existing) {
+          // Drafts keep the same id while being edited — refresh their content.
+          if (message._sourceFolder === "draft") {
+            const fresh = this.#formatMessage(message);
+            await EmailAnalysisMail.updateOne(
+              { _id: existing._id },
+              { $set: {
+                subject: fresh.subject, body: fresh.body, snippet: fresh.snippet,
+                to: fresh.to, cc: fresh.cc, bcc: fresh.bcc,
+                labels: fresh.labels, receivedAt: fresh.receivedAt, active: true,
+              } }
+            );
+          }
+          continue;
+        }
 
         const emailObject = this.#formatMessage(message);
         emailObject.body = await this.resolveInlineCidImages(message.id, emailObject.body);
@@ -305,6 +386,8 @@ export default class OutlookMessagesService {
   }
 
   #formatMessage(message) {
+    const sourceFolder = message._sourceFolder || "inbox";
+    const isJunk = sourceFolder === "junk";
     return {
       email: this.email,
       provider: "outlook",
@@ -315,7 +398,9 @@ export default class OutlookMessagesService {
       replyTo: addressesToStrings(message.replyTo).join(", "),
       subject: message.subject || "",
       body: htmlOrText(message.body),
-      labels: [message.isRead ? "READ" : "UNREAD", message.importance].filter(Boolean),
+      labels: [message.isRead ? "READ" : "UNREAD", message.importance, isJunk ? "JUNK" : null].filter(Boolean),
+      sourceFolder,
+      isJunk,
       mimeType: message.body?.contentType === "html" ? "text/html" : "text/plain",
       snippet: message.bodyPreview || "",
       providerMessageId: message.id,
@@ -470,7 +555,8 @@ export default class OutlookMessagesService {
         },
       },
     });
-    return { to: mail.from, subject: mail.subject, threadId: mail.threadId || null, messageId: null };
+    const replyTo = mail.replyTo || mail.from;
+    return { to: replyTo, subject: mail.subject, threadId: mail.threadId || null, messageId: null };
   }
 
   async forwardMessage({ sourceId, to = [], comment = "" }) {
@@ -505,11 +591,75 @@ export default class OutlookMessagesService {
       await this.#graph("PATCH", `/me/messages/${encodeURIComponent(id)}`, { data: { isRead } });
       await EmailAnalysisMail.updateOne(
         { email: this.email, provider: "outlook", providerMessageId: id },
-        { $set: { labels: [isRead ? "READ" : "UNREAD"] } }
+        isRead ? { $pull: { labels: "UNREAD" } } : { $addToSet: { labels: "UNREAD" } }
       );
       updated += 1;
     }
     return { updated };
+  }
+
+  /**
+   * Update a synced Outlook draft in place (Graph PATCH keeps the same id).
+   */
+  async updateDraftByMessageId({ messageId, to = [], subject = "", body = "" }) {
+    await this.#loadUser();
+    await this.#graph("PATCH", `/me/messages/${encodeURIComponent(messageId)}`, {
+      data: {
+        subject: subject || "(no subject)",
+        body: { contentType: "HTML", content: body || "" },
+        toRecipients: recipientList(Array.isArray(to) ? to : [to]),
+      },
+    });
+    return { newMessageId: null };
+  }
+
+  /**
+   * Send an existing Outlook draft (identified by its message id) as-is.
+   */
+  async sendDraftByMessageId(messageId) {
+    await this.#loadUser();
+    await this.#graph("POST", `/me/messages/${encodeURIComponent(messageId)}/send`);
+    return { sentMessageId: null };
+  }
+
+  /**
+   * Move junk messages back to the real Inbox folder. Graph's move gives the
+   * message a NEW id, so the stored providerMessageId is updated from the
+   * response to keep reply/forward/mark-read working.
+   * @param {Array<string>} messageIds providerMessageIds
+   * @returns {Promise<{ rescued:number, failed:number }>}
+   */
+  async rescueFromJunk(messageIds = []) {
+    const ids = [...new Set((messageIds || []).filter(Boolean))];
+    if (!ids.length) return { rescued: 0, failed: 0 };
+    await this.#loadUser();
+
+    let rescued = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const moved = await this.#graph("POST", `/me/messages/${encodeURIComponent(id)}/move`, {
+          data: { destinationId: "inbox" },
+        });
+        await EmailAnalysisMail.updateOne(
+          { email: this.email, provider: "outlook", providerMessageId: id },
+          {
+            $set: {
+              providerMessageId: moved?.id || id,
+              isJunk: false,
+              sourceFolder: "inbox",
+              junkRescuedAt: new Date(),
+            },
+            $pull: { labels: "JUNK" },
+          }
+        );
+        rescued += 1;
+      } catch (err) {
+        failed += 1;
+        console.error(`[EmailAnalysis] Outlook junk rescue failed for ${id}:`, err.message);
+      }
+    }
+    return { rescued, failed };
   }
 
   async searchEmails(query, limit = 25) {

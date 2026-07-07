@@ -118,14 +118,14 @@ const Register = () => {
               <div className="space-y-1.5">
                 <label htmlFor="name" className="text-sm font-medium text-slate-700">Full name</label>
                 <div className="relative">
-                  <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
                   <Input
                     id="name"
                     type="text"
                     value={form.name}
                     onChange={set('name')}
                     placeholder="Jane Smith"
-                    className="pl-9 h-10"
+                    className="!pl-9 h-10"
                     autoComplete="name"
                     autoFocus
                     disabled={loading}
@@ -137,14 +137,14 @@ const Register = () => {
               <div className="space-y-1.5">
                 <label htmlFor="email" className="text-sm font-medium text-slate-700">Email address</label>
                 <div className="relative">
-                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
                   <Input
                     id="email"
                     type="email"
                     value={form.email}
                     onChange={set('email')}
                     placeholder="you@company.com"
-                    className="pl-9 h-10"
+                    className="!pl-9 h-10"
                     autoComplete="email"
                     disabled={loading}
                   />
@@ -155,21 +155,21 @@ const Register = () => {
               <div className="space-y-1.5">
                 <label htmlFor="password" className="text-sm font-medium text-slate-700">Password</label>
                 <div className="relative">
-                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={form.password}
                     onChange={set('password')}
                     placeholder="Min. 8 characters"
-                    className="pl-9 pr-10 h-10"
+                    className="!pl-9 !pr-10 h-10"
                     autoComplete="new-password"
                     disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center !p-0 !border-0 !bg-transparent appearance-none text-slate-400 hover:text-slate-600 transition-colors"
                     tabIndex={-1}
                   >
                     {showPassword ? (
@@ -185,14 +185,14 @@ const Register = () => {
               <div className="space-y-1.5">
                 <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">Confirm password</label>
                 <div className="relative">
-                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
                   <Input
                     id="confirmPassword"
                     type={showPassword ? 'text' : 'password'}
                     value={form.confirmPassword}
                     onChange={set('confirmPassword')}
                     placeholder="Re-enter your password"
-                    className={`pl-9 h-10 ${form.confirmPassword && form.confirmPassword !== form.password ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                    className={`!pl-9 h-10 ${form.confirmPassword && form.confirmPassword !== form.password ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                     autoComplete="new-password"
                     disabled={loading}
                   />
@@ -202,7 +202,7 @@ const Register = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full h-10 gap-2" disabled={loading}>
+              <Button type="submit" className="w-full h-10 gap-2 !border-0" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 size={15} className="animate-spin" />

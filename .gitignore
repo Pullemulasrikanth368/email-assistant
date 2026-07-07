@@ -6,4 +6,4 @@ server/package-lock.json
 server/logs/
 server/server/upload/
 client/dist/
-server/.env
+server/.envserver/server/emailAnalysis/output/

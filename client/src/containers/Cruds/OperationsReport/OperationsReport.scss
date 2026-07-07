@@ -509,11 +509,11 @@
 
   .orm-kp-title {
     font-weight: 650;
-    color: var(--ink);
+    color: rgb(0, 136, 129);
   }
 
   .orm-kp-summary {
-    color: var(--ink2);
+    color: black;
   }
 
   /* "Mails (n)" accordion per key point: toggles the badge list below */
@@ -578,19 +578,49 @@
     }
   }
 
-  // Column count comes from the report config (1-3), capped by viewport width; the
-  // effective count (and grid-template-columns) is computed in JS and set inline,
-  // so this only needs the shared row/gap behaviour.
-  .orm-grid {
+  // Row-based dashboard layout: each configured row is a 12-track grid and every
+  // column spans its configured col-N width. Per-row max height is set inline in JS
+  // (each column scrolls independently under the row's cap).
+  .orm-brow {
     display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 8px;
     align-items: start;
+    margin-bottom: 8px;
+  }
 
-    >div {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      min-width: 0;
+  .orm-bcol {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+
+    // The summary banner keeps its own top/bottom margin when full-width at the top;
+    // inside a column the flex gap already provides the spacing.
+    .orm-narr {
+      margin: 0;
+    }
+  }
+
+  @for $i from 1 through 12 {
+    .orm-bcol-#{$i} {
+      grid-column: span #{$i};
+    }
+  }
+
+  // Tablets: anything narrower than half-width becomes half-width so it stays readable.
+  @media (max-width: 1100px) {
+    @for $i from 1 through 5 {
+      .orm-bcol-#{$i} {
+        grid-column: span 6;
+      }
+    }
+  }
+
+  // Phones: everything stacks full-width (rows keep their max-height and scroll).
+  @media (max-width: 720px) {
+    .orm-bcol {
+      grid-column: span 12;
     }
   }
 
@@ -629,7 +659,7 @@
       margin-left: auto;
     }
 
-    .n + .orm-info-btn {
+    .n+.orm-info-btn {
       margin-left: 0;
     }
   }
@@ -1152,7 +1182,6 @@
     }
 
     .summary {
-      color: var(--ink2);
       font-size: 11.5px;
       line-height: 1.4;
       margin-top: 3px;
@@ -1176,41 +1205,348 @@
     font-weight: 800 !important;
   }
 
-  .reason {
-    color: var(--muted);
-  }
+  /* Triage — one accordion per repeat sender, mails bucketed by AI category */
+  .orm-sender-group {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    margin: 6px 0;
+    overflow: hidden;
 
-  /* Mail briefs */
-  .orm-mailbrief {
-    border-top: 1px solid var(--line);
-    padding: 9px 0;
-    cursor: pointer;
+    .orm-sg-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 9px;
+      cursor: pointer;
+      user-select: none;
+      background: #f6f7f9;
 
-    &:first-of-type {
-      border-top: none;
+      &:hover {
+        background: #eef0f3;
+      }
+
+      .pi {
+        font-size: 9px;
+        color: var(--muted);
+      }
+
+      .orm-mail-icon {
+        margin-top: 0;
+      }
     }
 
-    &:hover {
-      background: var(--paper);
-    }
-
-    .mb-subject {
-      font-weight: 600;
+    .orm-sg-name {
+      font-weight: 700;
       font-size: 12.5px;
       color: var(--ink);
     }
 
-    .mb-from {
-      font-size: 11px;
+    .orm-sg-count {
+      font-family: var(--mono);
+      font-size: 10.5px;
       color: var(--muted);
-      margin-top: 2px;
+      background: #e9ebee;
+      border-radius: 10px;
+      padding: 1px 8px;
     }
 
-    .mb-brief {
+    // Per-tier mail counts: red = critical, yellow = important, gray = low.
+    .orm-sg-tiers {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+    }
+
+    .orm-sg-preview {
+      padding: 0 9px 7px 32px;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.4;
+      background: #f6f7f9;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .orm-sg-body {
+      padding: 2px 9px 7px;
+    }
+
+    .orm-sg-cat-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      margin: 8px 0 3px;
+
+      .n {
+        background: #e9ebee;
+        border-radius: 10px;
+        padding: 0 7px;
+      }
+    }
+
+    // Category groups inside a sender are themselves accordions, tinted by
+    // the highest tier they contain (red critical / yellow important / gray low).
+    .orm-sg-cat-toggle {
+      cursor: pointer;
+      user-select: none;
+      background: #f2f3f5;
+      border-left: 4px solid #9aa1ab;
+      border-radius: 4px;
+      padding: 4px 7px;
+
+      &:hover {
+        filter: brightness(.96);
+      }
+
+      .pi {
+        font-size: 8px;
+      }
+
+      &.tg-crit {
+        color: #b3261e;
+        background: #fbe4e2;
+        border-left-color: #d9534f;
+
+        .n {
+          background: #fff;
+        }
+      }
+
+      &.tg-imp {
+        color: #9a5b00;
+        background: #fcefd9;
+        border-left-color: #f0a53a;
+
+        .n {
+          background: #fff;
+        }
+      }
+
+      &.tg-low {
+        color: #3c4550;
+        background: #e9ebee;
+        border-left-color: #9aa1ab;
+      }
+    }
+
+    // Sender accordion tinted by the sender's highest tier.
+    &.tg-crit {
+      border-color: #eebcb9;
+
+      .orm-sg-head {
+        background: #fbe4e2;
+        border-left: 4px solid #d9534f;
+
+        &:hover {
+          background: #f8d7d4;
+        }
+      }
+
+      .orm-sg-name {
+        color: #b3261e;
+      }
+    }
+
+    &.tg-imp {
+      border-color: #ecd3a4;
+
+      .orm-sg-head {
+        background: #fcefd9;
+        border-left: 4px solid #f0a53a;
+
+        &:hover {
+          background: #f8e5c4;
+        }
+      }
+
+      .orm-sg-name {
+        color: #9a5b00;
+      }
+    }
+
+    &.tg-low {
+      .orm-sg-head {
+        background: #e9ebee;
+        border-left: 4px solid #9aa1ab;
+
+        &:hover {
+          background: #dfe2e6;
+        }
+      }
+    }
+  }
+
+  .orm-tier-badge {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    min-width: 20px;
+    text-align: center;
+    border-radius: 10px;
+    padding: 1px 7px;
+
+    &.crit {
+      color: #fff;
+      background: #d9534f;
+    }
+
+    &.imp {
+      color: #5c3a00;
+      background: #f0c05a;
+    }
+
+    &.low {
+      color: #3c4550;
+      background: #d7dadf;
+    }
+  }
+
+  /* AI Email Summary — nested accordions: category ▸ senders (2-column grid),
+     each sender opening to its clickable mail tags (.orm-kp-mail style). */
+  .reason {
+    color: var(--muted);
+  }
+
+  /* Inbox triage: per-category AI digest shown above the sender groups.
+     Cards sit side by side in a 2-column grid; 3 columns on very large
+     screens, single column on phones. */
+  .orm-cat-summaries {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 6px 0 12px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 8px;
+
+    @media (max-width: 767px) {
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 1800px) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .orm-cat-summary {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    padding: 9px 11px;
+
+    .orm-cat-head {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+
+      .pi {
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      &:hover .pi {
+        color: var(--ink);
+      }
+    }
+
+    /* Colors come inline per category; this sets the chip shape. */
+    .cat {
+      flex-shrink: 0;
+      font-weight: 600;
+      font-size: 11px;
+      border: 1px solid;
+      border-radius: 10px;
+      padding: 1px 9px;
+      line-height: 1.6;
+    }
+
+    .cnt {
+      flex-shrink: 0;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--accent-soft);
+      border-radius: 8px;
+      padding: 1px 7px;
+    }
+
+    .txt {
       font-size: 12px;
-      color: var(--ink2);
-      line-height: 1.45;
-      margin-top: 4px;
+      color: var(--ink);
+      line-height: 1.55;
+      margin: 4px 0 0 17px;
+    }
+
+    /* Inline emphasis the AI is allowed to emit in summaries/key points. */
+    .txt,
+    .orm-cat-kps {
+      b, strong {
+        font-weight: 650;
+        color: var(--ink);
+      }
+
+      mark {
+        background: #fdf0c2;
+        color: #6b5200;
+        border-radius: 3px;
+        padding: 0 3px;
+      }
+
+      .danger {
+        color: var(--crit);
+        font-weight: 650;
+        background: rgba(227, 73, 72, .08);
+        border-radius: 3px;
+        padding: 0 3px;
+      }
+    }
+
+    /* Ultra-short key points; flips to 2 columns when there are more than 5. */
+    .orm-cat-kps {
+      list-style: none;
+      margin: 6px 0 0 17px;
+      padding: 0;
+
+      &.two-col {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 12px;
+      }
+
+      li {
+        position: relative;
+        font-size: 11.5px;
+        color: var(--ink);
+        line-height: 1.5;
+        padding: 1px 0 1px 12px;
+
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 8px;
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: var(--accent);
+          opacity: .55;
+        }
+      }
+    }
+
+    .orm-kp-mails {
+      margin: 7px 0 2px 17px;
     }
   }
 
@@ -1387,10 +1723,6 @@
 
     .orm-detail-pane {
       padding: 10px;
-    }
-
-    .orm-grid {
-      grid-template-columns: 1fr;
     }
 
     .orm-risk {

@@ -12,6 +12,7 @@ const Users                   = React.lazy(() => import('../Admin/Users/index.js
 const Roles                   = React.lazy(() => import('../Admin/Roles/index.jsx'));
 const EmailAnalysisMails      = React.lazy(() => import('../Cruds/EmailAnalysisMails/index.jsx'));
 const OperationsReport        = React.lazy(() => import('../Cruds/OperationsReport/index.jsx'));
+const ReportConfig            = React.lazy(() => import('../Cruds/ReportConfig/index.jsx'));
 const DailyBrief              = React.lazy(() => import('../Cruds/DailyBrief/index.jsx'));
 const BulkEmailSend           = React.lazy(() => import('../Cruds/BulkEmailSend/index.jsx'));
 const OperationsCommandCenter = React.lazy(() => import('../Cruds/OperationsCommandCenter/index.jsx'));
@@ -52,6 +53,7 @@ const router = createBrowserRouter([
       { index: true, Component: () => <Navigate to="/emailAnalysisMails" replace /> },
       { path: '/emailAnalysisMails',       Component: () => P(EmailAnalysisMails) },
       { path: '/operationsReport',         Component: () => P(OperationsReport) },
+      { path: '/reportConfig',             Component: () => P(ReportConfig) },
       { path: '/dailyBrief',               Component: () => P(DailyBrief) },
       { path: '/bulkEmailSend',            Component: () => P(BulkEmailSend) },
       { path: '/operationsCommandCenter',  Component: () => P(OperationsCommandCenter) },

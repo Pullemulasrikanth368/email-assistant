@@ -2,10 +2,24 @@
 import aiClient from "./aiClient";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
 import { getActiveKnowledgeBaseConfig } from "./knowledgeBase.service";
+import { rescueImportantJunk } from "./junkRescue.service";
+import { isPromotionalSender } from "./promotionalSender.util";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHUNK = 25; // emails per AI call
 const VALID = ["Critical", "High", "Medium", "Low"];
+const VALID_CATEGORIES = [
+  "Action Required",
+  "Meetings & Scheduling",
+  "Finance & Invoices",
+  "Sales & Leads",
+  "Support & Complaints",
+  "Notifications & Updates",
+  "Newsletters",
+  "Promotions & Marketing",
+  "Personal",
+  "Junk",
+];
 
 function dayBounds(date) {
   const start = new Date(date);
@@ -18,11 +32,56 @@ function normPriority(p) {
   return hit || "Low";
 }
 
+function normCategory(c) {
+  const hit = VALID_CATEGORIES.find((v) => v.toLowerCase() === String(c || "").trim().toLowerCase());
+  return hit || "Notifications & Updates";
+}
+
 function clampScore(n, priority) {
   const num = Number(n);
   if (Number.isFinite(num) && num >= 1 && num <= 100) return Math.round(num);
   // derive a sensible score from the level if the model omitted it
   return { Critical: 90, High: 70, Medium: 45, Low: 15 }[priority] || 15;
+}
+
+// Bulk-mail categories are never worth more than Low, whatever keywords the
+// copy uses ("URGENT sale", "IMPORTANT order update", …).
+const LOW_ONLY_CATEGORIES = ["Newsletters", "Promotions & Marketing", "Junk"];
+const LOW_SCORE_CAP = 25;
+// Rescue-worthy categories the AI may be baited into for promo blasts — for a
+// promotional sender these are re-filed so junk rescue never restores them.
+const RESCUE_BAIT_CATEGORIES = [
+  "Action Required",
+  "Meetings & Scheduling",
+  "Finance & Invoices",
+  "Support & Complaints",
+  "Sales & Leads",
+  "Personal",
+];
+
+/**
+ * Force promotional/newsletter/spam mail down to Low priority after the AI
+ * pass, so keyword-stuffed marketing ("IMPORTANT", "urgent") can't outrank
+ * real work mail. Returns the (possibly adjusted) fields to persist.
+ */
+function applyPromotionalClamp(mail, { priority, priorityScore, category, reason }) {
+  const promoSender = isPromotionalSender(mail.from);
+  const lowCategory = LOW_ONLY_CATEGORIES.includes(category);
+  if (!promoSender && !lowCategory) return { priority, priorityScore, category, reason };
+
+  let clampedCategory = category;
+  if (promoSender && RESCUE_BAIT_CATEGORIES.includes(category)) {
+    clampedCategory = "Promotions & Marketing";
+  }
+  if (priority === "Low" && priorityScore <= LOW_SCORE_CAP && clampedCategory === category) {
+    return { priority, priorityScore, category, reason };
+  }
+  return {
+    priority: "Low",
+    priorityScore: Math.min(priorityScore, LOW_SCORE_CAP),
+    category: clampedCategory,
+    reason: `${reason ? `${reason} — ` : ""}kept Low: ${promoSender ? "promotional/bulk sender" : "bulk-mail category"}`,
+  };
 }
 
 /** Build the prioritization prompt for a batch of emails. */
@@ -81,8 +140,22 @@ Classification rules:
 Also infer a short "intent" tag (e.g. approval-request, deadline, escalation, complaint,
 scheduling, info-request, invoice, fyi, marketing) and a one-line reason.
 
+Additionally assign exactly one CATEGORY from this list:
+${VALID_CATEGORIES.map((c) => `- ${c}`).join("\n")}
+
+Some emails were found in the junk/spam folder (marked "isJunk": true). Judge them on their
+actual content: a legitimate, useful mail (e.g. an invoice, meeting request, or customer reply)
+that was wrongly junked should get its real category and priority — reserve the "Junk" category
+for genuinely unwanted spam/phishing.
+
+IMPORTANT — promotional and bulk mail: emails from shopping/marketplace brands (Flipkart,
+Amazon, Myntra, Swiggy, Zomato, travel/food/payment apps, …), newsletters, digests, and
+marketing campaigns are ALWAYS "Low" priority with category "Promotions & Marketing",
+"Newsletters", or "Junk" — even when they contain urgent-sounding keywords like "important",
+"urgent", "last chance", "act now", or "deadline". Marketing copy does not create real urgency.
+
 Return ONLY JSON, no markdown:
-{ "items": [ { "id": "<email id>", "priority": "Critical|High|Medium|Low", "priorityScore": <1-100>, "intent": "<tag>", "reason": "<one line>" } ] }
+{ "items": [ { "id": "<email id>", "priority": "Critical|High|Medium|Low", "priorityScore": <1-100>, "intent": "<tag>", "category": "<one of the categories above>", "reason": "<one line>" } ] }
 
 EMAILS:
 ${JSON.stringify(items)}
@@ -102,11 +175,17 @@ export async function prioritizeDay(email, day, opts = {}) {
   if (!email) return 0;
   const { start, end } = dayBounds(day);
 
-  const query = { email, active: true, receivedAt: { $gte: start, $lt: end } };
+  const query = {
+    email,
+    active: true,
+    receivedAt: { $gte: start, $lt: end },
+    // Own outgoing mail and drafts don't need an AI priority.
+    sourceFolder: { $nin: ["sent", "draft"] },
+  };
   if (!opts.force) query.priority = null; // only unscored mails
 
   const mails = await EmailAnalysisMail.find(query, {
-    providerMessageId: 1, from: 1, subject: 1, body: 1, snippet: 1,
+    providerMessageId: 1, from: 1, subject: 1, body: 1, snippet: 1, isJunk: 1,
   }).lean();
   if (!mails.length) return 0;
 
@@ -119,6 +198,7 @@ export async function prioritizeDay(email, day, opts = {}) {
       id: m.providerMessageId,
       from: m.from || "",
       subject: m.subject || "",
+      isJunk: !!m.isJunk,
       body: String(m.body || m.snippet || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 1500),
     }));
 
@@ -145,16 +225,23 @@ export async function prioritizeDay(email, day, opts = {}) {
     const byId = new Map(results.map((r) => [String(r.id), r]));
     const ops = slice.map((m) => {
       const r = byId.get(String(m.providerMessageId)) || {};
-      const priority = normPriority(r.priority);
+      const aiPriority = normPriority(r.priority);
+      const clamped = applyPromotionalClamp(m, {
+        priority: aiPriority,
+        priorityScore: clampScore(r.priorityScore, aiPriority),
+        category: normCategory(r.category),
+        reason: r.reason || null,
+      });
       return {
         updateOne: {
           filter: { email, providerMessageId: m.providerMessageId },
           update: {
             $set: {
-              priority,
-              priorityScore: clampScore(r.priorityScore, priority),
+              priority: clamped.priority,
+              priorityScore: clamped.priorityScore,
               intent: r.intent || null,
-              priorityReason: r.reason || null,
+              category: clamped.category,
+              priorityReason: clamped.reason,
               prioritizedAt: new Date(),
             },
           },
@@ -183,7 +270,7 @@ export async function prioritizeDay(email, day, opts = {}) {
 export async function prioritizePendingForAccount(email, opts = {}) {
   if (!email) return 0;
 
-  const filter = { email, active: true };
+  const filter = { email, active: true, sourceFolder: { $nin: ["sent", "draft"] } };
   if (!opts.force) filter.priority = null;
 
   const rows = await EmailAnalysisMail.find(filter, { receivedAt: 1 }).lean();
@@ -200,6 +287,15 @@ export async function prioritizePendingForAccount(email, opts = {}) {
   for (const ts of days) {
     total += await prioritizeDay(email, new Date(ts), opts);
   }
+
+  // Newly-scored junk mails that turned out to be important are moved back to
+  // the real inbox. Best-effort: a failure never breaks the sync pipeline.
+  try {
+    await rescueImportantJunk(email);
+  } catch (err) {
+    console.error(`[EmailAnalysis] Junk rescue failed for ${email}:`, err.message);
+  }
+
   return total;
 }
 

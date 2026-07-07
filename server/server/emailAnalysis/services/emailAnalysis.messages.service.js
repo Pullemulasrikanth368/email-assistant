@@ -14,7 +14,6 @@ import {
 /**@Models */
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
-import Settings from "../../models/settings.model";
 
 /**@Config */
 import config from "../../config/config";
@@ -386,7 +385,8 @@ export default class EmailAnalysisMessagesService {
     }).lean();
     if (!mail) throw new Error("Linked email not found for this account.");
 
-    const { name: toName, email: toAddr } = parseSender(mail.from);
+    const replyToAddr = mail.replyTo || mail.from;
+    const { name: toName, email: toAddr } = parseSender(replyToAddr);
     if (!toAddr) throw new Error("Could not determine the recipient from the original email.");
 
     // Pull original threading headers (best-effort) for proper Gmail threading.
@@ -487,12 +487,89 @@ export default class EmailAnalysisMessagesService {
     return { updated };
   }
 
+  /**
+   * Update a Gmail draft identified by its MESSAGE id (the id we store as
+   * providerMessageId). Gmail's drafts API keys on the draft id, so resolve it
+   * via drafts.list first. NOTE: updating a Gmail draft creates a NEW message
+   * id — the caller must persist `newMessageId`.
+   */
+  async updateDraftByMessageId({ messageId, to = [], subject = "", body = "", threadId = null }) {
+    await this.#buildAuthedReader();
+    const list = await this.gmail.users.drafts.list({ userId: "me", maxResults: 500 });
+    const hit = (list.data.drafts || []).find((d) => d.message?.id === messageId);
+    if (!hit) throw new Error("Draft no longer exists in Gmail.");
+
+    const raw = buildRawMessage({
+      fromName: this.user.name || "",
+      fromAddress: this.user.email,
+      to: (Array.isArray(to) ? to : [to]).filter(Boolean).join(", "),
+      subject,
+      body,
+      isHtml: true,
+    });
+    const requestBody = { id: hit.id, message: { raw: encodeRawEmail(raw) } };
+    if (threadId) requestBody.message.threadId = threadId;
+    const res = await this.gmail.users.drafts.update({ userId: "me", id: hit.id, requestBody });
+    return { newMessageId: res.data?.message?.id || null };
+  }
+
+  /**
+   * Send an existing Gmail draft (identified by its message id) as-is.
+   */
+  async sendDraftByMessageId(messageId) {
+    await this.#buildAuthedReader();
+    const list = await this.gmail.users.drafts.list({ userId: "me", maxResults: 500 });
+    const hit = (list.data.drafts || []).find((d) => d.message?.id === messageId);
+    if (!hit) throw new Error("Draft no longer exists in Gmail.");
+    const res = await this.gmail.users.drafts.send({ userId: "me", requestBody: { id: hit.id } });
+    return { sentMessageId: res.data?.id || null };
+  }
+
+  /**
+   * Move junk/spam messages back to the real inbox (Gmail: swap the SPAM label
+   * for INBOX). Used to auto-rescue mails that AI classified as important.
+   * @param {Array<string>} messageIds providerMessageIds
+   * @returns {Promise<{ rescued:number, failed:number }>}
+   */
+  async rescueFromJunk(messageIds = []) {
+    const ids = [...new Set((messageIds || []).filter(Boolean))];
+    if (!ids.length) return { rescued: 0, failed: 0 };
+    await this.#buildAuthedReader();
+
+    let rescued = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        await this.reader.modifyMessage(id, {
+          removeLabelIds: ["SPAM"],
+          addLabelIds: ["INBOX"],
+        });
+        await EmailAnalysisMail.updateOne(
+          { email: this.email, providerMessageId: id },
+          {
+            $set: { isJunk: false, sourceFolder: "inbox", junkRescuedAt: new Date() },
+            $pull: { labels: "SPAM" },
+          }
+        );
+        await EmailAnalysisMail.updateOne(
+          { email: this.email, providerMessageId: id },
+          { $addToSet: { labels: "INBOX" } }
+        );
+        rescued += 1;
+      } catch (err) {
+        failed += 1;
+        console.error(`[EmailAnalysis] Junk rescue failed for ${id}:`, err.message);
+      }
+    }
+    return { rescued, failed };
+  }
+
   async searchEmails(query, limit = 25) {
     await this.#buildAuthedReader();
     const messages = await this.reader.listMessages({
       query,
       maxResults: Math.min(Math.max(Number(limit) || 25, 1), 50),
-      includeSpamTrash: await this.#includeSpamEnabled(),
+      includeSpamTrash: true,
     });
     await this.#saveMessages(messages.map((m) => m.id));
     return EmailAnalysisMail.find({
@@ -540,17 +617,18 @@ export default class EmailAnalysisMessagesService {
     syncProgress.begin(this.email);
     try {
     await this.#buildAuthedReader();
-    const includeSpam = await this.#includeSpamEnabled();
     syncProgress.phase("fetching");
 
+    // Read ALL mail types (inbox, spam/junk, promotions, etc.) — only trash is excluded.
     const messages = await this.reader.listMessages({
-      query: includeSpam ? `newer_than:${days}d -in:trash` : `newer_than:${days}d`,
+      query: `newer_than:${days}d -in:trash`,
       labelIds: [],
       maxResults: INITIAL_MAX_RESULTS,
-      includeSpamTrash: includeSpam,
+      includeSpamTrash: true,
     });
 
     const saved = await this.#saveMessages(messages.map((m) => m.id));
+    await this.#reconcileDrafts(days);
 
     // If this account never baselined a historyId, set it so incremental sync
     // can take over afterwards.
@@ -570,27 +648,47 @@ export default class EmailAnalysisMessagesService {
     }
   }
 
-  /** Read the DB "include spam" preference (defaults to false). */
-  async #includeSpamEnabled() {
+  /**
+   * Reconcile drafts against Gmail after a backfill: any stored draft in the
+   * sync window that no longer exists in Gmail's Drafts was discarded or sent —
+   * deactivate it. Skipped when the listing hits the cap (live set incomplete).
+   */
+  async #reconcileDrafts(days) {
     try {
-      const settings = await Settings.findOne({ active: true }).select("emailAnalysisIncludeSpam").lean();
-      return !!settings?.emailAnalysisIncludeSpam;
+      const live = await this.reader.listMessages({
+        query: `in:draft newer_than:${days}d`,
+        maxResults: INITIAL_MAX_RESULTS,
+        includeSpamTrash: true,
+      });
+      if (live.length >= INITIAL_MAX_RESULTS) return 0;
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const res = await EmailAnalysisMail.updateMany(
+        {
+          email: this.email,
+          provider: "gmail",
+          sourceFolder: "draft",
+          active: true,
+          receivedAt: { $gte: since },
+          providerMessageId: { $nin: live.map((m) => m.id) },
+        },
+        { $set: { active: false, removedAt: new Date(), removedReason: "draft-removed-at-provider" } }
+      );
+      return res?.modifiedCount || 0;
     } catch (err) {
-      console.error("[EmailAnalysis] Could not read include-spam setting:", err.message);
-      return false;
+      console.error(`[EmailAnalysis] Draft reconcile failed for ${this.email}:`, err.message);
+      return 0;
     }
   }
 
   async #initialSync() {
-    const includeSpam = await this.#includeSpamEnabled();
-    console.log(`[EmailAnalysis] Initial sync (last ${BACKFILL_DAYS}d) for ${this.email}${includeSpam ? " (incl. spam)" : ""}`);
+    console.log(`[EmailAnalysis] Initial sync (last ${BACKFILL_DAYS}d) for ${this.email} (all mail incl. spam)`);
 
     // includeSpamTrash returns SPAM + TRASH; `-in:trash` keeps spam but drops trash.
     const messages = await this.reader.listMessages({
-      query: includeSpam ? `${INITIAL_QUERY} -in:trash` : INITIAL_QUERY,
+      query: `${INITIAL_QUERY} -in:trash`,
       labelIds: [],
       maxResults: INITIAL_MAX_RESULTS,
-      includeSpamTrash: includeSpam,
+      includeSpamTrash: true,
     });
     if (messages.length >= INITIAL_MAX_RESULTS) {
       console.warn(`[EmailAnalysis] Initial sync hit the ${INITIAL_MAX_RESULTS} message cap for ${this.email}; older last-week mails may be skipped.`);
@@ -615,27 +713,32 @@ export default class EmailAnalysisMessagesService {
     console.log(`[EmailAnalysis] Incremental sync for ${this.email} from historyId=${this.user.historyId}`);
 
     let messageIds = [];
+    const deletedIds = [];
     let newHistoryId = this.user.historyId;
     try {
-      const { history, historyId } = await this.reader.getHistory(this.user.historyId, ["messageAdded"]);
+      const { history, historyId } = await this.reader.getHistory(
+        this.user.historyId,
+        ["messageAdded", "messageDeleted"]
+      );
       (history || []).forEach(h => {
         (h.messagesAdded || []).forEach(m => {
           if (m?.message?.id) messageIds.push(m.message.id);
         });
+        (h.messagesDeleted || []).forEach(m => {
+          if (m?.message?.id) deletedIds.push(m.message.id);
+        });
       });
       if (historyId) newHistoryId = historyId;
 
-      // The History API (messageAdded) does not surface SPAM. When spam reading
-      // is enabled, separately pull recent spam so new junk mail is captured too.
-      if (await this.#includeSpamEnabled()) {
-        const spam = await this.reader.listMessages({
-          query: "in:spam newer_than:2d",
-          labelIds: [],
-          maxResults: 100,
-          includeSpamTrash: true,
-        });
-        spam.forEach((m) => { if (m?.id) messageIds.push(m.id); });
-      }
+      // The History API (messageAdded) does not surface SPAM, so always pull
+      // recent spam separately so new junk mail is captured too.
+      const spam = await this.reader.listMessages({
+        query: "in:spam newer_than:2d",
+        labelIds: [],
+        maxResults: 100,
+        includeSpamTrash: true,
+      });
+      spam.forEach((m) => { if (m?.id) messageIds.push(m.id); });
     } catch (err) {
       // A 404 means the stored historyId is too old/expired. Recover by
       // re-baselining to the current historyId (no backfill) so future
@@ -653,6 +756,18 @@ export default class EmailAnalysisMessagesService {
     }
 
     const saved = await this.#saveMessages(messageIds);
+
+    // Mail deleted at Gmail (incl. discarded drafts) disappears here too.
+    const toDeactivate = [...new Set(deletedIds)].filter((id) => !messageIds.includes(id));
+    if (toDeactivate.length) {
+      const res = await EmailAnalysisMail.updateMany(
+        { email: this.email, providerMessageId: { $in: toDeactivate }, active: true },
+        { $set: { active: false, removedAt: new Date(), removedReason: "removed-at-provider" } }
+      );
+      if (res?.modifiedCount) {
+        console.log(`[EmailAnalysis] Deactivated ${res.modifiedCount} provider-removed mail(s) for ${this.email}`);
+      }
+    }
 
     this.user.historyId = newHistoryId;
     this.user.lastSyncedAt = new Date();
@@ -728,6 +843,14 @@ export default class EmailAnalysisMessagesService {
     const attachments = extractAttachments(payload);
     const cc = getHeader(headers, "Cc");
     const bcc = getHeader(headers, "Bcc");
+    const labels = message.labelIds || [];
+    const isJunk = labels.includes("SPAM");
+    // Gmail returns every mail type from a plain list query — derive the folder
+    // from the labels (self-sent mail carrying INBOX stays in the inbox).
+    const sourceFolder = isJunk ? "junk"
+      : labels.includes("DRAFT") ? "draft"
+      : labels.includes("SENT") && !labels.includes("INBOX") ? "sent"
+      : "inbox";
 
     return {
       email: this.email,
@@ -739,7 +862,9 @@ export default class EmailAnalysisMessagesService {
       replyTo: getHeader(headers, "Reply-To"),
       subject: getHeader(headers, "Subject"),
       body: this.#extractHtmlBody(payload),
-      labels: message.labelIds || [],
+      labels,
+      sourceFolder,
+      isJunk,
       mimeType: payload.mimeType,
       snippet: message.snippet,
       providerMessageId: message.id,

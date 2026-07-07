@@ -2,7 +2,9 @@ import path from 'path';
 import fs from 'fs';
 
 import EmailDraft from '../models/emailDraft.model';
+import EmailAnalysisMail from '../models/emailAnalysisMail.model';
 import EmailAnalysisUser from '../models/emailAnalysisUser.model';
+import OutlookUser from '../../microsoft/models/outlookUser.model';
 import GmailDraftService from './gmail.draft.service';
 import OutlookDraftService from './outlook.draft.service';
 
@@ -21,21 +23,59 @@ function normalizeProvider(raw = '') {
 }
 
 async function resolveAccountForDraft(email, loginUserEmailId, provider) {
+  const normalizedProvider = normalizeProvider(provider || '');
+  const findByLoginOrRecent = async () => {
+    const base = { active: true, purpose: { $ne: 'send' } };
+    if (normalizedProvider === 'gmail') base.provider = { $in: ['google', 'gmail'] };
+    if (normalizedProvider === 'outlook') base.provider = { $in: ['outlook', 'microsoft'] };
+    if (loginUserEmailId) {
+      const own = await EmailAnalysisUser.findOne({ ...base, loginUserEmailId }).sort({ updatedAt: -1 }).lean();
+      if (own) return own;
+      if (normalizedProvider !== 'gmail') {
+        const outlookOwn = await OutlookUser.findOne({
+          active: true,
+          purpose: { $ne: 'send' },
+          loginUserEmailId,
+        }).sort({ updatedAt: -1 }).lean();
+        if (outlookOwn) return outlookOwn;
+      }
+    }
+    const user = await EmailAnalysisUser.findOne(base).sort({ updatedAt: -1 }).lean();
+    if (user) return user;
+    if (normalizedProvider !== 'gmail') {
+      const outlookUser = await OutlookUser.findOne({
+        active: true,
+        purpose: { $ne: 'send' },
+      }).sort({ updatedAt: -1 }).lean();
+      if (outlookUser) return outlookUser;
+    }
+    return null;
+  };
+
   if (email) {
-    const user = await EmailAnalysisUser.findOne({ email, active: true, purpose: { $ne: 'send' } }).lean();
-    if (!user) throw new Error(`No connected account for ${email}`);
-    return user;
+    const query = { email, active: true, purpose: { $ne: 'send' } };
+    if (normalizedProvider === 'gmail') query.provider = { $in: ['google', 'gmail'] };
+    if (normalizedProvider === 'outlook') query.provider = { $in: ['outlook', 'microsoft'] };
+
+    const user = await EmailAnalysisUser.findOne(query).lean()
+      || (normalizedProvider !== 'gmail'
+        ? await OutlookUser.findOne({ email, active: true, purpose: { $ne: 'send' } }).lean()
+        : null);
+    if (user) return user;
+
+    // Microsoft personal accounts can expose a proxy mailbox like
+    // outlook_<id>@outlook.com even when the user signs in with a Gmail alias.
+    // If the message stores the alias, fall back to the connected Outlook
+    // account scoped to the logged-in app user.
+    const fallback = await findByLoginOrRecent();
+    if (fallback) return fallback;
+
+    throw new Error(`No connected source mailbox for ${email}. Login is not enough; connect this mailbox in Settings first.`);
   }
-  const base = { active: true, purpose: { $ne: 'send' } };
-  if (provider === 'gmail') base.provider = { $in: ['google', 'gmail'] };
-  if (provider === 'outlook') base.provider = { $in: ['outlook', 'microsoft'] };
-  if (loginUserEmailId) {
-    const own = await EmailAnalysisUser.findOne({ ...base, loginUserEmailId }).sort({ updatedAt: -1 }).lean();
-    if (own) return own;
-  }
-  const user = await EmailAnalysisUser.findOne(base).sort({ updatedAt: -1 }).lean();
-  if (!user) throw new Error('No connected email account found.');
-  return user;
+
+  const user = await findByLoginOrRecent();
+  if (user) return user;
+  throw new Error('No connected email account found.');
 }
 
 function buildGmailAttachments(attachments = []) {
@@ -55,6 +95,102 @@ function buildGmailAttachments(attachments = []) {
       }
     })
     .filter(Boolean);
+}
+
+function stripHtml(html = '') {
+  return String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function formatAddress(name = '', email = '') {
+  const cleanName = String(name || '').trim();
+  const cleanEmail = String(email || '').trim();
+  if (!cleanEmail) return cleanName;
+  return cleanName && cleanName !== cleanEmail ? `${cleanName} <${cleanEmail}>` : cleanEmail;
+}
+
+function draftProviderMessageId(draft) {
+  return draft.providerMessageId || draft.outlookDraftId || `local-draft:${draft._id}`;
+}
+
+function draftAttachmentsForMail(attachments = []) {
+  return (attachments || []).map(att => ({
+    filename: att.filename,
+    mimeType: att.mimeType,
+    size: att.size,
+    savedPath: att.savedPath,
+    saved: !!att.saved,
+    error: att.error,
+  }));
+}
+
+async function mirrorDraftToMail(draft) {
+  if (!draft?.email || !draft?._id) return null;
+
+  const providerMessageId = draftProviderMessageId(draft);
+  const attachments = draftAttachmentsForMail(draft.attachments);
+  const now = new Date();
+  const account = draft.fromName
+    ? null
+    : await EmailAnalysisUser.findOne({ email: draft.email, active: true }).select('name').lean()
+      || await OutlookUser.findOne({ email: draft.email, active: true }).select('name').lean();
+  const fromName = draft.fromName || account?.name || '';
+  const mail = {
+    email: draft.email,
+    provider: draft.provider || 'gmail',
+    from: formatAddress(fromName, draft.email),
+    to: (draft.to || []).join(', '),
+    cc: draft.cc || [],
+    bcc: draft.bcc || [],
+    replyTo: draft.replyTo || '',
+    subject: draft.subject || '',
+    body: draft.body || '',
+    snippet: stripHtml(draft.body || '').slice(0, 200),
+    labels: ['DRAFT'],
+    mimeType: 'text/html',
+    providerMessageId,
+    threadId: draft.threadId || draft.conversationId || providerMessageId,
+    receivedAt: draft.updatedAt || draft.createdAt || now,
+    attachments,
+    hasAttachments: attachments.length > 0,
+    isRepliedMail: !!draft.inReplyTo || !!draft.threadId || !!draft.conversationId,
+    sourceFolder: 'draft',
+    isJunk: false,
+    active: draft.active !== false && draft.status !== 'sent',
+    removedAt: null,
+    removedReason: null,
+    localDraftId: draft._id,
+  };
+
+  return EmailAnalysisMail.findOneAndUpdate(
+    {
+      $or: [
+        { localDraftId: draft._id },
+        { email: draft.email, provider: draft.provider || 'gmail', providerMessageId },
+      ],
+    },
+    { $set: mail },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+}
+
+async function deactivateMirroredDraft(draft, removedReason) {
+  if (!draft?._id) return;
+  const providerMessageId = draftProviderMessageId(draft);
+  await EmailAnalysisMail.updateMany(
+    {
+      $or: [
+        { localDraftId: draft._id },
+        { email: draft.email, provider: draft.provider || 'gmail', providerMessageId },
+      ],
+    },
+    {
+      $set: {
+        active: false,
+        removedAt: new Date(),
+        removedReason,
+      },
+    }
+  );
 }
 
 class DraftSyncService {
@@ -78,7 +214,7 @@ class DraftSyncService {
     return draft;
   }
 
-  async createDraft({ email, loginUserEmailId, provider, to, cc, bcc, subject, body, inReplyTo, references, threadId, conversationId, attachments }) {
+  async createDraft({ email, loginUserEmailId, provider, to, cc, bcc, subject, body, inReplyTo, references, threadId, conversationId, replyToMessageId, attachments }) {
     const account = await resolveAccountForDraft(email, loginUserEmailId, provider);
     const effectiveEmail = account.email;
     const effectiveProvider = normalizeProvider(account.provider) || provider || 'gmail';
@@ -87,6 +223,7 @@ class DraftSyncService {
       email: effectiveEmail,
       loginUserEmailId,
       provider: effectiveProvider,
+      fromName: account.name || '',
       to: to || [],
       cc: cc || [],
       bcc: bcc || [],
@@ -96,6 +233,7 @@ class DraftSyncService {
       references: references || null,
       threadId: threadId || null,
       conversationId: conversationId || null,
+      replyToMessageId: replyToMessageId || null,
       attachments: (attachments || []).map(att => ({
         filename: att.filename,
         mimeType: att.mimeType,
@@ -126,6 +264,8 @@ class DraftSyncService {
           attachments: buildGmailAttachments(draft.attachments),
         });
         draft.gmailDraftId = result.id;
+        draft.providerMessageId = result.message?.id || draft.providerMessageId;
+        draft.threadId = result.message?.threadId || draft.threadId;
       } else {
         const result = await svc.createDraft({
           to: to || [],
@@ -135,8 +275,11 @@ class DraftSyncService {
           body,
           isHtml: true,
           conversationId,
+          replyToMessageId,
         });
         draft.outlookDraftId = result.id;
+        draft.providerMessageId = result.id || draft.providerMessageId;
+        draft.conversationId = result.conversationId || draft.conversationId;
         // Upload attachments to Outlook separately
         for (const att of (draft.attachments || [])) {
           if (att.saved && att.savedPath) {
@@ -159,6 +302,7 @@ class DraftSyncService {
     }
 
     await EmailDraft.saveData(draft);
+    await mirrorDraftToMail(draft);
     return draft;
   }
 
@@ -178,7 +322,7 @@ class DraftSyncService {
     try {
       const svc = getProviderService(draft.provider, draft.email);
       if (draft.provider === 'gmail' && draft.gmailDraftId) {
-        await svc.updateDraft({
+        const result = await svc.updateDraft({
           draftId: draft.gmailDraftId,
           from: draft.email,
           to: draft.to,
@@ -192,8 +336,10 @@ class DraftSyncService {
           threadId: draft.threadId,
           attachments: buildGmailAttachments(draft.attachments),
         });
+        draft.providerMessageId = result?.message?.id || draft.providerMessageId;
+        draft.threadId = result?.message?.threadId || draft.threadId;
       } else if (draft.provider === 'outlook' && draft.outlookDraftId) {
-        await svc.updateDraft({
+        const result = await svc.updateDraft({
           messageId: draft.outlookDraftId,
           to: draft.to,
           cc: draft.cc,
@@ -202,6 +348,8 @@ class DraftSyncService {
           body: draft.body,
           isHtml: true,
         });
+        draft.providerMessageId = result?.id || draft.providerMessageId || draft.outlookDraftId;
+        draft.conversationId = result?.conversationId || draft.conversationId;
       } else if (!draft.gmailDraftId && !draft.outlookDraftId) {
         // Provider draft was never created — create it now
         if (draft.provider === 'gmail') {
@@ -216,6 +364,8 @@ class DraftSyncService {
             attachments: buildGmailAttachments(draft.attachments),
           });
           draft.gmailDraftId = result.id;
+          draft.providerMessageId = result.message?.id || draft.providerMessageId;
+          draft.threadId = result.message?.threadId || draft.threadId;
         } else {
           const result = await svc.createDraft({
             to: draft.to,
@@ -224,8 +374,12 @@ class DraftSyncService {
             subject: draft.subject,
             body: draft.body,
             isHtml: true,
+            conversationId: draft.conversationId,
+            replyToMessageId: draft.replyToMessageId,
           });
           draft.outlookDraftId = result.id;
+          draft.providerMessageId = result.id || draft.providerMessageId;
+          draft.conversationId = result.conversationId || draft.conversationId;
         }
       }
       draft.syncStatus = 'synced';
@@ -238,6 +392,7 @@ class DraftSyncService {
     }
 
     await EmailDraft.saveData(draft);
+    await mirrorDraftToMail(draft);
     return draft;
   }
 
@@ -258,6 +413,7 @@ class DraftSyncService {
 
     draft.active = false;
     await EmailDraft.saveData(draft);
+    await deactivateMirroredDraft(draft, 'draft-discarded');
     return { deleted: true };
   }
 
@@ -323,6 +479,8 @@ class DraftSyncService {
             subject: draft.subject,
             body: draft.body,
             isHtml: true,
+            conversationId: draft.conversationId,
+            replyToMessageId: draft.replyToMessageId,
           });
           await svc.sendDraft(created.id);
         }
@@ -341,6 +499,7 @@ class DraftSyncService {
     }
 
     await EmailDraft.saveData(draft);
+    await deactivateMirroredDraft(draft, 'draft-sent');
     return draft;
   }
 
@@ -363,7 +522,7 @@ class DraftSyncService {
     if (draft.provider === 'gmail' && draft.gmailDraftId) {
       try {
         const svc = getProviderService('gmail', draft.email);
-        await svc.updateDraft({
+        const result = await svc.updateDraft({
           draftId: draft.gmailDraftId,
           from: draft.email,
           to: draft.to,
@@ -376,6 +535,8 @@ class DraftSyncService {
           references: draft.references,
           attachments: buildGmailAttachments(draft.attachments),
         });
+        draft.providerMessageId = result?.message?.id || draft.providerMessageId;
+        draft.threadId = result?.message?.threadId || draft.threadId;
         draft.syncStatus = 'synced';
         draft.lastSyncedAt = new Date();
       } catch (err) {
@@ -386,6 +547,7 @@ class DraftSyncService {
     }
 
     await EmailDraft.saveData(draft);
+    await mirrorDraftToMail(draft);
     return draft;
   }
 
@@ -400,7 +562,7 @@ class DraftSyncService {
     if (draft.provider === 'gmail' && draft.gmailDraftId) {
       try {
         const svc = getProviderService('gmail', draft.email);
-        await svc.updateDraft({
+        const result = await svc.updateDraft({
           draftId: draft.gmailDraftId,
           from: draft.email,
           to: draft.to,
@@ -411,12 +573,15 @@ class DraftSyncService {
           isHtml: true,
           attachments: buildGmailAttachments(draft.attachments),
         });
+        draft.providerMessageId = result?.message?.id || draft.providerMessageId;
+        draft.threadId = result?.message?.threadId || draft.threadId;
       } catch (err) {
         console.error('[DraftSync] Gmail remove-attachment sync failed:', err.message);
       }
     }
 
     await EmailDraft.saveData(draft);
+    await mirrorDraftToMail(draft);
     return draft;
   }
 }
