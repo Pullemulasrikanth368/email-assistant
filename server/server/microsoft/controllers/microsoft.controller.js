@@ -1,5 +1,6 @@
-/**@Config */
+import jwt from "jsonwebtoken";
 import config from "../../config/config";
+import Employee from "../../models/employee.model";
 
 /**@Services — Teams delivery */
 import MicrosoftAuthService from "../services/microsoft.auth.service";
@@ -17,6 +18,20 @@ import reportService from "../../emailAnalysis/services/report.service";
 import MicrosoftUser from "../models/microsoftUser.model";
 import OutlookUser from "../models/outlookUser.model";
 import EmailAnalysisMail from "../../emailAnalysis/models/emailAnalysisMail.model";
+
+const JWTSECRET = config.jwtSecret || process.env.JWTSECRET || "0a6b944d-d2fb-46fc-a85e-0295c986cd9f";
+
+async function resolveEmployee(req) {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, JWTSECRET);
+    return Employee.findById(decoded._id).lean();
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Build the origin (scheme + host) of the admin frontend so we can redirect
@@ -238,9 +253,13 @@ async function outlookWebhook(req, res) {
 
 /** Return the currently connected Outlook account (if any). */
 async function outlookStatus(req, res) {
+  const employee = await resolveEmployee(req);
+  const loginUserEmailId = employee?.email;
+  if (!loginUserEmailId) return res.json({ connected: false, provider: "outlook" });
+
   const query = req.query?.email
-    ? { email: req.query.email, active: true }
-    : { active: true };
+    ? { email: req.query.email, loginUserEmailId, active: true }
+    : { loginUserEmailId, active: true };
   const user = await OutlookUser.findOne(query).sort({ updatedAt: -1 });
   if (user) {
     return res.json({
@@ -261,9 +280,13 @@ async function outlookStatus(req, res) {
  * When purgeData=true the synced emails are soft-deleted from email_analysis_mails.
  */
 async function disconnectOutlook(req, res) {
+  const employee = await resolveEmployee(req);
+  const loginUserEmailId = employee?.email;
+  if (!loginUserEmailId) return res.status(401).json({ errorCode: 9201, errorMessage: "Unauthorized." });
+
   let email = req.body?.email;
   if (!email) {
-    const user = await OutlookUser.findOne({ active: true }).sort({ updatedAt: -1 });
+    const user = await OutlookUser.findOne({ active: true, loginUserEmailId }).sort({ updatedAt: -1 });
     email = user?.email;
   }
   if (!email) {
@@ -271,7 +294,7 @@ async function disconnectOutlook(req, res) {
   }
 
   // Deactivate the account record.
-  const result = await OutlookUser.updateOne({ email }, { $set: { active: false } });
+  const result = await OutlookUser.updateOne({ email, loginUserEmailId }, { $set: { active: false } });
   if (!result || result.modifiedCount === 0) {
     return res.json({ errorCode: 9201, errorMessage: "Outlook account email not matched." });
   }
@@ -280,8 +303,9 @@ async function disconnectOutlook(req, res) {
   const purgeData = req.body?.purgeData;
   let purged = 0;
   if (purgeData) {
+    const msProviders = config.microsoftProviders || ["outlook", "microsoft"];
     const pr = await EmailAnalysisMail.updateMany(
-      { email, provider: "outlook", active: true },
+      { email, provider: { $in: msProviders }, active: true },
       { $set: { active: false, removedAt: new Date(), removedReason: "account-disconnected" } }
     );
     purged = pr?.modifiedCount || 0;
@@ -300,9 +324,13 @@ async function disconnectOutlook(req, res) {
  * Body: { email? }
  */
 async function syncOutlook(req, res) {
+  const employee = await resolveEmployee(req);
+  const loginUserEmailId = employee?.email;
+  if (!loginUserEmailId) return res.status(401).json({ errorCode: 9202, errorMessage: "Unauthorized." });
+
   let email = req.body?.email;
   if (!email) {
-    const user = await OutlookUser.findOne({ active: true, purpose: { $ne: "send" } }).sort({ updatedAt: -1 });
+    const user = await OutlookUser.findOne({ active: true, loginUserEmailId, purpose: { $ne: "send" } }).sort({ updatedAt: -1 });
     email = user?.email;
   }
   if (!email) {

@@ -1,6 +1,7 @@
 /**@Packages */
 import fs from "fs";
 import path from "path";
+import jwt from "jsonwebtoken";
 
 /**@Config */
 import config from "../../config/config";
@@ -23,9 +24,11 @@ import analyticsService from "../services/analytics.service";
 import syncProgress from "../services/syncProgress";
 import aiClient from "../services/aiClient";
 import { rescheduleReportCron } from "../jobs/report.job";
+import { startSyncJobs, stopSyncJobs, rescheduleIncrementalCron } from "../jobs/sync.job";
 
 /**@Models (shared) */
 import Settings from "../../models/settings.model";
+import Employee from "../../models/employee.model";
 
 /**@Models */
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
@@ -43,6 +46,27 @@ import aiReplyService from "../services/aiReply.service";
 
 /**@Pre-Meeting Brief */
 import preMeetingBriefService from "../services/preMeetingBrief.service";
+
+/**@Conversation Summary */
+import conversationSummaryService from "../services/conversationSummary.service";
+
+const JWTSECRET = process.env.JWTSECRET || "0a6b944d-d2fb-46fc-a85e-0295c986cd9f";
+
+/**
+ * Resolve the logged-in Employee from the Authorization Bearer token.
+ * Returns the lean Employee doc or null if unauthenticated/invalid.
+ */
+async function resolveEmployee(req) {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, JWTSECRET);
+    return Employee.findById(decoded._id).lean();
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Convert a stored attachment savedPath ("server/upload/email-analysis/<file>")
@@ -279,7 +303,11 @@ async function emailAnalysisOutlookWebhook(req, res) {
  * @param { import('express').Response } res
  */
 async function emailAnalysisStatus(req, res) {
-  const user = await EmailAnalysisUser.findOne({ active: true, purpose: { $ne: "send" } }).sort({ updatedAt: -1 });
+  const employee = await resolveEmployee(req);
+  const loginUserEmailId = employee?.email;
+  if (!loginUserEmailId) return res.json({ connected: false });
+
+  const user = await EmailAnalysisUser.findOne({ active: true, loginUserEmailId, purpose: { $ne: "send" } }).sort({ updatedAt: -1 });
   if (user) {
     return res.json({ connected: true, email: user.email, name: user.name, picture: user.picture, provider: user.provider });
   }
@@ -287,10 +315,16 @@ async function emailAnalysisStatus(req, res) {
 }
 
 async function emailAnalysisProviderStatus(req, res) {
+  const employee = await resolveEmployee(req);
+  const loginUserEmailId = employee?.email;
+  if (!loginUserEmailId) return res.json({ connected: false });
+
+  const msProviders = config.microsoftProviders || ["outlook", "microsoft"];
   const provider = req.params.provider || req.query.provider || (req.path?.includes("outlook") ? "outlook" : "");
-  const providerQuery = provider === "outlook" ? { $in: ["outlook", "microsoft"] } : provider;
+  const providerQuery = msProviders.includes(provider) ? { $in: msProviders } : provider;
   const user = await EmailAnalysisUser.findOne({
     active: true,
+    loginUserEmailId,
     provider: providerQuery,
     purpose: { $ne: "send" },
   }).sort({ updatedAt: -1 });
@@ -305,7 +339,11 @@ async function emailAnalysisProviderStatus(req, res) {
  * "send from" picker on the bulk-send screen.
  */
 async function listEmailAnalysisAccounts(req, res) {
-  const users = await EmailAnalysisUser.find({ active: true })
+  const employee = await resolveEmployee(req);
+  const loginUserEmailId = employee?.email;
+  if (!loginUserEmailId) return res.json({ accounts: [] });
+
+  const users = await EmailAnalysisUser.find({ active: true, loginUserEmailId })
     .sort({ updatedAt: -1 })
     .select("email name picture provider purpose")
     .lean();
@@ -345,13 +383,22 @@ function deleteAttachmentFiles(mails = []) {
  * @param { import('express').Response } res
  */
 async function disconnectEmailAnalysisAccount(req, res) {
+  const employee = await resolveEmployee(req);
+  const loginUserEmailId = employee?.email;
+  if (!loginUserEmailId) {
+    return res.status(401).json({ errorCode: 9001, errorMessage: "Unauthorized." });
+  }
+
   const { email, purgeData, provider } = req.body || {};
   if (!email) {
     return res.json({ errorCode: 9001, errorMessage: "Please provide an email." });
   }
 
-  const accountQuery = { email };
-  if (provider) accountQuery.provider = provider === "outlook" ? { $in: ["outlook", "microsoft"] } : provider;
+  const msProviders = config.microsoftProviders || ["outlook", "microsoft"];
+  const accountQuery = { email, loginUserEmailId };
+  if (provider) {
+    accountQuery.provider = msProviders.includes(provider) ? { $in: msProviders } : provider;
+  }
   const removedAccount = await EmailAnalysisUser.findOne(accountQuery).lean();
   const result = await EmailAnalysisUser.deleteOne(accountQuery);
   if (!result || result.deletedCount === 0) {
@@ -391,17 +438,7 @@ async function disconnectEmailAnalysisAccount(req, res) {
  * @param { import('express').Response } res
  */
 async function syncEmailAnalysisMails(req, res) {
-  let email = req.body?.email;
-  if (!email) {
-    // Check EmailAnalysisUser first, then fall back to OutlookUser
-    const eaUser = await EmailAnalysisUser.findOne({ active: true }).sort({ updatedAt: -1 });
-    email = eaUser?.email;
-    if (!email) {
-      const OutlookUser = (await import("../microsoft/models/outlookUser.model")).default;
-      const msUser = await OutlookUser.findOne({ active: true }).sort({ updatedAt: -1 });
-      email = msUser?.email;
-    }
-  }
+  const email = await resolveAccount(req);
   if (!email) {
     return res.json({ errorCode: 9001, errorMessage: "No connected account to sync." });
   }
@@ -476,7 +513,7 @@ async function bulkSendEmails(req, res) {
     return res.json({ errorCode: 9008, errorMessage: "No emails found to send." });
   }
 
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) {
     return res.json({ errorCode: 9001, errorMessage: "No connected account to send from." });
   }
@@ -517,7 +554,7 @@ async function listEmailAnalysisMails(req, res) {
   // Always scope to ONE connected account: the explicit filter email, otherwise
   // the account currently connected in Settings (most-recently connected).
   // `active: true` also keeps soft-deleted (cleaned-up) mail out of the inbox.
-  const account = filter.email || await resolveAccount(null, filter.loginUserEmailId, filter.provider);
+  const account = await resolveAccount(req, filter.provider);
   if (!account) {
     return res.json({ mails: [], pagination: { totalCount: 0, page, limit } });
   }
@@ -595,7 +632,7 @@ async function getEmailAnalysisMail(req, res) {
 }
 
 async function sendMail(req, res) {
-  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  const email = await resolveAccount(req, req.body?.provider);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
 
   try {
@@ -616,7 +653,7 @@ async function sendMail(req, res) {
 
 async function replyMail(req, res) {
   const sourceId = String(req.body?.sourceId || "").trim();
-  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  const email = await resolveAccount(req, req.body?.provider);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   if (!sourceId) return res.json({ errorCode: 9102, errorMessage: "sourceId is required." });
 
@@ -635,7 +672,7 @@ async function replyMail(req, res) {
 
 async function forwardMail(req, res) {
   const sourceId = String(req.body?.sourceId || "").trim();
-  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  const email = await resolveAccount(req, req.body?.provider);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   if (!sourceId) return res.json({ errorCode: 9104, errorMessage: "sourceId is required." });
 
@@ -654,7 +691,7 @@ async function forwardMail(req, res) {
 
 async function deleteMails(req, res) {
   const messageIds = Array.isArray(req.body?.messageIds) ? req.body.messageIds : [req.body?.sourceId || req.body?.messageId].filter(Boolean);
-  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  const email = await resolveAccount(req, req.body?.provider);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
 
   try {
@@ -672,7 +709,7 @@ async function deleteMails(req, res) {
 
 async function markMailReadState(req, res) {
   const messageIds = Array.isArray(req.body?.messageIds) ? req.body.messageIds : [req.body?.sourceId || req.body?.messageId].filter(Boolean);
-  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  const email = await resolveAccount(req, req.body?.provider);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
 
   try {
@@ -687,7 +724,7 @@ async function markMailReadState(req, res) {
 async function searchProviderMails(req, res) {
   const q = String(req.query.q || req.query.search || "").trim();
   const limit = parseInt(req.query.limit, 10) || 25;
-  const email = await resolveAccount(req.query.email, req.query.loginUserEmailId, req.query.provider);
+  const email = await resolveAccount(req, req.query.provider);
   if (!email) return res.json({ mails: [], pagination: { totalCount: 0, page: 1, limit } });
   if (!q) return res.json({ mails: [], pagination: { totalCount: 0, page: 1, limit } });
 
@@ -801,28 +838,42 @@ async function downloadAttachment(req, res) {
 
 /* ============================ REPORTS ============================ */
 
-/** Resolve the SOURCE account to operate on. Priority:
- *  1) explicit email, 2) the source account THIS logged-in admin connected
- *  (loginUserEmailId), 3) the most-recent source account. Send-only
- *  (bulk-send) accounts are never picked as a source. */
-async function resolveAccount(email, loginUserEmailId, provider) {
-  if (email) return email;
-  const base = { active: true, purpose: { $ne: "send" } };
-  if (provider) {
-    base.provider = provider === "outlook" ? { $in: ["outlook", "microsoft"] } : provider;
-  }
-  if (loginUserEmailId) {
-    const own = await EmailAnalysisUser.findOne({ ...base, loginUserEmailId })
-      .sort({ updatedAt: -1 }).lean();
-    if (own?.email) return own.email;
-  }
-  const user = await EmailAnalysisUser.findOne(base).sort({ updatedAt: -1 }).lean();
-  if (user?.email) return user.email;
+/** Resolve the SOURCE account to operate on for the logged-in user.
+ *  Returns the active email connected by this user, or null if none is connected. */
+async function resolveAccount(req, provider) {
+  const employee = await resolveEmployee(req);
+  const loginUserEmailId = employee?.email;
+  if (!loginUserEmailId) return null;
 
-  // Fallback: check OutlookUser collection (emails synced via microsoft.controller)
-  if (!provider || provider === "outlook" || provider === "microsoft") {
-    const outlookUser = await OutlookUser.findOne({ active: true, purpose: { $ne: "send" } })
-      .sort({ updatedAt: -1 }).lean();
+  const msProviders = config.microsoftProviders || ["outlook", "microsoft"];
+
+  let requestedEmail = req.body?.email || req.query?.email;
+  if (!requestedEmail && req.query?.filter) {
+    try {
+      const filter = JSON.parse(req.query.filter);
+      requestedEmail = filter?.email;
+    } catch { }
+  }
+
+  const base = { active: true, loginUserEmailId, purpose: { $ne: "send" } };
+  if (requestedEmail) {
+    base.email = requestedEmail;
+  }
+  if (provider) {
+    base.provider = msProviders.includes(provider) ? { $in: msProviders } : provider;
+  }
+
+  // Check EmailAnalysisUser (Gmail or Outlook linked here)
+  const own = await EmailAnalysisUser.findOne(base).sort({ updatedAt: -1 }).lean();
+  if (own?.email) return own.email;
+
+  // Fallback: check OutlookUser collection (Outlook connected via microsoft.controller)
+  if (!provider || msProviders.includes(provider)) {
+    const outlookBase = { active: true, loginUserEmailId, purpose: { $ne: "send" } };
+    if (requestedEmail) {
+      outlookBase.email = requestedEmail;
+    }
+    const outlookUser = await OutlookUser.findOne(outlookBase).sort({ updatedAt: -1 }).lean();
     if (outlookUser?.email) return outlookUser.email;
   }
 
@@ -836,7 +887,7 @@ async function resolveAccount(email, loginUserEmailId, provider) {
  * @param { import('express').Response } res
  */
 async function generateEmailAnalysisReport(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) {
     return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   }
@@ -878,7 +929,7 @@ async function generateEmailAnalysisReport(req, res) {
 async function listEmailAnalysisReports(req, res) {
   const reportType = req.query.type === "week" ? "week" : "day";
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 30, 1), 90);
-  const email = await resolveAccount(req.query.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ reports: [] });
 
   const reports = await EmailAnalysisReport.find(
@@ -899,7 +950,7 @@ async function getEmailAnalysisReport(req, res) {
   const { id } = req.params;
   let report;
   if (!id || id === "latest") {
-    const email = await resolveAccount(req.query.email);
+    const email = await resolveAccount(req);
     if (!email) return res.json({ errorCode: 9002, errorMessage: "No connected account." });
     report = await EmailAnalysisReport.findOne({ email, reportType: "day", active: true })
       .sort({ periodStart: -1 }).lean();
@@ -958,7 +1009,7 @@ function seriesIsEmpty(series) {
  * blocking this response. Throttled per account.
  */
 async function getEmailAnalysisAnalytics(req, res) {
-  const email = await resolveAccount(req.query.email, req.query.loginUserEmailId);
+  const email = await resolveAccount(req);
   const data = await analyticsService.getAnalytics(email);
 
   let generating = false;
@@ -1050,7 +1101,7 @@ async function completeActionItem(req, res) {
     return res.json({ errorCode: 9201, errorMessage: "sourceId is required." });
   }
 
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) {
     return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   }
@@ -1248,7 +1299,7 @@ const CLEANUP_DEFS = {
 
 /** Counts of removable mail per category (for the cleanup dialog). */
 async function cleanupPreview(req, res) {
-  const email = await resolveAccount(req.query.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ respCode: 200, counts: { junk: 0, promotional: 0, low: 0 } });
 
   const base = { email, active: true };
@@ -1266,7 +1317,7 @@ async function cleanupPreview(req, res) {
  * Soft-delete (active:false) so it's reversible and never touches Gmail.
  */
 async function cleanupMails(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
 
   const categories = (Array.isArray(req.body?.categories) ? req.body.categories : [])
@@ -1366,7 +1417,7 @@ async function setIncludeSpam(req, res) {
  * - date absent   -> prioritize every day with pending (or all, if force) mails.
  */
 async function prioritizeEmailAnalysisMails(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
 
   const force = !!req.body?.force;
@@ -1388,7 +1439,7 @@ async function prioritizeEmailAnalysisMails(req, res) {
  * Query: ?date=YYYY-MM-DD&email=
  */
 async function getReportByDate(req, res) {
-  const email = await resolveAccount(req.query.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ report: null });
 
   const base = req.query.date ? new Date(req.query.date) : new Date();
@@ -1537,28 +1588,28 @@ async function generatePreMeetingBrief(req, res) {
 /* ====================== KNOWLEDGE BASE ====================== */
 
 async function getKnowledgeBase(req, res) {
-  const email = await resolveAccount(req.query.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const config = await kbService.getActiveKnowledgeBaseConfig(email);
   return res.json({ respCode: 200, config });
 }
 
 async function saveKnowledgeBase(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const config = await kbService.saveKnowledgeBaseConfig(email, req.body || {});
   return res.json({ respCode: 200, respMessage: "Knowledge base saved.", config });
 }
 
 async function patchKbKeywords(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const config = await kbService.patchKeywords(email, req.body?.keywords || {});
   return res.json({ respCode: 200, respMessage: "Keywords updated.", config });
 }
 
 async function patchKbGlossary(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const config = await kbService.patchGlossary(email, req.body?.glossary || {});
   return res.json({ respCode: 200, respMessage: "Glossary updated.", config });
@@ -1567,14 +1618,14 @@ async function patchKbGlossary(req, res) {
 /* ====================== REPORT CONFIG ====================== */
 
 async function listReportConfigs(req, res) {
-  const email = await resolveAccount(req.query.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ configs: [] });
   const configs = await reportConfigService.listReportConfigs(email);
   return res.json({ respCode: 200, configs });
 }
 
 async function getReportConfigById(req, res) {
-  const email = await resolveAccount(req.query.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const config = await reportConfigService.getReportConfig(email, req.params.id);
   if (!config || !config._id) return res.json({ errorCode: 9002, errorMessage: "Report config not found." });
@@ -1582,14 +1633,14 @@ async function getReportConfigById(req, res) {
 }
 
 async function createReportConfigCtrl(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const config = await reportConfigService.createReportConfig(email, req.body || {});
   return res.json({ respCode: 200, respMessage: "Report config created.", config });
 }
 
 async function updateReportConfigCtrl(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const config = await reportConfigService.updateReportConfig(email, req.params.id, req.body || {});
   if (!config) return res.json({ errorCode: 9002, errorMessage: "Report config not found." });
@@ -1605,7 +1656,7 @@ async function setDefaultReportConfigCtrl(req, res) {
 }
 
 async function deleteReportConfigCtrl(req, res) {
-  const email = await resolveAccount(req.query.email || req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const ok = await reportConfigService.deleteReportConfig(email, req.params.id);
   if (!ok) return res.json({ errorCode: 9002, errorMessage: "Report config not found." });
@@ -1668,6 +1719,11 @@ export default {
   setDefaultReportConfigCtrl,
   deleteReportConfigCtrl,
   generateAiReply,
+  getConversationSummary,
+  getAutoSync,
+  setAutoSync,
+  getSyncInterval,
+  setSyncInterval,
 };
 
 // In-flight AI reply generations keyed by mail id, so a background prefetch
@@ -1735,5 +1791,193 @@ async function generateAiReply(req, res) {
   } catch (err) {
     console.error("[EmailAnalysis] AI reply generation failed:", err.message);
     return res.json({ errorCode: 9400, errorMessage: `AI reply failed: ${err.message}` });
+  }
+}
+
+const pendingSummaries = new Map();
+
+/**
+ * Get or generate the AI conversation thread summary for an email.
+ * POST param :id is the EmailAnalysisMail._id.
+ * Optional body: { force } — if true, ignores cached summary and regenerates.
+ *
+ * Response: { respCode, summary, cached }
+ */
+async function getConversationSummary(req, res) {
+  const mail = await EmailAnalysisMail.findOne({ _id: req.params.id, active: true }).lean();
+  if (!mail) return res.json({ errorCode: 9002, errorMessage: "Email not found." });
+
+  const force = req.body?.force === true;
+
+  if (!force && mail.threadSummary) {
+    return res.json({
+      respCode: 200,
+      summary: mail.threadSummary,
+      cached: true,
+    });
+  }
+
+  try {
+    const key = mail.threadId || String(mail._id);
+    let job = pendingSummaries.get(key);
+    if (!job || force) {
+      job = conversationSummaryService.generateConversationSummary(mail)
+        .finally(() => pendingSummaries.delete(key));
+      pendingSummaries.set(key, job);
+    }
+    const summary = await job;
+    return res.json({
+      respCode: 200,
+      summary,
+      cached: false,
+    });
+  } catch (err) {
+    console.error("[EmailAnalysis] Thread summary generation failed:", err.message);
+    return res.json({ errorCode: 9450, errorMessage: `Thread summary failed: ${err.message}` });
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Auto-sync toggle (per-user, stored on Employee profile via JWT)    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * GET /api/email-analysis/auto-sync
+ * Returns { autoSync: true|false } for the logged-in admin user.
+ * Defaults to true if the field is not yet set (existing users unaffected).
+ */
+async function getAutoSync(req, res) {
+  try {
+    const employee = await resolveEmployee(req);
+    const autoSync = employee?.autoSync !== false; // default true
+    return res.json({ autoSync });
+  } catch (err) {
+    console.error("[EmailAnalysis] getAutoSync error:", err.message);
+    return res.json({ autoSync: true }); // safe fallback
+  }
+}
+
+/**
+ * POST /api/email-analysis/auto-sync
+ * Body: { autoSync: true|false }
+ * Persists the preference on the Employee doc and starts/stops the cron immediately.
+ */
+async function setAutoSync(req, res) {
+  try {
+    const employee = await resolveEmployee(req);
+    if (!employee) {
+      return res.json({ errorCode: 401, errorMessage: "Not authenticated." });
+    }
+
+    const enabled = req.body?.autoSync !== false;
+
+    // Persist per-user preference on the Employee document.
+    await Employee.findByIdAndUpdate(employee._id, { $set: { autoSync: enabled } });
+
+    // Apply immediately — no server restart required.
+    if (enabled) {
+      startSyncJobs(); // idempotent: no-op if already running
+    } else {
+      stopSyncJobs();
+    }
+
+    console.log(`[EmailAnalysis] Auto-sync ${enabled ? 'ENABLED' : 'DISABLED'} by ${employee.email}`);
+    return res.json({
+      respCode: 200,
+      autoSync: enabled,
+      respMessage: `Auto-sync ${enabled ? "enabled" : "disabled"}.`,
+    });
+  } catch (err) {
+    console.error("[EmailAnalysis] setAutoSync error:", err.message);
+    return res.json({ errorCode: 500, errorMessage: "Could not update auto-sync preference." });
+  }
+}
+
+/**
+ * GET /api/email-analysis/sync-interval
+ * Returns { syncIntervalValue, syncIntervalUnit } for the logged-in user.
+ */
+async function getSyncInterval(req, res) {
+  try {
+    const employee = await resolveEmployee(req);
+    const syncIntervalValue = employee?.syncIntervalValue !== undefined ? employee.syncIntervalValue : (employee?.syncIntervalMinutes || 15);
+    const syncIntervalUnit = employee?.syncIntervalUnit || "minutes";
+    return res.json({ syncIntervalValue, syncIntervalUnit });
+  } catch (err) {
+    console.error("[EmailAnalysis] getSyncInterval error:", err.message);
+    return res.json({ syncIntervalValue: 15, syncIntervalUnit: "minutes" });
+  }
+}
+
+/**
+ * POST /api/email-analysis/sync-interval
+ * Body: { syncIntervalValue: Number, syncIntervalUnit: 'minutes' | 'days' }
+ * Updates the user's sync interval preference and reschedules the cron immediately.
+ */
+async function setSyncInterval(req, res) {
+  try {
+    const employee = await resolveEmployee(req);
+    if (!employee) {
+      return res.json({ errorCode: 401, errorMessage: "Not authenticated." });
+    }
+
+    const value = Number(req.body?.syncIntervalValue);
+    const unit = String(req.body?.syncIntervalUnit || "minutes").toLowerCase();
+
+    if (unit !== "minutes" && unit !== "days" && unit !== "hours") {
+      return res.json({
+        errorCode: 400,
+        errorMessage: "Invalid unit. Choose 'minutes', 'hours', or 'days'.",
+      });
+    }
+
+    if (unit === "minutes") {
+      if (isNaN(value) || value < 1 || value > 60) {
+        return res.json({
+          errorCode: 400,
+          errorMessage: "Invalid minutes value. Must be between 1 and 60.",
+        });
+      }
+    } else if (unit === "hours") {
+      if (isNaN(value) || value < 1 || value > 23) {
+        return res.json({
+          errorCode: 400,
+          errorMessage: "Invalid hours value. Must be between 1 and 23.",
+        });
+      }
+    } else if (unit === "days") {
+      if (isNaN(value) || value < 1 || value > 31) {
+        return res.json({
+          errorCode: 400,
+          errorMessage: "Invalid days value. Must be between 1 and 31.",
+        });
+      }
+    }
+
+    const updateObj = {
+      syncIntervalValue: value,
+      syncIntervalUnit: unit,
+    };
+    if (unit === "minutes") {
+      updateObj.syncIntervalMinutes = value;
+    }
+
+    await Employee.findByIdAndUpdate(employee._id, { $set: updateObj });
+
+    // Apply the change immediately to the running cron if auto-sync is ON.
+    if (employee.autoSync !== false) {
+      rescheduleIncrementalCron(value, unit);
+    }
+
+    console.log(`[EmailAnalysis] Sync interval updated to every ${value} ${unit} by ${employee.email}`);
+    return res.json({
+      respCode: 200,
+      syncIntervalValue: value,
+      syncIntervalUnit: unit,
+      respMessage: `Sync interval updated to every ${value} ${unit}.`,
+    });
+  } catch (err) {
+    console.error("[EmailAnalysis] setSyncInterval error:", err.message);
+    return res.json({ errorCode: 500, errorMessage: "Could not update sync interval." });
   }
 }

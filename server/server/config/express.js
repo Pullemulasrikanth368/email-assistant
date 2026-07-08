@@ -21,7 +21,8 @@ import routes from '../routes/index.route';
 import { startReportCron } from "../emailAnalysis/jobs/report.job";
 startReportCron();
 import { startSyncJobs } from "../emailAnalysis/jobs/sync.job";
-startSyncJobs();
+// startSyncJobs is async — chain .catch() so it never blocks Express boot.
+startSyncJobs().catch((err) => console.error("[EmailAnalysis] startSyncJobs boot error:", err.message));
 
 /**@Rate limiter */
 const rateLimit = require('express-rate-limit');

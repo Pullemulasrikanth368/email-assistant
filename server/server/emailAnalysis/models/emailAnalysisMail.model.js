@@ -86,6 +86,9 @@ const EmailAnalysisMailSchema = new mongoose.Schema({
     generatedAt: { type: Date, default: null },
   },
 
+  // AI-generated summary of the entire thread/conversation.
+  threadSummary: { type: String, default: null },
+
   // Which provider folder the mail was synced from, and whether it was junk.
   sourceFolder: { type: String, default: 'inbox' }, // inbox | junk
   isJunk: { type: Boolean, default: false },

@@ -185,6 +185,11 @@ const htmlToText = (html = '') => {
   return (tmp.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 };
 
+// Wrap edited plain text back into the HTML shape drafts are stored/sent in.
+const localTextToHtml = (text = '') =>
+  `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;line-height:1.6;white-space:pre-wrap">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }</div>`;
+
 // Mail type tag (Received / Sent / Draft / Junk) shown next to each mail.
 const MAIL_TAGS = {
   received: { label: 'Received', color: '#188038', bg: '#e6f4ea' },
@@ -326,7 +331,7 @@ const DraftThreadEditor = ({ msg, onSave, onSaved, onSend, onDiscard }) => {
   const [subject, setSubject] = useState(msg.subject || '');
   // The editor works on the draft's HTML directly.
   const [html, setHtml] = useState(() => (
-    msg.body && !isEmptyHtml(msg.body) ? msg.body : textToHtml(msg.snippet || '')
+    msg.body && !isEmptyHtml(msg.body) ? msg.body : localTextToHtml(msg.snippet || '')
   ));
   const [saveState, setSaveState] = useState('');
   const [sending, setSending] = useState(false);
@@ -458,6 +463,10 @@ const EmailAnalysisMails = () => {
   const [mailError, setMailError] = useState(null);
   const [readIds, setReadIds] = useState(() => new Set());
   const [syncing, setSyncing] = useState(false);
+  const [autoSync, setAutoSync] = useState(true);
+  const [autoSyncLoading, setAutoSyncLoading] = useState(false);
+  const [syncIntervalValue, setSyncIntervalValue] = useState(15);
+  const [syncIntervalUnit, setSyncIntervalUnit] = useState('minutes');
   const [showReadingPaneMobile, setShowReadingPaneMobile] = useState(false);
 
   // Connected provider ('gmail' | 'outlook') — drives the folder-bar styling.
@@ -470,6 +479,22 @@ const EmailAnalysisMails = () => {
   // is in `expandedMsgs` are shown expanded (the rest collapse to one line).
   const [thread, setThread] = useState([]);
   const [expandedMsgs, setExpandedMsgs] = useState(() => new Set());
+
+  // Conversation thread summary states
+  const [threadSummary, setThreadSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState(null);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+
+  const formatInterval = () => {
+    if (syncIntervalUnit === 'days') {
+      return syncIntervalValue === 1 ? '1 day' : `${syncIntervalValue} days`;
+    }
+    if (syncIntervalUnit === 'hours') {
+      return syncIntervalValue === 1 ? '1 hour' : `${syncIntervalValue} hours`;
+    }
+    return `${syncIntervalValue} min`;
+  };
 
   // One-click cleanup (remove junk / promotional / low-priority mail).
   const [cleanup, setCleanup] = useState({
@@ -547,6 +572,32 @@ const EmailAnalysisMails = () => {
     fetchMails(page, rows, appliedSearch, dateRange);
   }, [first, rows, appliedSearch, dateRange, fetchMails]);
 
+  // Fetch auto-sync and sync interval preferences for the logged-in user on mount & listen for updates.
+  useEffect(() => {
+    const loadSettings = () => {
+      fetchMethodRequest('GET', 'email-analysis/auto-sync')
+        .then((r) => { if (r?.autoSync !== undefined) setAutoSync(r.autoSync !== false); })
+        .catch(() => { });
+      fetchMethodRequest('GET', 'email-analysis/sync-interval')
+        .then((r) => {
+          if (r?.syncIntervalValue !== undefined) {
+            setSyncIntervalValue(Number(r.syncIntervalValue) || 15);
+            setSyncIntervalUnit(r.syncIntervalUnit || 'minutes');
+          } else if (r?.syncIntervalMinutes !== undefined) {
+            setSyncIntervalValue(Number(r.syncIntervalMinutes) || 15);
+            setSyncIntervalUnit('minutes');
+          }
+        })
+        .catch(() => { });
+    };
+
+    loadSettings();
+    window.addEventListener('syncSettingsUpdated', loadSettings);
+    return () => {
+      window.removeEventListener('syncSettingsUpdated', loadSettings);
+    };
+  }, []);
+
   /* -------------------- search (debounced) -------------------- */
   const onSearchChange = (value) => {
     setSearch(value);
@@ -574,6 +625,10 @@ const EmailAnalysisMails = () => {
     setSelectedMail(null);
     setThread([]);
     setExpandedMsgs(new Set());
+    setThreadSummary(null);
+    setSummaryLoading(false);
+    setSummaryError(null);
+    setSummaryExpanded(false);
 
     // Mark as read in the real mailbox too (fire-and-forget, like Gmail/Outlook).
     if ((mail.labels || []).includes('UNREAD') && mail.providerMessageId) {
@@ -581,7 +636,7 @@ const EmailAnalysisMails = () => {
         messageIds: [mail.providerMessageId],
         isRead: true,
         loginUserEmailId: getLoginEmail(),
-      }).catch(() => {});
+      }).catch(() => { });
       setMails(prev => prev.map(m => (
         m._id === mail._id ? { ...m, labels: (m.labels || []).filter(l => l !== 'UNREAD') } : m
       )));
@@ -598,7 +653,7 @@ const EmailAnalysisMails = () => {
         // read — the server caches it on the mail, so the "AI draft reply" button
         // (and every later open) returns instantly instead of re-generating.
         if (!isDraftMail(res.mail) && !res.mail.aiReply?.text) {
-          fetchMethodRequest('POST', `email-analysis/mails/${mail._id}/generate-reply`, {}).catch(() => {});
+          fetchMethodRequest('POST', `email-analysis/mails/${mail._id}/generate-reply`, {}).catch(() => { });
         }
       } else {
         setMailError('This email could not be found.');
@@ -609,6 +664,23 @@ const EmailAnalysisMails = () => {
       setMailLoading(false);
     }
   }, []);
+
+  const fetchThreadSummary = async (mailId, force = false) => {
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const res = await fetchMethodRequest('POST', `email-analysis/mails/${mailId}/conversation/summary`, { force });
+      if (res?.respCode === 200 && res.summary) {
+        setThreadSummary(res.summary);
+      } else {
+        setSummaryError(res?.errorMessage || 'Could not load conversation summary.');
+      }
+    } catch {
+      setSummaryError('Failed to load conversation summary.');
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
 
   // Fetch the whole conversation the opened mail belongs to (oldest first).
   const loadThread = async (mailId, openedMail) => {
@@ -622,6 +694,10 @@ const EmailAnalysisMails = () => {
       msgs.sort((a, b) => new Date(a.receivedAt || 0) - new Date(b.receivedAt || 0));
       setThread(msgs);
       setExpandedMsgs(new Set([msgs[0]?.providerMessageId].filter(Boolean)));
+
+      if (msgs.length >= 2) {
+        fetchThreadSummary(mailId);
+      }
     } catch {
       setThread([openedMail]);
       setExpandedMsgs(new Set([openedMail.providerMessageId]));
@@ -681,9 +757,9 @@ const EmailAnalysisMails = () => {
       const res = msg.localDraftId
         ? await fetchMethodRequest('DELETE', `email-analysis/drafts/${msg.localDraftId}`)
         : await fetchMethodRequest('POST', 'email-analysis/mail/delete', {
-            messageIds: [msg.providerMessageId],
-            loginUserEmailId: getLoginEmail(),
-          });
+          messageIds: [msg.providerMessageId],
+          loginUserEmailId: getLoginEmail(),
+        });
       if (res?.respCode) {
         showToasterMessage('Draft discarded', 'success');
         closeReader();
@@ -771,6 +847,30 @@ const EmailAnalysisMails = () => {
       showToasterMessage('Sync failed. Please try again.', 'error');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  /* -------------------- auto-sync toggle -------------------- */
+  const onToggleAutoSync = async () => {
+    const next = !autoSync;
+    setAutoSync(next); // optimistic update
+    setAutoSyncLoading(true);
+    try {
+      const res = await fetchMethodRequest('POST', 'email-analysis/auto-sync', { autoSync: next });
+      if (res?.respCode) {
+        showToasterMessage(
+          next ? `Auto-sync enabled — syncing every ${formatInterval()}` : 'Auto-sync paused',
+          'success'
+        );
+      } else {
+        setAutoSync(!next); // revert on failure
+        showToasterMessage(res?.errorMessage || 'Could not update auto-sync', 'error');
+      }
+    } catch {
+      setAutoSync(!next);
+      showToasterMessage('Could not update auto-sync', 'error');
+    } finally {
+      setAutoSyncLoading(false);
     }
   };
 
@@ -1018,9 +1118,11 @@ const EmailAnalysisMails = () => {
               <span className="ea-from-name">{from.name}</span>
               {from.email && <span className="ea-from-email">&lt;{from.email}&gt;</span>}
               <div className="ea-badges-container">
-                {(() => { const t = mailTag(msg); return (
-                  <span className="ea-mail-tag" style={{ color: t.color, background: t.bg }}>{t.label}</span>
-                ); })()}
+                {(() => {
+                  const t = mailTag(msg); return (
+                    <span className="ea-mail-tag" style={{ color: t.color, background: t.bg }}>{t.label}</span>
+                  );
+                })()}
                 {msg.priority && PRIORITY_META[msg.priority] && (
                   <span
                     className="ea-priority-badge"
@@ -1163,7 +1265,63 @@ const EmailAnalysisMails = () => {
           </div>
         </div>
 
+        {/* Thread Summary Card */}
+        {msgs.length >= 2 && (threadSummary || summaryLoading || summaryError) && (
+          <div className={cn("ea-thread-summary-card", { expanded: summaryExpanded })}>
+            <div className="ea-summary-header" onClick={() => setSummaryExpanded(!summaryExpanded)}>
+              <span className="ea-summary-title">
+                <i className="pi pi-sparkles ea-sparkles-icon" style={{ marginRight: 6, color: '#4f46e5' }} />
+                AI Conversation Summary
+              </span>
+              <div className="ea-summary-header-actions" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="ea-summary-refresh-btn"
+                  onClick={() => fetchThreadSummary(selectedMail._id, true)}
+                  disabled={summaryLoading}
+                  title="Regenerate summary"
+                >
+                  <i className={cn("pi pi-sync", { "pi-spin": summaryLoading })} />
+                </button>
+                <i
+                  role="button"
+                  tabIndex={0}
+                  className={cn("ea-summary-toggle-icon pi", summaryExpanded ? "pi-chevron-up" : "pi-chevron-down")}
+                  onClick={() => setSummaryExpanded(!summaryExpanded)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSummaryExpanded(!summaryExpanded); }}
+                />
+              </div>
+            </div>
+            {summaryExpanded && (
+              <div className="ea-summary-content">
+                {summaryLoading && !threadSummary ? (
+                  <div className="ea-summary-loading">
+                    <i className="pi pi-spin pi-spinner" style={{ marginRight: 6 }} />
+                    <span>Analyzing thread & generating summary...</span>
+                  </div>
+                ) : summaryError && !threadSummary ? (
+                  <div className="ea-summary-error">
+                    <i className="pi pi-exclamation-triangle" style={{ marginRight: 6, color: '#ef4444' }} />
+                    <span>{summaryError}</span>
+                  </div>
+                ) : (
+                  <div className="ea-summary-text-wrapper">
+                    <div dangerouslySetInnerHTML={{ __html: threadSummary }} />
+                    {summaryLoading && (
+                      <div className="ea-summary-updating-overlay">
+                        <i className="pi pi-spin pi-spinner" style={{ marginRight: 6 }} />
+                        <span>Updating summary...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="ea-thread">
+
           {msgs.map((msg, idx) => renderThreadMessage(
             msg,
             idx,
@@ -1384,11 +1542,31 @@ const EmailAnalysisMails = () => {
             {syncing ? <i className="pi pi-spin pi-spinner" style={{ marginRight: 4 }} /> : null}
             Sync
           </Button>
+          <Button
+            size="sm"
+            id="auto-sync-toggle-btn"
+            className={`ea-autosync-btn ${autoSync ? 'active' : ''}`}
+            onClick={onToggleAutoSync}
+            disabled={autoSyncLoading}
+            title={autoSync
+              ? `Auto-sync is ON — inbox refreshes every ${formatInterval()}. Click to pause.`
+              : 'Auto-sync is OFF — only manual Sync runs. Click to enable.'}
+          >
+            <RefreshCw size={13} className={autoSync ? 'ea-spin-slow' : ''} />
+            Auto {autoSync ? 'ON' : 'OFF'}
+          </Button>
         </div>
 
       </div>
 
-      {/* Sub-toolbar: folders + category filter + date filter + pager */}
+      {/* Auto-sync active indicator — sits just below the header */}
+      {autoSync && (
+        <div className="ea-autosync-hint">
+          <i className="pi pi-check-circle" /> Auto-sync active &mdash; inbox refreshes every {formatInterval()}
+        </div>
+      )}
+
+      {/* Sub-toolbar: date filter + Gmail-style pager */}
       <div className="ea-subbar">
         <div className="ea-subbar-left">
           {/* Provider folders — styled like Outlook or Gmail per the connected account */}

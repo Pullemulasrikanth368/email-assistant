@@ -12,6 +12,15 @@ const EmployeeSchema = new mongoose.Schema({
   entityType: { type: String },
   role: { type: String, default: 'Admin' },
   active: { type: Boolean, default: true },
+  // Per-user auto-sync preference for the connected inbox cron.
+  // true  = background cron runs every 15 min (default — existing users unaffected).
+  // false = only the manual Sync button works.
+  autoSync: { type: Boolean, default: true },
+  // Per-user sync interval in minutes (5 | 10 | 15 | 30 | 60). Default 15. Kept for backward compatibility.
+  syncIntervalMinutes: { type: Number, default: 15 },
+  // Dynamic sync interval value and unit (e.g. value: 2, unit: 'days')
+  syncIntervalValue: { type: Number, default: 15 },
+  syncIntervalUnit: { type: String, default: 'minutes' }, // 'minutes' or 'days'
 }, { timestamps: true });
 
 // Hash password before saving

@@ -29,6 +29,7 @@ router.get("/mails/by-source/:sourceId", asyncHandler(emailAnalysisCtrl.getMailB
 // Batch reply/draft status for a set of source mails (to-do list tags).
 router.post("/mails/reply-status", asyncHandler(emailAnalysisCtrl.getMailReplyStatus));
 router.get("/mails/:id/conversation", asyncHandler(emailAnalysisCtrl.getMailConversation));
+router.post("/mails/:id/conversation/summary", asyncHandler(emailAnalysisCtrl.getConversationSummary));
 // Edit a synced provider draft (subject/body) in place.
 router.put("/mails/:id/draft", asyncHandler(emailAnalysisCtrl.updateMailDraft));
 // Send a synced provider draft as-is.
@@ -108,5 +109,18 @@ router.post("/ai-model", asyncHandler(emailAnalysisCtrl.setEmailAnalysisModel));
  */
 router.get("/include-spam", asyncHandler(emailAnalysisCtrl.getIncludeSpam));
 router.post("/include-spam", asyncHandler(emailAnalysisCtrl.setIncludeSpam));
+
+/**
+ * Per-user auto-sync cron toggle.
+ * Reads / writes Employee.autoSync scoped to the logged-in user via JWT.
+ */
+router.get("/auto-sync",  asyncHandler(emailAnalysisCtrl.getAutoSync));
+router.post("/auto-sync", asyncHandler(emailAnalysisCtrl.setAutoSync));
+
+/**
+ * Per-user sync interval preference (in minutes).
+ */
+router.get("/sync-interval",  asyncHandler(emailAnalysisCtrl.getSyncInterval));
+router.post("/sync-interval", asyncHandler(emailAnalysisCtrl.setSyncInterval));
 
 export default router;

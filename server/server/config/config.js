@@ -83,6 +83,10 @@ const config = {
     process.env.MS_OUTLOOK_REDIRECT_URI ||
     `http://localhost:${process.env[`${PREFIX}PORT`] || 6001}/api/auth/microsoft/outlook/webhook`,
 
+  microsoftProviders: process.env.MICROSOFT_PROVIDERS
+    ? process.env.MICROSOFT_PROVIDERS.split(",").map(p => p.trim())
+    : ["outlook", "microsoft"],
+
   /**
    * AI backend for the email-analysis flow.
    * "openai" (default) or "ollama"

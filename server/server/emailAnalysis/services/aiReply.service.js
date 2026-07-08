@@ -38,7 +38,7 @@ function formatThreadMsg(msg, idx) {
  */
 async function fetchThreadContext(mail) {
   const threadKey = mail.provider === 'outlook'
-    ? { conversationId: mail.threadId || mail.providerMessageId }  // Outlook stores conversationId as threadId
+    ? { threadId: mail.threadId || mail.providerMessageId }  // Outlook stores conversationId as threadId
     : { threadId: mail.threadId };
 
   if (!mail.threadId) return [];

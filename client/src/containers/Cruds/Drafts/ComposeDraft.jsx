@@ -75,7 +75,7 @@ function AttachmentList({ attachments, draftId, onDraftUpdate, disabled }) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`${window._EA_API_BASE || 'http://localhost:8676/'}api/email-analysis/drafts/${draftId}/attachments`, {
+      const res = await fetch(`${window._EA_API_BASE || 'http://localhost:6001/'}api/email-analysis/drafts/${draftId}/attachments`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('loginCredentials') || '{}').accessToken || ''}` },
         body: formData,
