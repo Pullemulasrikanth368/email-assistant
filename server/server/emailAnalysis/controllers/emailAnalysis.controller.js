@@ -57,7 +57,7 @@ const JWTSECRET = process.env.JWTSECRET || "0a6b944d-d2fb-46fc-a85e-0295c986cd9f
  * Returns the lean Employee doc or null if unauthenticated/invalid.
  */
 async function resolveEmployee(req) {
-  const auth = req.headers.authorization || "";
+  const auth = req?.headers?.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
   if (!token) return null;
   try {
@@ -1648,7 +1648,7 @@ async function updateReportConfigCtrl(req, res) {
 }
 
 async function setDefaultReportConfigCtrl(req, res) {
-  const email = await resolveAccount(req.body?.email);
+  const email = await resolveAccount(req);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   const config = await reportConfigService.setDefaultReportConfig(email, req.params.id);
   if (!config) return res.json({ errorCode: 9002, errorMessage: "Report config not found." });
