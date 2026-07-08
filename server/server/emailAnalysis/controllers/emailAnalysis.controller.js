@@ -1571,7 +1571,7 @@ async function getReportMarkdown(req, res) {
  * Body: { email?, meetingSourceId }, force?
  */
 async function generatePreMeetingBrief(req, res) {
-  const email = await resolveAccount(req.body?.email, req.body?.loginUserEmailId, req.body?.provider);
+  const email = await resolveAccount(req, req.body?.provider);
   if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
   try {
     const brief = await preMeetingBriefService.generatePreMeetingBrief(email, {
