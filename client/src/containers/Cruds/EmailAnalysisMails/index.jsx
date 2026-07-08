@@ -7,6 +7,7 @@ import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
 import AiDraftReply from '../CommonComponents/AiDraftReply';
+import DraftEditor, { isEmptyHtml, textToHtml } from '../CommonComponents/DraftEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -175,7 +176,7 @@ const sortValue = (m) =>
 // Is this mail an unsent draft?
 const isDraftMail = (m) => m?.sourceFolder === 'draft' || (m?.labels || []).includes('DRAFT');
 
-// Plain-text extraction from a stored HTML body (for editing drafts).
+// Plain-text extraction from a stored HTML body (snippets, empty checks).
 const htmlToText = (html = '') => {
   const tmp = document.createElement('div');
   tmp.innerHTML = String(html)
@@ -183,12 +184,6 @@ const htmlToText = (html = '') => {
     .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n');
   return (tmp.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 };
-
-// Wrap edited plain text back into the HTML shape drafts are stored/sent in.
-const textToHtml = (text = '') =>
-  `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;line-height:1.6;white-space:pre-wrap">${
-    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  }</div>`;
 
 // Mail type tag (Received / Sent / Draft / Junk) shown next to each mail.
 const MAIL_TAGS = {
@@ -329,19 +324,22 @@ const DRAFT_AUTOSAVE_MS = 900;
 
 const DraftThreadEditor = ({ msg, onSave, onSaved, onSend, onDiscard }) => {
   const [subject, setSubject] = useState(msg.subject || '');
-  const [text, setText] = useState(() => htmlToText(msg.body || msg.snippet || ''));
+  // The editor works on the draft's HTML directly.
+  const [html, setHtml] = useState(() => (
+    msg.body && !isEmptyHtml(msg.body) ? msg.body : textToHtml(msg.snippet || '')
+  ));
   const [saveState, setSaveState] = useState('');
   const [sending, setSending] = useState(false);
   const [discarding, setDiscarding] = useState(false);
 
   const subjectRef = useRef(subject);
-  const textRef = useRef(text);
+  const htmlRef = useRef(html);
   const dirtyRef = useRef(false);
   const timer = useRef(null);
 
   const persist = useCallback(async () => {
     setSaveState('saving');
-    const saved = await onSave(msg, { subject: subjectRef.current, text: textRef.current });
+    const saved = await onSave(msg, { subject: subjectRef.current, html: htmlRef.current });
     if (saved) {
       dirtyRef.current = false;
       setSaveState('saved');
@@ -360,12 +358,12 @@ const DraftThreadEditor = ({ msg, onSave, onSaved, onSend, onDiscard }) => {
   // Flush any unsaved edit when the editor unmounts (mail switched / screen left).
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
-    if (dirtyRef.current) onSave(msg, { subject: subjectRef.current, text: textRef.current });
+    if (dirtyRef.current) onSave(msg, { subject: subjectRef.current, html: htmlRef.current });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubjectChange = (v) => { setSubject(v); subjectRef.current = v; scheduleSave(); };
-  const handleTextChange = (v) => { setText(v); textRef.current = v; scheduleSave(); };
+  const handleHtmlChange = (v) => { setHtml(v); htmlRef.current = v; scheduleSave(); };
 
   const handleSend = async () => {
     setSending(true);
@@ -394,13 +392,11 @@ const DraftThreadEditor = ({ msg, onSave, onSaved, onSend, onDiscard }) => {
         placeholder="Subject"
         disabled={busy}
       />
-      <textarea
-        className="ea-draft-inline-body"
-        rows={8}
-        value={text}
-        onChange={(e) => handleTextChange(e.target.value)}
-        placeholder="Write your draft…"
+      <DraftEditor
+        value={html}
+        onChange={handleHtmlChange}
         disabled={busy}
+        placeholder="Write your draft…"
       />
       <div className="ea-draft-inline-foot">
         <span className={cn('ea-draft-savestate', `ea-draft-savestate--${saveState || 'idle'}`)}>
@@ -422,7 +418,7 @@ const DraftThreadEditor = ({ msg, onSave, onSaved, onSend, onDiscard }) => {
             size="sm"
             className="ea-draft-send-btn"
             onClick={handleSend}
-            disabled={busy || !text.trim()}
+            disabled={busy || isEmptyHtml(html)}
           >
             {sending
               ? (<><i className="pi pi-spin pi-spinner" style={{ marginRight: 4 }} /> Sending…</>)
@@ -723,10 +719,10 @@ const EmailAnalysisMails = () => {
 
   // Persist inline edits to a draft (used for both debounced auto-save and
   // the flush-on-unmount when the user moves to another mail/screen).
-  const saveDraftMessage = async (msg, { subject, text }) => {
+  const saveDraftMessage = async (msg, { subject, html }) => {
     if (!msg?._id) return null;
     try {
-      const body = textToHtml(text);
+      const body = html;
       if (msg.localDraftId) {
         const res = await fetchMethodRequest('POST', `email-analysis/drafts/${msg.localDraftId}/autosave`, {
           subject,
@@ -737,7 +733,7 @@ const EmailAnalysisMails = () => {
             ...msg,
             subject,
             body,
-            snippet: text.replace(/\s+/g, ' ').trim().slice(0, 200),
+            snippet: htmlToText(body).replace(/\s+/g, ' ').trim().slice(0, 200),
           };
         }
         return null;

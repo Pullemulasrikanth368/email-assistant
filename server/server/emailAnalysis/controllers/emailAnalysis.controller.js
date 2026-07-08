@@ -31,6 +31,7 @@ import Settings from "../../models/settings.model";
 import EmailAnalysisUser from "../models/emailAnalysisUser.model";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
 import EmailAnalysisReport from "../models/emailAnalysisReport.model";
+import EmailDraft from "../models/emailDraft.model";
 import OutlookUser from "../../microsoft/models/outlookUser.model";
 
 /**@KB + ReportConfig services */
@@ -1013,8 +1014,8 @@ async function generateReplyHtml(mail, task) {
   return String(html || "").trim();
 }
 
-/** Mark the matching todo as Completed in the stored report (best-effort). */
-async function markTodoCompleted({ email, reportId, sourceId, task }) {
+/** Set the matching todo's completion state in the stored report (best-effort). */
+async function markTodoCompleted({ email, reportId, sourceId, task, completed = true }) {
   const report = reportId
     ? await EmailAnalysisReport.findOne({ _id: reportId, active: true })
     : await EmailAnalysisReport.findOne({ email, reportType: "day", active: true }).sort({ periodStart: -1 });
@@ -1024,7 +1025,9 @@ async function markTodoCompleted({ email, reportId, sourceId, task }) {
   report.brief.todoList = report.brief.todoList.map((t) => {
     if (t.sourceId === sourceId && (!task || t.task === task)) {
       changed = true;
-      return { ...t, status: "Completed", completedAt: new Date() };
+      return completed
+        ? { ...t, status: "Completed", completedAt: new Date() }
+        : { ...t, status: "Open", completedAt: null };
     }
     return t;
   });
@@ -1055,6 +1058,29 @@ async function completeActionItem(req, res) {
   const mail = await EmailAnalysisMail.findOne({ email, providerMessageId: sourceId, active: true }).lean();
   if (!mail) {
     return res.json({ errorCode: 9202, errorMessage: "Linked email not found for this account." });
+  }
+
+  // undo: re-open a checked-off item (no reply involved).
+  if (req.body?.undo === true) {
+    let changed = false;
+    try {
+      changed = await markTodoCompleted({ email, reportId: req.body?.reportId, sourceId, task, completed: false });
+    } catch (err) {
+      console.error("[EmailAnalysis] Could not persist todo un-completion:", err.message);
+    }
+    return res.json({ respCode: 200, respMessage: "Marked as not completed.", completed: false, changed });
+  }
+
+  // skipSend: the reply already went out (e.g. "Mark as complete & send" in
+  // the email detail view sent the stored draft) — just record completion.
+  if (req.body?.skipSend === true) {
+    let completed = false;
+    try {
+      completed = await markTodoCompleted({ email, reportId: req.body?.reportId, sourceId, task });
+    } catch (err) {
+      console.error("[EmailAnalysis] Could not persist todo completion:", err.message);
+    }
+    return res.json({ respCode: 200, respMessage: "Marked as completed.", completed });
   }
 
   let html;
@@ -1381,6 +1407,46 @@ async function getReportByDate(req, res) {
  * Resolve a brief sourceId (== providerMessageId) back to its email, for the
  * email-detail drill-down. Includes full body + attachment URLs.
  */
+/**
+ * Batch reply/draft status for a set of source emails (to-do list tags).
+ * Body: { sourceIds: [providerMessageId] } ->
+ * { statuses: { [sourceId]: { needsReply, hasDraft } } }
+ */
+async function getMailReplyStatus(req, res) {
+  const sourceIds = Array.isArray(req.body?.sourceIds)
+    ? [...new Set(req.body.sourceIds.filter(Boolean).map(String))].slice(0, 200)
+    : [];
+  if (!sourceIds.length) return res.json({ respCode: 200, statuses: {} });
+
+  const mails = await EmailAnalysisMail.find(
+    { providerMessageId: { $in: sourceIds }, active: true },
+    { providerMessageId: 1, needsReply: 1, autoDraftId: 1, isRepliedMail: 1 }
+  ).lean();
+
+  const autoDraftIds = mails.map((m) => m.autoDraftId).filter(Boolean);
+  const drafts = await EmailDraft.find(
+    {
+      active: true,
+      status: { $ne: "sent" },
+      $or: [{ _id: { $in: autoDraftIds } }, { replyToMessageId: { $in: sourceIds } }],
+    },
+    { replyToMessageId: 1 }
+  ).lean();
+  const liveDraftIds = new Set(drafts.map((d) => String(d._id)));
+  const draftedSources = new Set(drafts.map((d) => d.replyToMessageId).filter(Boolean));
+
+  const statuses = {};
+  for (const m of mails) {
+    const hasDraft = draftedSources.has(m.providerMessageId)
+      || (m.autoDraftId && liveDraftIds.has(String(m.autoDraftId)));
+    statuses[m.providerMessageId] = {
+      needsReply: !!m.needsReply && !m.isRepliedMail,
+      hasDraft: !!hasDraft,
+    };
+  }
+  return res.json({ respCode: 200, statuses });
+}
+
 async function getMailBySource(req, res) {
   const sourceId = req.params.sourceId;
   if (!sourceId) return res.json({ errorCode: 9005, errorMessage: "sourceId required." });
@@ -1408,6 +1474,29 @@ async function getMailBySource(req, res) {
 
   await resolveOutlookInlineImages(mail);
   mail.attachments = mapAttachments(mail.attachments);
+
+  // Attach the live reply draft for this mail (auto-created during
+  // categorization for needs-reply mails, or created earlier from the detail
+  // view) so the drawer can show the draft thread instead of starting blank.
+  try {
+    let draft = null;
+    if (mail.autoDraftId) {
+      draft = await EmailDraft.findOne({ _id: mail.autoDraftId, active: true, status: { $ne: "sent" } }).lean();
+    }
+    if (!draft) {
+      draft = await EmailDraft.findOne({
+        email: mail.email,
+        replyToMessageId: mail.providerMessageId,
+        active: true,
+        status: { $ne: "sent" },
+      }).sort({ updatedAt: -1 }).lean();
+    }
+    mail.draft = draft || null;
+  } catch (err) {
+    console.warn(`[EmailAnalysis] Could not load draft for ${sourceId}:`, err.message);
+    mail.draft = null;
+  }
+
   return res.json({ mail });
 }
 
@@ -1551,6 +1640,7 @@ export default {
   getEmailAnalysisReport,
   getReportByDate,
   getMailBySource,
+  getMailReplyStatus,
   getReportMarkdown,
   generatePreMeetingBrief,
   prioritizeEmailAnalysisMails,

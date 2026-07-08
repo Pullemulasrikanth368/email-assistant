@@ -1,0 +1,31 @@
+/* CKEditor sizing/skin tweaks for the email draft editors */
+.draft-ck {
+  width: 100%;
+
+  .ck.ck-editor__editable_inline {
+    min-height: 150px;
+    max-height: 420px;
+    overflow-y: auto;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+  }
+
+  .ck.ck-editor__main > .ck-editor__editable {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+
+  .ck.ck-toolbar {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    background: #f7f9fb;
+  }
+
+  /* Keep the focused outline subtle inside the drawers */
+  .ck.ck-editor__editable_inline.ck-focused {
+    border-color: #9db8d8 !important;
+    box-shadow: none !important;
+  }
+}

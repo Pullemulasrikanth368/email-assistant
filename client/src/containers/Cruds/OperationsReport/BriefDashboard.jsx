@@ -1,6 +1,6 @@
 /* Shared dashboard renderer (wireframe screen 02) used by the Reports screen
    and the Daily Brief screen. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import ReactMarkdown from 'react-markdown';
@@ -382,42 +382,107 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     }
   };
 
-  /* -------- action/todo completion (sends an AI reply on the email thread) -------- */
-  const [confirm, setConfirm] = useState({ visible: false, todo: null });
-  const [completing, setCompleting] = useState(false);
+  /* -------- to-do checkbox --------
+     Replyable mail (needs a reply / has a draft) -> open the email detail view,
+     where the draft editor offers "Mark as complete & send" / "Send only".
+     Not replyable -> mark the mail as read and check the item off directly. */
   const [doneKeys, setDoneKeys] = useState(() => new Set());
+  // Items the user un-checked this session (overrides a stored "Completed").
+  const [undoneKeys, setUndoneKeys] = useState(() => new Set());
+  const [busyKeys, setBusyKeys] = useState(() => new Set());
 
-  const isTodoDone = (t) => t.status === 'Completed' || doneKeys.has(todoKey(t));
+  const isTodoDone = (t) => !undoneKeys.has(todoKey(t)) && (t.status === 'Completed' || doneKeys.has(todoKey(t)));
+  const isTodoBusy = (t) => busyKeys.has(todoKey(t));
 
-  const askComplete = (todo) => {
+  // Draft/reply status per linked email — drives the "Draft ready" /
+  // "Reply needed" tag on each to-do (one batch request per report).
+  const [replyStatus, setReplyStatus] = useState({});
+  useEffect(() => {
+    const ids = [...new Set(todos.map((t) => t.sourceId).filter(Boolean))];
+    if (!ids.length) { setReplyStatus({}); return undefined; }
+    let cancelled = false;
+    fetchMethodRequest('POST', 'email-analysis/mails/reply-status', { sourceIds: ids })
+      .then((res) => { if (!cancelled && res?.statuses) setReplyStatus(res.statuses); })
+      .catch(() => { });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report?._id]);
+
+  const onTodoCheck = async (todo) => {
     if (!todo?.sourceId) {
-      showToasterMessage('This item has no linked email to reply to.', 'warning');
+      showToasterMessage('This item has no linked email.', 'warning');
       return;
     }
-    setConfirm({ visible: true, todo });
+    // Status already known from the batch check — open the email straight away.
+    const known = replyStatus[todo.sourceId];
+    if (known && (known.hasDraft || known.needsReply)) {
+      onOpenSource(todo.sourceId);
+      return;
+    }
+    const key = todoKey(todo);
+    setBusyKeys((prev) => new Set(prev).add(key));
+    try {
+      const res = await fetchMethodRequest('GET', `email-analysis/mails/by-source/${encodeURIComponent(todo.sourceId)}`);
+      const mail = res?.mail || null;
+
+      if (mail && (mail.draft || mail.needsReply)) {
+        // Replyable — take the user to the email detail view to review the
+        // draft and choose "Mark as complete & send" or "Send only".
+        onOpenSource(todo.sourceId);
+        return;
+      }
+
+      // Not replyable — mark the mail as read and complete the item directly.
+      if (mail) {
+        fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
+          sourceId: mail.providerMessageId || todo.sourceId,
+          email: mail.email,
+          isRead: true,
+        }).catch(() => { });
+      }
+      const resp = await fetchMethodRequest('POST', 'email-analysis/actions/complete', {
+        sourceId: todo.sourceId,
+        task: todo.task,
+        reportId: report?._id,
+        skipSend: true,
+      });
+      if (resp?.respCode) {
+        setDoneKeys((prev) => new Set(prev).add(key));
+        setUndoneKeys((prev) => { const next = new Set(prev); next.delete(key); return next; });
+        showToasterMessage('Marked as read and completed', 'success');
+      } else {
+        showToasterMessage(resp?.errorMessage || 'Could not complete this item', 'error');
+      }
+    } catch {
+      showToasterMessage('Could not complete this item', 'error');
+    } finally {
+      setBusyKeys((prev) => { const next = new Set(prev); next.delete(key); return next; });
+    }
   };
 
-  const doComplete = async () => {
-    const todo = confirm.todo;
-    if (!todo) return;
-    setCompleting(true);
+  // Re-clicking a checked item (one completed without a draft/reply) re-opens it.
+  const onTodoUncheck = async (todo) => {
+    if (!todo?.sourceId) return;
+    const key = todoKey(todo);
+    setBusyKeys((prev) => new Set(prev).add(key));
     try {
       const resp = await fetchMethodRequest('POST', 'email-analysis/actions/complete', {
         sourceId: todo.sourceId,
         task: todo.task,
         reportId: report?._id,
+        undo: true,
       });
       if (resp?.respCode) {
-        setDoneKeys((prev) => new Set(prev).add(todoKey(todo)));
-        showToasterMessage(resp.respMessage || 'Reply sent', 'success');
-        setConfirm({ visible: false, todo: null });
+        setDoneKeys((prev) => { const next = new Set(prev); next.delete(key); return next; });
+        setUndoneKeys((prev) => new Set(prev).add(key));
+        showToasterMessage('Marked as not completed', 'success');
       } else {
-        showToasterMessage(resp?.errorMessage || 'Could not complete this item', 'error');
+        showToasterMessage(resp?.errorMessage || 'Could not re-open this item', 'error');
       }
     } catch {
-      showToasterMessage('Something went wrong sending the reply', 'error');
+      showToasterMessage('Could not re-open this item', 'error');
     } finally {
-      setCompleting(false);
+      setBusyKeys((prev) => { const next = new Set(prev); next.delete(key); return next; });
     }
   };
 
@@ -829,6 +894,15 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
       <>
         {todos?.map((t, i) => {
           const done = isTodoDone(t);
+          const busy = isTodoBusy(t);
+          const rs = t.sourceId ? replyStatus[t.sourceId] : null;
+          // Completed items with no draft toggle back to open on re-click.
+          const canUncheck = done && !rs?.hasDraft;
+          const onCheckClick = () => {
+            if (busy) return;
+            if (!done) onTodoCheck(t);
+            else if (canUncheck) onTodoUncheck(t);
+          };
           return (
             <div className={`orm-todo${done ? ' done' : ''}`} key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
               <span
@@ -836,13 +910,25 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                 role="checkbox"
                 aria-checked={done}
                 tabIndex={0}
-                title={done ? 'Completed' : 'Mark completed & send reply'}
-                onClick={(e) => { e.stopPropagation(); if (!done) askComplete(t); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); if (!done) askComplete(t); } }}
+                title={done
+                  ? (canUncheck ? 'Completed — click to mark as not completed' : 'Completed')
+                  : 'Reply needed? Opens the email — otherwise marks read & completed'}
+                onClick={(e) => { e.stopPropagation(); onCheckClick(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onCheckClick(); } }}
               >
-                {done && <i className="pi pi-check" />}
+                {busy ? <i className="pi pi-spin pi-spinner" /> : done && <i className="pi pi-check" />}
               </span>
               <span className="orm-todo-task">{t.task}</span>
+              {!done && rs?.hasDraft && (
+                <span className="orm-todo-tag draft" title="An AI reply draft is saved for this email — open to review & send">
+                  <i className="pi pi-file-edit" /> Draft ready
+                </span>
+              )}
+              {!done && !rs?.hasDraft && rs?.needsReply && (
+                <span className="orm-todo-tag reply" title="This email expects a reply — open to draft one">
+                  <i className="pi pi-reply" /> Reply needed
+                </span>
+              )}
               {fieldEnabled('deadline') && t.deadline && <span className="d">{t.deadline}</span>}
             </div>
           );
@@ -1060,38 +1146,6 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
         })()}
       </Dialog>
 
-      {/* Confirm "is this completed?" before sending an AI reply */}
-      <Dialog
-        header="Mark this action as completed?"
-        visible={confirm.visible}
-        modal
-        draggable={false}
-        style={{ width: '460px', maxWidth: '84vw' }}
-        onHide={() => { if (!completing) setConfirm({ visible: false, todo: null }); }}
-      >
-        <p style={{ margin: '0 0 10px', color: '#3c4043', fontSize: 12, lineHeight: 1.55 }}>
-          Mark <strong>“{confirm.todo?.task}”</strong> as completed?
-        </p>
-        <p style={{ margin: '0 0 18px', color: '#5f6368', fontSize: 12, lineHeight: 1.55 }}>
-          We’ll generate a tailored reply from the linked email’s content and send it to the
-          original sender on the same thread, then check this item off.
-        </p>
-        <div className="orm-confirm-actions">
-          <Button
-            label="Cancel"
-            className="p-button-sm orm-confirm-cancel"
-            disabled={completing}
-            onClick={() => setConfirm({ visible: false, todo: null })}
-          />
-          <Button
-            label={completing ? 'Sending reply…' : 'Complete & send reply'}
-            icon={completing ? 'pi pi-spin pi-spinner' : 'pi pi-send'}
-            className="p-button-sm orm-confirm-send"
-            disabled={completing}
-            onClick={doComplete}
-          />
-        </div>
-      </Dialog>
     </div>
   );
 };

@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -10,6 +9,7 @@ import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
 import AiDraftReply from '../CommonComponents/AiDraftReply';
+import MailThread from '../CommonComponents/MailThread';
 import { BriefDashboard } from './BriefDashboard';
 import KnowledgeBaseSettings from './KnowledgeBaseSettings';
 import './OperationsReport.scss';
@@ -34,51 +34,6 @@ const BRIEF_TIMES = [
   { label: '08:00 AM', value: '08:00' },
   { label: '09:00 AM', value: '09:00' },
 ];
-
-const MailFrame = ({ body, snippet }) => {
-  const ref = useRef(null);
-  const srcDoc = useMemo(() => {
-    const raw = (body || snippet || '').trim();
-    const head = '<meta charset="utf-8"><base target="_blank"><style>html{padding:12px;box-sizing:border-box}body{margin:0;font-family:Roboto,Arial,sans-serif;color:#202124;font-size:14px;line-height:1.6;word-break:break-word;overflow-wrap:anywhere}img{max-width:100%;height:auto}a{color:#1a73e8}table{max-width:100%}</style>';
-    if (!raw) return `<!doctype html><html><head>${head}</head><body><p style="color:#80868b">No content.</p></body></html>`;
-    if (!/<[a-z][\s\S]*>/i.test(raw)) {
-      const escaped = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return `<!doctype html><html><head>${head}</head><body><pre style="white-space:pre-wrap;font-family:inherit;margin:0">${escaped}</pre></body></html>`;
-    }
-    const clean = DOMPurify.sanitize(raw, { WHOLE_DOCUMENT: true, ADD_ATTR: ['target'] });
-    if (/<head[^>]*>/i.test(clean)) return clean.replace(/<head([^>]*)>/i, `<head$1>${head}`);
-    if (/<html[^>]*>/i.test(clean)) return clean.replace(/<html([^>]*)>/i, `<html$1><head>${head}</head>`);
-    return `<!doctype html><html><head>${head}</head><body>${clean}</body></html>`;
-  }, [body, snippet]);
-
-  const onLoad = useCallback(() => {
-    const frame = ref.current;
-    if (!frame) return;
-
-    const setHeight = () => {
-      try {
-        const doc = frame.contentDocument || frame.contentWindow.document;
-        frame.style.height = `${Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight) + 8}px`;
-      } catch {
-        frame.style.height = '420px';
-      }
-    };
-
-    setHeight();
-    [150, 500, 1200].forEach((t) => setTimeout(setHeight, t));
-  }, []);
-
-  return (
-    <iframe
-      ref={ref}
-      title="source-email"
-      className="orm-mail-frame"
-      sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
-      srcDoc={srcDoc}
-      onLoad={onLoad}
-    />
-  );
-};
 
 /* ------------------------------------------------------------------ */
 /* Main screen                                                        */
@@ -496,9 +451,22 @@ const OperationsReport = () => {
     );
   };
 
+  // Re-pull the open day report so a completed to-do shows as done immediately.
+  const refreshActiveReport = useCallback(async () => {
+    if (tab === 'week' || !selectedId) return;
+    try {
+      const res = await fetchMethodRequest('GET', `email-analysis/reports/${selectedId}`);
+      if (res?.report) setSelectedReport(res.report);
+    } catch { /* non-fatal */ }
+  }, [tab, selectedId]);
+
   const renderEmailDrawer = () => {
     const { loading: drawerLoading, mail, sourceId } = emailDrawer;
     const { risk, triage } = findAiFlag(sourceId);
+    // Open to-do linked to this email — switches the draft panel's actions to
+    // "Mark as complete & send" / "Send only".
+    const todoForSource = (activeReport?.brief?.todoList || [])
+      .find((t) => t.sourceId === sourceId && t.status !== 'Completed') || null;
 
     return (
       <div className="operations-report orm-drawer">
@@ -547,7 +515,8 @@ const OperationsReport = () => {
               </div>
             )}
 
-            <MailFrame body={mail.body} snippet={mail.snippet} />
+            {/* Complete conversation thread (older messages collapse) */}
+            <MailThread mail={mail} />
 
             {mail.attachments?.length > 0 && (
               <div className="orm-att-list">
@@ -569,6 +538,10 @@ const OperationsReport = () => {
                 mailId={mail._id}
                 sourceId={mail.providerMessageId || sourceId}
                 mail={mail}
+                initialDraft={mail.draft}
+                todo={todoForSource}
+                reportId={activeReport?._id}
+                onCompleted={refreshActiveReport}
               />
             </div>
           </>

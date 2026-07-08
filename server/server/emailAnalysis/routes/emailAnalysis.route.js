@@ -26,6 +26,8 @@ router.post("/mails/prioritize", asyncHandler(emailAnalysisCtrl.prioritizeEmailA
 router.get("/mails/search", asyncHandler(emailAnalysisCtrl.searchProviderMails));
 // by-source (sourceId == providerMessageId) drill-down — before /mails/:id
 router.get("/mails/by-source/:sourceId", asyncHandler(emailAnalysisCtrl.getMailBySource));
+// Batch reply/draft status for a set of source mails (to-do list tags).
+router.post("/mails/reply-status", asyncHandler(emailAnalysisCtrl.getMailReplyStatus));
 router.get("/mails/:id/conversation", asyncHandler(emailAnalysisCtrl.getMailConversation));
 // Edit a synced provider draft (subject/body) in place.
 router.put("/mails/:id/draft", asyncHandler(emailAnalysisCtrl.updateMailDraft));

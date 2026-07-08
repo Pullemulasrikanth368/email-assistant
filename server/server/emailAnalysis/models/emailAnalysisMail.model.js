@@ -59,6 +59,12 @@ const EmailAnalysisMailSchema = new mongoose.Schema({
   prioritizedAt: { type: Date, default: null },
   // AI mail category (assigned alongside priority).
   category: { type: String, default: null },        // e.g. Action Required, Finance, Newsletters
+  // AI judgement (assigned alongside priority): does this mail expect a
+  // written reply from the recipient? Drives auto-draft creation — meeting
+  // invites, invoices, notifications etc. stay false and get no draft.
+  needsReply: { type: Boolean, default: null },
+  // Draft auto-created for a needs-reply mail during categorization.
+  autoDraftId: { type: mongoose.Schema.Types.ObjectId, ref: 'emailDraft', default: null },
 
   // One-click quick-reply options — generated once when the mail is
   // categorized (prioritize pass) and stored, so the UI never waits on AI.

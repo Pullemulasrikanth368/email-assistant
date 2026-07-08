@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Calendar } from 'primereact/calendar';
-import DOMPurify from 'dompurify';
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -11,45 +10,8 @@ import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import { BriefDashboard, scoreColor } from '../OperationsReport/BriefDashboard';
 import QuickReplies from '../CommonComponents/QuickReplies';
 import AiDraftReply from '../CommonComponents/AiDraftReply';
+import MailThread from '../CommonComponents/MailThread';
 import '../OperationsReport/OperationsReport.scss';
-
-/* Sanitised email body in an isolated iframe (keeps email CSS, blocks scripts) */
-const MailFrame = ({ body, snippet }) => {
-  const ref = useRef(null);
-  const srcDoc = useMemo(() => {
-    const raw = (body || snippet || '').trim();
-    const HEAD = '<meta charset="utf-8"><base target="_blank"><style>html{padding:12px;box-sizing:border-box}body{margin:0;font-family:Roboto,Arial,sans-serif;color:#202124;font-size:14px;line-height:1.6;word-break:break-word}img{max-width:100%;height:auto}a{color:#1a73e8}table{max-width:100%}</style>';
-    if (!raw) return `<!doctype html><html><head>${HEAD}</head><body><p style="color:#80868b">No content.</p></body></html>`;
-    if (!/<[a-z][\s\S]*>/i.test(raw)) {
-      const escd = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return `<!doctype html><html><head>${HEAD}</head><body><pre style="white-space:pre-wrap;font-family:inherit;margin:0">${escd}</pre></body></html>`;
-    }
-    const clean = DOMPurify.sanitize(raw, { WHOLE_DOCUMENT: true, ADD_ATTR: ['target'] });
-    if (/<head[^>]*>/i.test(clean)) return clean.replace(/<head([^>]*)>/i, `<head$1>${HEAD}`);
-    if (/<html[^>]*>/i.test(clean)) return clean.replace(/<html([^>]*)>/i, `<html$1><head>${HEAD}</head>`);
-    return `<!doctype html><html><head>${HEAD}</head><body>${clean}</body></html>`;
-  }, [body, snippet]);
-
-  const onLoad = useCallback(() => {
-    const f = ref.current;
-    if (!f) return;
-    try {
-      const doc = f.contentDocument || f.contentWindow.document;
-      f.style.height = `${Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight) + 8}px`;
-    } catch { f.style.height = '420px'; }
-  }, []);
-
-  return (
-    <iframe
-      ref={ref}
-      title="source-email"
-      className="orm-mail-frame"
-      sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
-      srcDoc={srcDoc}
-      onLoad={onLoad}
-    />
-  );
-};
 
 const DailyBrief = () => {
   const [date, setDate] = useState(new Date());
@@ -197,6 +159,10 @@ const DailyBrief = () => {
   const renderEmailDrawer = () => {
     const { loading: dl, mail, sourceId } = emailDrawer;
     const { risk, triage } = findAiFlag(sourceId);
+    // Open to-do linked to this email — switches the draft panel's actions to
+    // "Mark as complete & send" / "Send only".
+    const todoForSource = (report?.brief?.todoList || [])
+      .find((t) => t.sourceId === sourceId && t.status !== 'Completed') || null;
     return (
       <div className="operations-report orm-drawer">
         <div className="orm-drawer-head">
@@ -245,9 +211,12 @@ const DailyBrief = () => {
               </div>
             )}
 
-            <MailFrame body={mail.body} snippet={mail.snippet} />
+            {/* Complete conversation thread (older messages collapse) */}
+            <MailThread mail={mail} />
 
-            {/* One-click quick replies + full AI-drafted reply for this email */}
+            {/* One-click quick replies + the draft thread for this email —
+                needs-reply mails arrive with an auto-created draft, shown
+                pre-loaded instead of an empty "AI draft reply" button. */}
             <div className="orm-reply-section">
               <QuickReplies sourceId={mail.providerMessageId || sourceId} preloaded={mail.quickReplies} />
               <AiDraftReply
@@ -255,6 +224,10 @@ const DailyBrief = () => {
                 mailId={mail._id}
                 sourceId={mail.providerMessageId || sourceId}
                 mail={mail}
+                initialDraft={mail.draft}
+                todo={todoForSource}
+                reportId={report?._id}
+                onCompleted={() => fetchReport(date)}
               />
             </div>
 

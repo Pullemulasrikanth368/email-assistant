@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
+import DraftEditor, { isEmptyHtml, textToHtml } from './DraftEditor';
 import './AiDraftReply.scss';
 
 // Split a raw `From` header into name + address.
@@ -10,13 +11,6 @@ const parseAddress = (raw = '') => {
   const trimmed = String(raw).trim();
   return { name: trimmed, email: trimmed.includes('@') ? trimmed : '' };
 };
-
-// The drafts API stores/sends HTML — wrap the plain-text reply the same way
-// the send path does.
-const toHtml = (text = '') =>
-  `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;line-height:1.6;white-space:pre-wrap">${
-    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  }</div>`;
 
 const getLoginEmail = () => {
   try { return JSON.parse(localStorage.getItem('loginCredentials'))?.email || ''; }
@@ -35,22 +29,32 @@ const AUTOSAVE_DELAY_MS = 1200;
  * Discard deletes it everywhere.
  *
  * Props:
- *   mailId   - EmailAnalysisMail._id (used to call generate-reply)
- *   sourceId - providerMessageId (used to send the reply on the thread)
- *   mail     - the source mail object (from/subject/threadId — draft context)
- *   onSent   - optional callback fired after the reply is sent
+ *   mailId       - EmailAnalysisMail._id (used to call generate-reply)
+ *   sourceId     - providerMessageId (used to send the reply on the thread)
+ *   mail         - the source mail object (from/subject/threadId — draft context)
+ *   initialDraft - stored draft for this mail (auto-created at categorization);
+ *                  when present the panel opens showing the draft thread.
+ *   todo         - open to-do linked to this mail ({ task }); switches the send
+ *                  actions to "Mark as complete & send" and "Send only".
+ *   reportId     - report the to-do belongs to (completion is persisted there)
+ *   onSent       - optional callback fired after the reply is sent
+ *   onCompleted  - optional callback fired after the to-do is marked complete
  */
-const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
-  const [phase, setPhase] = useState('idle'); // idle | generating | draft | sending | sent
-  const [reply, setReply] = useState('');
+const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, onSent, onCompleted }) => {
+  // The editor works on the draft's HTML directly — `reply` is an HTML string.
+  const initialHtml = initialDraft?.body && !isEmptyHtml(initialDraft.body) ? initialDraft.body : '';
+  const hasInitialDraft = !!(initialDraft?._id && initialHtml);
+
+  const [phase, setPhase] = useState(hasInitialDraft ? 'draft' : 'idle'); // idle | generating | draft | sending | sent
+  const [reply, setReply] = useState(initialHtml);
   const [provider, setProvider] = useState('');
   const [error, setError] = useState('');
-  const [draftId, setDraftId] = useState(null);
-  const [saveState, setSaveState] = useState(''); // '' | saving | saved | failed
+  const [draftId, setDraftId] = useState(hasInitialDraft ? initialDraft._id : null);
+  const [saveState, setSaveState] = useState(hasInitialDraft ? 'saved' : ''); // '' | saving | saved | failed
 
   // Refs mirror the latest values so the unmount flush never sees stale state.
-  const draftIdRef = useRef(null);
-  const replyRef = useRef('');
+  const draftIdRef = useRef(hasInitialDraft ? initialDraft._id : null);
+  const replyRef = useRef(initialHtml);
   const dirtyRef = useRef(false);
   const saveTimer = useRef(null);
 
@@ -58,12 +62,12 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
     ? (mail?.subject || '')
     : `Re: ${mail?.subject || '(no subject)'}`;
 
-  const autosave = useCallback(async (id, text) => {
+  const autosave = useCallback(async (id, html) => {
     if (!id) return;
     setSaveState('saving');
     try {
       await fetchMethodRequest('POST', `email-analysis/drafts/${id}/autosave`, {
-        body: toHtml(text),
+        body: html,
         subject: replySubject,
       });
       dirtyRef.current = false;
@@ -90,19 +94,19 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     if (dirtyRef.current && draftIdRef.current) {
       fetchMethodRequest('POST', `email-analysis/drafts/${draftIdRef.current}/autosave`, {
-        body: toHtml(replyRef.current),
+        body: replyRef.current,
       }).catch(() => {});
     }
   }, []);
 
   // Create the draft in the app + provider Drafts folder, or update the
   // existing one on regenerate.
-  const persistDraft = useCallback(async (text) => {
+  const persistDraft = useCallback(async (html) => {
     setSaveState('saving');
     try {
       if (draftIdRef.current) {
         await fetchMethodRequest('PUT', `email-analysis/drafts/${draftIdRef.current}`, {
-          body: toHtml(text),
+          body: html,
           subject: replySubject,
         });
       } else {
@@ -113,7 +117,7 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
           provider: mail?.provider || null,
           to: toAddr ? [toAddr] : [],
           subject: replySubject,
-          body: toHtml(text),
+          body: html,
           threadId: mail?.threadId || null,
           conversationId: mail?.threadId || null,
           replyToMessageId: sourceId || null,
@@ -148,13 +152,13 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
         force ? { force: true } : {}
       );
       if (res?.respCode === 200) {
-        const text = res.reply || '';
-        setReply(text);
-        replyRef.current = text;
+        const html = textToHtml(res.reply || '');
+        setReply(html);
+        replyRef.current = html;
         setProvider(res.provider || '');
         setPhase('draft');
         // First generate creates the draft; regenerate updates the same one.
-        await persistDraft(text);
+        await persistDraft(html);
       } else {
         setError(res?.errorMessage || 'Could not generate reply. Try again.');
         setPhase('idle');
@@ -165,9 +169,8 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
     }
   }, [mailId, persistDraft]);
 
-  const handleSend = async () => {
-    const text = reply.trim();
-    if (!text) return;
+  const handleSend = async (markComplete = false) => {
+    if (isEmptyHtml(reply)) return;
     setPhase('sending');
     setError('');
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -175,7 +178,7 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
     try {
       const res = await fetchMethodRequest('POST', 'email-analysis/mail/reply', {
         sourceId,
-        html: toHtml(text),
+        html: reply,
       });
       if (res?.respCode === 200) {
         setPhase('sent');
@@ -187,6 +190,25 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
           draftIdRef.current = null;
           setDraftId(null);
           dirtyRef.current = false;
+        }
+        // The reply itself already went out — skipSend only records completion.
+        if (markComplete && todo) {
+          try {
+            const done = await fetchMethodRequest('POST', 'email-analysis/actions/complete', {
+              sourceId,
+              task: todo.task,
+              reportId,
+              skipSend: true,
+            });
+            if (done?.respCode) {
+              showToasterMessage('To-do marked as completed', 'success');
+              if (onCompleted) onCompleted(todo);
+            } else {
+              showToasterMessage(done?.errorMessage || 'Reply sent, but the to-do was not marked complete', 'warning');
+            }
+          } catch {
+            showToasterMessage('Reply sent, but the to-do was not marked complete', 'warning');
+          }
         }
         if (onSent) onSent();
       } else {
@@ -267,7 +289,7 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
       {/* Header */}
       <div className="aidr-label">
         <span className="aidr-dot" />
-        AI-DRAFTED REPLY · REVIEW BEFORE SENDING
+        {hasInitialDraft ? 'DRAFT REPLY · SAVED IN YOUR DRAFTS' : 'AI-DRAFTED REPLY · REVIEW BEFORE SENDING'}
         {provider && (
           <span className="aidr-provider-tag">{provider.toUpperCase()}</span>
         )}
@@ -280,28 +302,52 @@ const AiDraftReply = ({ mailId, sourceId, mail, onSent }) => {
 
       {error && <div className="aidr-err aidr-err--inline">{error}</div>}
 
-      {/* Editable textarea */}
-      <textarea
-        className="aidr-textarea"
+      {/* Rich-text draft editor (edits the draft's HTML directly) */}
+      <DraftEditor
         value={reply}
-        onChange={e => onReplyChange(e.target.value)}
-        rows={6}
-        placeholder="AI-generated reply will appear here…"
+        onChange={onReplyChange}
         disabled={phase === 'sending'}
+        placeholder="AI-generated reply will appear here…"
       />
 
-      {/* Action buttons */}
+      {/* Action buttons — a to-do email gets "Mark as complete & send" and
+          "Send only"; everything else keeps the single "Send reply". */}
       <div className="aidr-actions">
-        <button
-          type="button"
-          className="aidr-btn aidr-btn--send"
-          onClick={handleSend}
-          disabled={phase === 'sending' || !reply.trim()}
-        >
-          {phase === 'sending'
-            ? <><i className="pi pi-spin pi-spinner" /> Sending…</>
-            : <><i className="pi pi-send" /> Send reply</>}
-        </button>
+        {todo ? (
+          <>
+            <button
+              type="button"
+              className="aidr-btn aidr-btn--send"
+              onClick={() => handleSend(true)}
+              disabled={phase === 'sending' || isEmptyHtml(reply)}
+              title="Send this reply and mark the to-do as completed"
+            >
+              {phase === 'sending'
+                ? <><i className="pi pi-spin pi-spinner" /> Sending…</>
+                : <><i className="pi pi-check-circle" /> Mark as complete & send</>}
+            </button>
+            <button
+              type="button"
+              className="aidr-btn aidr-btn--send"
+              onClick={() => handleSend(false)}
+              disabled={phase === 'sending' || isEmptyHtml(reply)}
+              title="Send this reply without completing the to-do"
+            >
+              <i className="pi pi-send" /> Send only
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="aidr-btn aidr-btn--send"
+            onClick={() => handleSend(false)}
+            disabled={phase === 'sending' || isEmptyHtml(reply)}
+          >
+            {phase === 'sending'
+              ? <><i className="pi pi-spin pi-spinner" /> Sending…</>
+              : <><i className="pi pi-send" /> Send reply</>}
+          </button>
+        )}
 
         <button
           type="button"

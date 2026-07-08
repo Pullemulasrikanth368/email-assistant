@@ -3,6 +3,7 @@ import aiClient from "./aiClient";
 import EmailAnalysisMail from "../models/emailAnalysisMail.model";
 import { getActiveKnowledgeBaseConfig } from "./knowledgeBase.service";
 import { rescueImportantJunk } from "./junkRescue.service";
+import { createAutoDraftsForMails } from "./autoDraft.service";
 import { isPromotionalSender } from "./promotionalSender.util";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -57,6 +58,15 @@ function clampScore(n, priority) {
 // copy uses ("URGENT sale", "IMPORTANT order update", …).
 const LOW_ONLY_CATEGORIES = ["Newsletters", "Promotions & Marketing", "Junk"];
 const LOW_SCORE_CAP = 25;
+// Categories that never get an auto-drafted reply, whatever the AI said —
+// meetings are accepted (not replied to), invoices/notifications are records,
+// bulk mail has nothing to answer. Drafts are only for mails needing a reply.
+const NO_DRAFT_CATEGORIES = [
+  "Meetings & Scheduling",
+  "Finance & Invoices",
+  "Notifications & Updates",
+  ...LOW_ONLY_CATEGORIES,
+];
 // Rescue-worthy categories the AI may be baited into for promo blasts — for a
 // promotional sender these are re-filed so junk rescue never restores them.
 const RESCUE_BAIT_CATEGORIES = [
@@ -163,6 +173,13 @@ marketing campaigns are ALWAYS "Low" priority with category "Promotions & Market
 "Newsletters", or "Junk" — even when they contain urgent-sounding keywords like "important",
 "urgent", "last chance", "act now", or "deadline". Marketing copy does not create real urgency.
 
+Also decide "needsReply" for each email — does it expect a WRITTEN REPLY from the recipient?
+- true ONLY when a human sender asks a question, requests information/action/approval, raises a
+complaint, or otherwise waits on a written response from the recipient.
+- false for meeting/calendar invites (they are accepted, not replied to), invoices, receipts,
+payment confirmations, order/shipping updates, automated notifications, newsletters, promotions,
+no-reply senders, and pure FYI mail — even when they are important.
+
 Also produce one-click QUICK-REPLY buttons for each email:
 - "quickReplies.eligible" = true ONLY if the email expects a short answer: a yes/no question, a
 scheduling/availability ask, a "please confirm"/"is this correct?" check, a request needing
@@ -175,7 +192,7 @@ acknowledgement, or a thanks that warrants a brief reply.
 notifications, or anything with nothing to answer.
 
 Return ONLY JSON, no markdown:
-{ "items": [ { "id": "<email id>", "priority": "Critical|High|Medium|Low", "priorityScore": <1-100>, "intent": "<tag>", "category": "<one of the categories above>", "reason": "<one line>", "quickReplies": { "eligible": <boolean>, "options": [ { "label": "<1-2 words>", "reply": "<one line>" } ] } } ] }
+{ "items": [ { "id": "<email id>", "priority": "Critical|High|Medium|Low", "priorityScore": <1-100>, "intent": "<tag>", "category": "<one of the categories above>", "reason": "<one line>", "needsReply": <boolean>, "quickReplies": { "eligible": <boolean>, "options": [ { "label": "<1-2 words>", "reply": "<one line>" } ] } } ] }
 
 EMAILS:
 ${JSON.stringify(items)}
@@ -212,6 +229,7 @@ export async function prioritizeDay(email, day, opts = {}) {
   const knowledgeBaseConfig = await getActiveKnowledgeBaseConfig(email);
 
   let updated = 0;
+  const needsReplyIds = []; // providerMessageIds to auto-draft a reply for
   for (let i = 0; i < mails.length; i += CHUNK) {
     const slice = mails.slice(i, i + CHUNK);
     const items = slice.map((m) => ({
@@ -258,6 +276,8 @@ export async function prioritizeDay(email, day, opts = {}) {
         quickReplies.eligible = false;
         quickReplies.options = [];
       }
+      const needsReply = !!r.needsReply && !NO_DRAFT_CATEGORIES.includes(clamped.category);
+      if (needsReply) needsReplyIds.push(m.providerMessageId);
       return {
         updateOne: {
           filter: { email, providerMessageId: m.providerMessageId },
@@ -269,6 +289,7 @@ export async function prioritizeDay(email, day, opts = {}) {
               category: clamped.category,
               priorityReason: clamped.reason,
               prioritizedAt: new Date(),
+              needsReply,
               quickReplies,
             },
           },
@@ -279,6 +300,17 @@ export async function prioritizeDay(email, day, opts = {}) {
     if (ops.length) {
       const res = await EmailAnalysisMail.bulkWrite(ops);
       updated += res?.modifiedCount || ops.length;
+    }
+  }
+
+  // Auto-draft replies for the mails that need one (never meetings, invoices,
+  // notifications or bulk mail). Best-effort: a draft failure never breaks
+  // the prioritize pipeline.
+  if (needsReplyIds.length) {
+    try {
+      await createAutoDraftsForMails(email, needsReplyIds);
+    } catch (err) {
+      console.error(`[EmailAnalysis] Auto-draft pass failed for ${email}:`, err.message);
     }
   }
 
