@@ -1471,7 +1471,7 @@ async function getMailReplyStatus(req, res) {
 
   const mails = await EmailAnalysisMail.find(
     { providerMessageId: { $in: sourceIds }, active: true },
-    { providerMessageId: 1, needsReply: 1, autoDraftId: 1, isRepliedMail: 1 }
+    { providerMessageId: 1, needsReply: 1, autoDraftId: 1, isRepliedMail: 1, labels: 1 }
   ).lean();
 
   const autoDraftIds = mails.map((m) => m.autoDraftId).filter(Boolean);
@@ -1493,6 +1493,8 @@ async function getMailReplyStatus(req, res) {
     statuses[m.providerMessageId] = {
       needsReply: !!m.needsReply && !m.isRepliedMail,
       hasDraft: !!hasDraft,
+      // Read state is tracked via the UNREAD label for both Gmail and Outlook.
+      isRead: !(m.labels || []).includes("UNREAD"),
     };
   }
   return res.json({ respCode: 200, statuses });

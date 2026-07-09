@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import DOMPurify from 'dompurify';
 import {
-  Info, Mail, CalendarClock, ListChecks, History, ClipboardList, ClipboardCheck,
+  Info, Mail, MailCheck, MailOpen, CalendarClock, ListChecks, History, ClipboardList, ClipboardCheck,
   AlertTriangle, HelpCircle, CheckCircle2, Users, FileText,
 } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
@@ -515,6 +515,49 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     return groups;
   })();
 
+  // Source ids of triage mails already read — seeded from the server on load
+  // (so marks survive a refresh) and extended locally as the user marks more.
+  const [readSourceIds, setReadSourceIds] = useState(() => new Set());
+
+  // Seed read state from the provider for every triage mail in this report.
+  useEffect(() => {
+    const ids = [...new Set(triage.map((t) => t.sourceId).filter(Boolean))];
+    if (!ids.length) return undefined;
+    let cancelled = false;
+    fetchMethodRequest('POST', 'email-analysis/mails/reply-status', { sourceIds: ids })
+      .then((res) => {
+        if (cancelled || !res?.statuses) return;
+        const readIds = Object.entries(res.statuses)
+          .filter(([, s]) => s?.isRead)
+          .map(([id]) => id);
+        if (readIds.length) {
+          setReadSourceIds((prev) => { const next = new Set(prev); readIds.forEach((id) => next.add(id)); return next; });
+        }
+      })
+      .catch(() => { });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report?._id]);
+
+  const markGroupRead = async (sourceIds, label) => {
+    const ids = [...new Set((sourceIds || []).filter(Boolean))].filter((id) => !readSourceIds.has(id));
+    if (!ids.length) return;
+    try {
+      const res = await fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
+        messageIds: ids,
+        isRead: true,
+      });
+      if (res?.respCode) {
+        setReadSourceIds((prev) => { const next = new Set(prev); ids.forEach((id) => next.add(id)); return next; });
+        showToasterMessage(`Marked ${ids.length} mail${ids.length > 1 ? 's' : ''} as read${label ? ` for ${label}` : ''}`, 'success');
+      } else {
+        showToasterMessage(res?.errorMessage || 'Could not mark as read', 'error');
+      }
+    } catch {
+      showToasterMessage('Could not mark as read', 'error');
+    }
+  };
+
   const isQuiet = !decisions.length && !risks.length && !collisions.length;
 
   /* -------- collapsible panels: every section header toggles its body -------- */
@@ -533,6 +576,19 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
   const toggleSection = (key) => setCollapsedKeys((prev) => {
     const next = new Set(prev);
     if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  // Sender accordions are exclusive: opening one collapses every other sender.
+  const toggleSenderGroup = (key) => setCollapsedKeys((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) {
+      next.delete(key);
+      senderGroups
+        .filter((g) => g.items.length > 1 && `triage-sender:${g.key}` !== key)
+        .forEach((g) => next.add(`triage-sender:${g.key}`));
+    } else {
+      next.add(key);
+    }
     return next;
   });
 
@@ -742,7 +798,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                   <div className="orm-kp-mails">
                     {mails?.map((m, j) => (
                       <span
-                        className="orm-kp-mail"
+                        className={`orm-kp-mail${readSourceIds.has(m.sourceId) ? ' read' : ''}`}
                         key={j}
                         title={m.from ? `From: ${m.from}` : m.subject}
                         role="button"
@@ -766,9 +822,12 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
       'inboxTriage', 'Inbox triage', triage.length,
       <>
         {senderGroups?.map((g) => {
-          const triageRow = (t) => (
-            <div className={`orm-trow orm-trow-rich t-${(t.tier || 'low').toLowerCase()}`} key={t.idx} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
-              <Mail className="orm-mail-icon" style={{ color: tierColor(t.tier) }} />
+          const triageRow = (t) => {
+            const isRead = readSourceIds.has(t.sourceId);
+            const RowIcon = isRead ? MailOpen : Mail;
+            return (
+            <div className={`orm-trow orm-trow-rich t-${(t.tier || 'low').toLowerCase()}${isRead ? ' read' : ''}`} key={t.idx} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
+              <RowIcon className="orm-mail-icon" style={{ color: tierColor(t.tier) }} />
               <div className="orm-trow-body">
                 <div className="orm-trow-head">
                   {t.subject && <span className="subject">{t.subject}</span>}
@@ -782,7 +841,8 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                 )}
               </div>
             </div>
-          );
+            );
+          };
 
           // A sender with a single mail stays a plain row.
           if (g.items.length === 1) return triageRow(g.items[0]);
@@ -790,15 +850,15 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
           const sgKey = `triage-sender:${g.key}`;
           const collapsed = collapsedKeys.has(sgKey);
           return (
-            <div className={`orm-sender-group tg-${tierClass(g.topTier)}`} key={g.key}>
+            <div className={`orm-sender-group tg-${tierClass(g.topTier)}${collapsed ? '' : ' orm-sg-open'}`} key={g.key}>
               <div
                 className="orm-sg-head"
                 role="button"
                 tabIndex={0}
                 aria-expanded={!collapsed}
                 title={g.email || g.name}
-                onClick={() => toggleSection(sgKey)}
-                onKeyDown={(e) => { if (e.key === 'Enter') toggleSection(sgKey); }}
+                onClick={() => toggleSenderGroup(sgKey)}
+                onKeyDown={(e) => { if (e.key === 'Enter') toggleSenderGroup(sgKey); }}
               >
                 <i className={`pi ${collapsed ? 'pi-chevron-right' : 'pi-chevron-down'}`} />
                 <Mail className="orm-mail-icon" />
@@ -815,6 +875,15 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                     <span className="orm-tier-badge low" title={`${g.tierCounts.Low} low priority`}>{g.tierCounts.Low}</span>
                   )}
                 </span>
+                <button
+                  type="button"
+                  className="orm-mark-read-icon"
+                  title="Mark all as read"
+                  aria-label="Mark all as read"
+                  onClick={(e) => { e.stopPropagation(); markGroupRead(g.items.map((t) => t.sourceId), g.name); }}
+                >
+                  <MailCheck className="orm-mark-read-glyph" />
+                </button>
               </div>
               {/* {collapsed && g.items[0]?.summary && (
                 <div className="orm-sg-preview">{stripHtml(g.items[0].summary)}</div>
@@ -843,6 +912,15 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                         >
                           <i className={`pi ${catCollapsed ? 'pi-chevron-right' : 'pi-chevron-down'}`} />
                           {cat} <span className="n">{items.length}</span>
+                          <button
+                            type="button"
+                            className="orm-mark-read-icon"
+                            title="Mark all as read"
+                            aria-label="Mark all as read"
+                            onClick={(e) => { e.stopPropagation(); markGroupRead(items.map((t) => t.sourceId), `${g.name} · ${cat}`); }}
+                          >
+                            <MailCheck className="orm-mark-read-glyph" />
+                          </button>
                         </div>
                         {!catCollapsed && (
                           <div className="orm-sg-cat-mails">

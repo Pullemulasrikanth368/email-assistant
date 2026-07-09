@@ -20,8 +20,8 @@ const NAV_ITEMS = [
   { label: 'Reports', path: '/operationsReport', icon: FileText },
   { label: 'Report Config', path: '/reportConfig', icon: SlidersHorizontal },
   { label: 'Knowledge Base', path: '/knowledgeBase', icon: BookOpen },
-  { label: 'Drafts', path: '/drafts', icon: PenLine },
-  { label: 'Bulk Email', path: '/bulkEmailSend', icon: Send },
+  // { label: 'Drafts', path: '/drafts', icon: PenLine },
+  // { label: 'Bulk Email', path: '/bulkEmailSend', icon: Send },
   { label: 'Connections', path: '/connectionsDelivery', icon: Settings },
 ];
 
@@ -287,8 +287,8 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
                     <button
                       type="button"
                       className={`px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all ${syncUnit === 'minutes'
-                          ? 'bg-blue-50 border-blue-500 text-blue-600'
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        ? 'bg-blue-50 border-blue-500 text-blue-600'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                         }`}
                       onClick={() => {
                         setSyncUnit('minutes');
@@ -300,8 +300,8 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
                     <button
                       type="button"
                       className={`px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all ${syncUnit === 'hours'
-                          ? 'bg-blue-50 border-blue-500 text-blue-600'
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        ? 'bg-blue-50 border-blue-500 text-blue-600'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                         }`}
                       onClick={() => {
                         setSyncUnit('hours');
@@ -313,8 +313,8 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
                     <button
                       type="button"
                       className={`px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all ${syncUnit === 'days'
-                          ? 'bg-blue-50 border-blue-500 text-blue-600'
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        ? 'bg-blue-50 border-blue-500 text-blue-600'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                         }`}
                       onClick={() => {
                         setSyncUnit('days');

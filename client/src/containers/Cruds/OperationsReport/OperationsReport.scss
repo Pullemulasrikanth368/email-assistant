@@ -1084,7 +1084,9 @@
       flex: none;
       margin-top: 1px;
 
-      .pi { font-size: 10px; }
+      .pi {
+        font-size: 10px;
+      }
 
       &.draft {
         color: #188038;
@@ -1236,6 +1238,17 @@
       line-height: 1.4;
       margin-top: 3px;
     }
+
+    // Marked-as-read mails are dimmed with the subject struck through.
+    &.read {
+      opacity: .6;
+
+      .orm-trow-head .subject {
+        text-decoration: line-through;
+        color: var(--muted);
+        font-weight: 500;
+      }
+    }
   }
 
   .orm-dotm {
@@ -1255,12 +1268,74 @@
     font-weight: 800 !important;
   }
 
+  .orm-sg-open {
+    border-color: #080d1c;
+    box-shadow: 0 1px 6px rgba(29, 78, 216, .2);
+
+    .orm-sg-head {
+      background: #071c56;
+      border-bottom: 1px solid #1a45bf;
+
+      &:hover {
+        background: #1a45bf;
+      }
+
+      .orm-sg-name,
+      .pi,
+      .orm-mail-icon {
+        color: #fff;
+      }
+
+      .orm-sg-count {
+        background: rgba(255, 255, 255, .18);
+        color: #fff;
+      }
+    }
+  }
+
+
   /* Triage — one accordion per repeat sender, mails bucketed by AI category */
   .orm-sender-group {
     border: 1px solid var(--line);
     border-radius: 6px;
     margin: 6px 0;
     overflow: hidden;
+
+    // Expanded sender accordion gets a blue border so it stands out.
+    &.orm-sg-open {
+      border-color: #080d1c;
+      box-shadow: 0 1px 6px rgba(29, 78, 216, .2);
+
+      .orm-sg-head {
+        background: #071c56;
+        border-bottom: 1px solid #071c56;
+
+        &:hover {
+          background: #071c56;
+        }
+
+        .orm-sg-name,
+        .pi,
+        .orm-mail-icon {
+          color: #fff;
+        }
+
+        .orm-sg-count {
+          background: rgba(255, 255, 255, .18);
+          color: #fff;
+        }
+
+        // On the dark blue header the read icon is light and fills on hover.
+        .orm-mark-read-icon {
+          color: rgba(255, 255, 255, .85);
+
+          &:hover {
+            background: rgba(255, 255, 255, .18);
+            color: #fff;
+          }
+        }
+      }
+    }
 
     .orm-sg-head {
       display: flex;
@@ -1283,6 +1358,37 @@
 
       .orm-mail-icon {
         margin-top: 0;
+      }
+    }
+
+    /* "Mark all read" — icon-only action button. Lives at the right edge of
+       both the sender header and each category header. */
+    .orm-mark-read-icon {
+      flex: none;
+      margin-left: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+
+      .orm-mark-read-glyph {
+        width: 16px;
+        height: 16px;
+        stroke-width: 2;
+        color: inherit;
+      }
+
+      &:hover {
+        background: rgba(47, 111, 237, .12);
+        color: #2f6fed;
       }
     }
 
@@ -1342,18 +1448,59 @@
         border-radius: 10px;
         padding: 0 7px;
       }
+
+      // Read icon sits at the far right and blends with the category color.
+      .orm-mark-read-icon {
+        margin-left: auto;
+        width: 22px;
+        height: 22px;
+        color: inherit;
+
+        .orm-mark-read-glyph {
+          width: 14px;
+          height: 14px;
+        }
+
+        &:hover {
+          background: rgba(20, 24, 31, .08);
+          color: inherit;
+        }
+      }
     }
 
-    // Mails inside a category: two columns, capped height with scroll.
+    // Mails inside a category: two columns of cards, capped height with scroll.
     .orm-sg-cat-mails {
       max-height: 500px;
       overflow-y: auto;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      column-gap: 15px;
+      gap: 8px 12px;
+      padding: 6px 1px 2px;
 
+      // The divider look of .orm-trow (border-top, no side padding) reads
+      // ragged in a grid — restyle each mail as a self-contained card.
       .orm-trow {
         min-width: 0;
+        margin: 0;
+        padding: 8px 10px 8px 9px;
+        // Top/right/bottom only — the 4px tier-colored left border
+        // from .orm-trow-rich stays untouched.
+        border-top: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        align-self: start;
+
+        &:hover {
+          box-shadow: 0 1px 4px rgba(20, 30, 50, .1);
+        }
+
+        // Every card reads the same: subject on its own line,
+        // then sender + tier chip on the line below.
+        .orm-trow-head .subject {
+          width: 100%;
+        }
       }
 
       @media (max-width: 768px) {
@@ -1896,7 +2043,7 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--ink);
-    background: #fff;
+    background: #000000;
     border: 1px solid var(--line);
     border-radius: 999px;
     padding: 5px 14px;
@@ -1985,7 +2132,9 @@
       color: var(--muted);
       margin-bottom: 8px;
 
-      .pi { font-size: 12px; }
+      .pi {
+        font-size: 12px;
+      }
     }
 
     .orm-thread-msg {
@@ -2036,11 +2185,15 @@
           color: var(--muted);
         }
 
-        &:hover { background: #f7f9fb; }
+        &:hover {
+          background: #f7f9fb;
+        }
       }
 
       &.open {
-        .orm-thread-head { border-bottom: 1px solid var(--line); }
+        .orm-thread-head {
+          border-bottom: 1px solid var(--line);
+        }
 
         .orm-mail-frame {
           margin-top: 0;
@@ -3354,7 +3507,8 @@
     margin: 0 0 4px;
   }
 
-  ul, ol {
+  ul,
+  ol {
     margin: 0 0 2px;
     padding-left: 16px;
   }
@@ -3437,7 +3591,7 @@
   border-radius: 6px;
   background: var(--mb-canvas);
 
-  + .orm-mb-thread {
+  +.orm-mb-thread {
     margin-top: 5px;
   }
 
@@ -3473,7 +3627,7 @@
     }
   }
 
-  &[open] > summary::before {
+  &[open]>summary::before {
     transform: rotate(45deg);
   }
 
@@ -3514,38 +3668,83 @@
   &-body {
     padding: 7px 11px 8px;
 
-    ul, ol {
+    ul,
+    ol {
       margin: 0;
     }
 
-    p:last-child, ul:last-child, ol:last-child {
+    p:last-child,
+    ul:last-child,
+    ol:last-child {
       margin-bottom: 0;
     }
   }
 
   // Tone → accent color for the icon chip + section header text.
-  &.tone-blue .orm-mb-section-icon { background: var(--mb-blue-soft); color: var(--mb-blue); }
-  &.tone-blue .orm-mb-section-head { color: var(--mb-blue); }
+  &.tone-blue .orm-mb-section-icon {
+    background: var(--mb-blue-soft);
+    color: var(--mb-blue);
+  }
 
-  &.tone-teal .orm-mb-section-icon { background: var(--mb-teal-soft); color: var(--mb-teal); }
-  &.tone-teal .orm-mb-section-head { color: var(--mb-teal); }
+  &.tone-blue .orm-mb-section-head {
+    color: var(--mb-blue);
+  }
 
-  &.tone-violet .orm-mb-section-icon { background: var(--mb-violet-soft); color: var(--mb-violet); }
-  &.tone-violet .orm-mb-section-head { color: var(--mb-violet); }
+  &.tone-teal .orm-mb-section-icon {
+    background: var(--mb-teal-soft);
+    color: var(--mb-teal);
+  }
 
-  &.tone-amber .orm-mb-section-icon { background: var(--mb-amber-soft); color: var(--mb-amber); }
-  &.tone-amber .orm-mb-section-head { color: var(--mb-amber); }
+  &.tone-teal .orm-mb-section-head {
+    color: var(--mb-teal);
+  }
+
+  &.tone-violet .orm-mb-section-icon {
+    background: var(--mb-violet-soft);
+    color: var(--mb-violet);
+  }
+
+  &.tone-violet .orm-mb-section-head {
+    color: var(--mb-violet);
+  }
+
+  &.tone-amber .orm-mb-section-icon {
+    background: var(--mb-amber-soft);
+    color: var(--mb-amber);
+  }
+
+  &.tone-amber .orm-mb-section-head {
+    color: var(--mb-amber);
+  }
 
   &.tone-crit {
     border-color: rgba(179, 38, 30, .28);
 
-    .orm-mb-section-icon { background: var(--mb-crit-soft); color: var(--mb-crit); }
-    .orm-mb-section-head { color: var(--mb-crit); }
+    .orm-mb-section-icon {
+      background: var(--mb-crit-soft);
+      color: var(--mb-crit);
+    }
+
+    .orm-mb-section-head {
+      color: var(--mb-crit);
+    }
   }
 
-  &.tone-green .orm-mb-section-icon { background: var(--mb-green-soft); color: var(--mb-green); }
-  &.tone-green .orm-mb-section-head { color: var(--mb-green); }
+  &.tone-green .orm-mb-section-icon {
+    background: var(--mb-green-soft);
+    color: var(--mb-green);
+  }
 
-  &.tone-default .orm-mb-section-icon { background: #eef1f4; color: var(--mb-muted); }
-  &.tone-default .orm-mb-section-head { color: var(--mb-ink); }
+  &.tone-green .orm-mb-section-head {
+    color: var(--mb-green);
+  }
+
+  &.tone-default .orm-mb-section-icon {
+    background: #eef1f4;
+    color: var(--mb-muted);
+  }
+
+  &.tone-default .orm-mb-section-head {
+    color: var(--mb-ink);
+  }
 }
