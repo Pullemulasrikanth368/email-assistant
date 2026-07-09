@@ -1617,18 +1617,6 @@
       gap: 8px;
       padding: 8px 10px;
       background: linear-gradient(to bottom, var(--cat-soft, var(--paper)), rgba(255, 255, 255, 0));
-      cursor: pointer;
-
-      .chev {
-        margin-left: auto;
-        font-size: 10px;
-        color: var(--muted);
-        transition: color .15s ease;
-      }
-
-      &:hover .chev {
-        color: var(--cat-color, var(--ink));
-      }
     }
 
     .cat {
@@ -1728,11 +1716,16 @@
       padding-bottom: 10px;
     }
 
-    .orm-kp-mails {
-      margin: 0;
-      padding: 0 12px 10px;
-      border-top: 1px dashed var(--line);
+    /* "Mails (n)" trigger pinned to the card's bottom — opens the shadcn
+       popover (styled with Tailwind utility classes directly in the JSX). */
+    .orm-cat-mails-trigger-row {
+      margin: 0 12px 10px;
       padding-top: 8px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .orm-kp-mails-toggle {
+      margin: 0;
     }
   }
 

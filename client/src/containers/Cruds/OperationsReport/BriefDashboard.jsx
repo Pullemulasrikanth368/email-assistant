@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
+import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from '@/components/ui/popover';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import DOMPurify from 'dompurify';
@@ -631,13 +632,6 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     );
   };
 
-  // One accordion per triage category summary: opening it reveals the mail tags.
-  const [expandedCatSums, setExpandedCatSums] = useState(() => new Set());
-  const toggleCatSum = (key) => setExpandedCatSums((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
 
   // One accordion per key point: the "Mails (n)" toggle reveals that point's mail badges.
   const [expandedKpMails, setExpandedKpMails] = useState(() => new Set());
@@ -757,34 +751,33 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
         'categorySummaries', 'AI Category wise summary', categorySummaries.length,
         <div className="orm-cat-summaries">
           {categorySummaries?.map((c, i) => {
-            const open = expandedCatSums.has(i);
             const mails = c.mails || [];
             const chip = categoryChipStyle(c.category);
-            return (
-              <div
-                className="orm-cat-summary"
-                key={i}
-                style={{
-                  '--cat-color': chip.color,
-                  '--cat-accent': chip.accent,
-                  '--cat-soft': chip.soft,
-                  '--cat-tint': chip.background,
-                  '--cat-border': chip.borderColor,
-                }}
-              >
-                <div
-                  className="orm-cat-head"
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={open}
-                  onClick={() => toggleCatSum(i)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') toggleCatSum(i); }}
-                >
+            const cardStyle = {
+              '--cat-color': chip.color,
+              '--cat-accent': chip.accent,
+              '--cat-soft': chip.soft,
+              '--cat-tint': chip.background,
+              '--cat-border': chip.borderColor,
+            };
+            const mailsTrigger = mails.length > 0 && (
+              <div className="orm-cat-mails-trigger-row">
+                <PopoverTrigger asChild>
+                  <button type="button" className="orm-kp-mails-toggle border-0 bg-transparent p-0">
+                    <Mail className="h-3 w-3" />
+                    Mails <span className="n">({mails.length})</span>
+                  </button>
+                </PopoverTrigger>
+              </div>
+            );
+
+            const card = (
+              <div className="orm-cat-summary" style={cardStyle}>
+                <div className="orm-cat-head">
                   <span className="orm-chip cat">{c.category || 'Other'}</span>
                   {(c.count != null || mails.length > 0) && (
                     <span className="cnt">{c.count != null ? c.count : mails.length}</span>
                   )}
-                  <i className={`pi chev ${open ? 'pi-chevron-up' : 'pi-chevron-down'}`} />
                 </div>
                 <div className="txt" dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(c.summary) }} />
                 {(c.keyPoints || []).length > 0 && (
@@ -794,25 +787,66 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                     ))}
                   </ul>
                 )}
-                {open && mails.length > 0 && (
-                  <div className="orm-kp-mails">
-                    {mails?.map((m, j) => (
-                      <span
-                        className={`orm-kp-mail${readSourceIds.has(m.sourceId) ? ' read' : ''}`}
-                        key={j}
-                        title={m.from ? `From: ${m.from}` : m.subject}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => onOpenSource(m.sourceId)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') onOpenSource(m.sourceId); }}
-                      >
-                        <Mail className="orm-kp-mail-icon" />
-                        {m.subject || '(no subject)'}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {mailsTrigger}
               </div>
+            );
+
+            if (!mails.length) return <div key={i}>{card}</div>;
+
+            return (
+              <Popover key={i}>
+                {card}
+                <PopoverContent
+                  align="start"
+                  sideOffset={10}
+                  className="w-80 max-w-[90vw] border-0 bg-transparent p-0 shadow-none"
+                >
+                  <div
+                    className="overflow-hidden rounded-xl shadow-xl ring-1 ring-black/5"
+                    style={{ borderTop: `3px solid ${chip.accent}` }}
+                  >
+                    <div className="flex items-center justify-between gap-2 px-3.5 py-2.5" style={{ background: chip.soft }}>
+                      <span className="text-[13px] font-semibold" style={{ color: chip.color }}>{c.category || 'Other'}</span>
+                      <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10.5px] font-medium" style={{ color: chip.color }}>
+                        {mails.length}
+                      </span>
+                    </div>
+                    <div className="max-h-72 divide-y divide-border/60 overflow-y-auto bg-popover">
+                      {mails.map((m, j) => {
+                        const isRead = readSourceIds.has(m.sourceId);
+                        const RowIcon = isRead ? MailOpen : Mail;
+                        const fromName = (m.from || '').replace(/<[^>]*>/g, '').trim();
+                        return (
+                          <button
+                            type="button"
+                            key={j}
+                            onClick={() => onOpenSource(m.sourceId)}
+                            className="flex w-full items-start gap-2.5 border-0 bg-transparent px-3.5 py-2.5 text-left transition-colors hover:bg-accent/50"
+                          >
+                            <span
+                              className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full${isRead ? ' bg-muted' : ''}`}
+                              style={isRead ? undefined : { background: chip.soft }}
+                            >
+                              <RowIcon className={`h-3 w-3${isRead ? ' text-muted-foreground' : ''}`} style={isRead ? undefined : { color: chip.color }} />
+                            </span>
+                            <span className="min-w-0 flex-1 pt-0.5">
+                              <span className={`block truncate text-[12.5px] font-medium leading-tight ${isRead ? 'text-muted-foreground' : 'text-foreground'}`}>
+                                {m.subject || '(no subject)'}
+                              </span>
+                              {fromName && (
+                                <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+                                  {fromName}
+                                </span>
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <PopoverArrow width={16} height={8} style={{ fill: chip.soft }} className="drop-shadow-sm" />
+                </PopoverContent>
+              </Popover>
             );
           })}
         </div>

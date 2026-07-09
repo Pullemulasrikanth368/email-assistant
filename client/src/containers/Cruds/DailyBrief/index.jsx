@@ -187,8 +187,8 @@ const DailyBrief = () => {
                   onClick={onMarkRead}
                   disabled={markRead.busy || markRead.done}
                 >
-                  <i className={`pi ${markRead.busy ? 'pi-spin pi-spinner' : markRead.done ? 'pi-check-circle' : 'pi-envelope'}`} />
-                  {markRead.done ? 'Read' : 'Mark as read'}
+                  <i className={`pi ${markRead.busy ? 'pi-spin pi-spinner' : markRead.done ? 'pi-check-circle' : 'pi-envelope'}`} style={{color:'white'}} />
+                  {markRead.done ? 'Read' : 'Mark as reads'}
                 </button>
               </div>
             </div>
