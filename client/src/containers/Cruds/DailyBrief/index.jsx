@@ -22,7 +22,10 @@ const DailyBrief = () => {
 
   // Email-detail drawer (screen 04)
   const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
-  const [markRead, setMarkRead] = useState({ busy: false, done: false });
+  const [readState, setReadState] = useState({ busy: false, isRead: false });
+  // Signal that pushes a live read/unread toggle down to the dashboard so the
+  // mails popover highlight updates immediately (no page refresh needed).
+  const [readOverride, setReadOverride] = useState(null);
   // Risk-detail drawer (screen 05)
   const [riskDrawer, setRiskDrawer] = useState({ visible: false, risk: null });
 
@@ -91,38 +94,42 @@ const DailyBrief = () => {
 
   const openEmail = useCallback(async (sourceId) => {
     if (!sourceId) return;
-    setMarkRead({ busy: false, done: false });
+    setReadState({ busy: false, isRead: false });
     setEmailDrawer({ visible: true, loading: true, mail: null, sourceId });
     try {
       const res = await fetchMethodRequest('GET', `email-analysis/mails/by-source/${encodeURIComponent(sourceId)}`);
-      setEmailDrawer({ visible: true, loading: false, mail: res?.mail || null, sourceId });
+      const mail = res?.mail || null;
+      setEmailDrawer({ visible: true, loading: false, mail, sourceId });
+      setReadState({ busy: false, isRead: !(mail?.labels || []).includes('UNREAD') });
     } catch {
       setEmailDrawer({ visible: true, loading: false, mail: null, sourceId });
     }
   }, [report]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mark the drawer's mail as read at the provider (Gmail/Outlook).
-  const onMarkRead = useCallback(async () => {
+  // Toggle the drawer's mail read state at the provider (Gmail/Outlook).
+  const onToggleRead = useCallback(async () => {
     const { mail, sourceId } = emailDrawer;
     const id = mail?.providerMessageId || sourceId;
     if (!id) return;
-    setMarkRead({ busy: true, done: false });
+    const nextIsRead = !readState.isRead;
+    setReadState((s) => ({ ...s, busy: true }));
     try {
       const res = await fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
-        sourceId: id, email: mail?.email, isRead: true,
+        sourceId: id, email: mail?.email, isRead: nextIsRead,
       });
       if (res?.respCode) {
-        setMarkRead({ busy: false, done: true });
-        showToasterMessage('Marked as read', 'success');
+        setReadState({ busy: false, isRead: nextIsRead });
+        setReadOverride((prev) => ({ sourceId, isRead: nextIsRead, nonce: (prev?.nonce || 0) + 1 }));
+        showToasterMessage(nextIsRead ? 'Marked as read' : 'Marked as unread', 'success');
       } else {
-        setMarkRead({ busy: false, done: false });
-        showToasterMessage(res?.errorMessage || 'Could not mark as read', 'error');
+        setReadState((s) => ({ ...s, busy: false }));
+        showToasterMessage(res?.errorMessage || 'Could not update read state', 'error');
       }
     } catch {
-      setMarkRead({ busy: false, done: false });
-      showToasterMessage('Could not mark as read', 'error');
+      setReadState((s) => ({ ...s, busy: false }));
+      showToasterMessage('Could not update read state', 'error');
     }
-  }, [emailDrawer]);
+  }, [emailDrawer, readState.isRead]);
 
   const openRisk = useCallback((risk) => setRiskDrawer({ visible: true, risk }), []);
 
@@ -152,7 +159,7 @@ const DailyBrief = () => {
         </div>
       );
     }
-    return <BriefDashboard report={report} reportConfig={reportConfig} onOpenSource={openEmail} onOpenRisk={openRisk} />;
+    return <BriefDashboard report={report} reportConfig={reportConfig} onOpenSource={openEmail} onOpenRisk={openRisk} readOverride={readOverride} />;
   };
 
   /* ---------------- render: email drawer (04) ---------------- */
@@ -183,12 +190,12 @@ const DailyBrief = () => {
               <div className="orm-email-actions">
                 <button
                   type="button"
-                  className={`orm-email-action${markRead.done ? ' done' : ''}`}
-                  onClick={onMarkRead}
-                  disabled={markRead.busy || markRead.done}
+                  className={`orm-email-action${readState.isRead ? ' done' : ''}`}
+                  onClick={onToggleRead}
+                  disabled={readState.busy}
                 >
-                  <i className={`pi ${markRead.busy ? 'pi-spin pi-spinner' : markRead.done ? 'pi-check-circle' : 'pi-envelope'}`} style={{color:'white'}} />
-                  {markRead.done ? 'Read' : 'Mark as read'}
+                  <i className={`pi ${readState.busy ? 'pi-spin pi-spinner' : readState.isRead ? 'pi-check-circle' : 'pi-envelope'}`} style={{color:'white'}} />
+                  {readState.isRead ? 'Mark as unread' : 'Mark as read'}
                 </button>
               </div>
             </div>

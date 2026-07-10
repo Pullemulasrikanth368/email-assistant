@@ -311,7 +311,7 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
  * @param onOpenSource (sourceId) => void  — open the source email
  * @param onOpenRisk   (risk) => void      — open risk detail (falls back to onOpenSource)
  */
-export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { }, onOpenRisk }) => {
+export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { }, onOpenRisk, readOverride = null }) => {
   const brief = report?.brief || {};
 
   // Layout/visibility (sections, fields, order, columns) is a display concern, so the
@@ -520,9 +520,14 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
   // (so marks survive a refresh) and extended locally as the user marks more.
   const [readSourceIds, setReadSourceIds] = useState(() => new Set());
 
-  // Seed read state from the provider for every triage mail in this report.
+  // Seed read state from the provider for every mail in this report — triage
+  // rows AND category-summary popover mails — so the unread highlight is
+  // accurate everywhere and survives a refresh / navigating back.
   useEffect(() => {
-    const ids = [...new Set(triage.map((t) => t.sourceId).filter(Boolean))];
+    const ids = [...new Set([
+      ...triage.map((t) => t.sourceId),
+      ...categorySummaries.flatMap((c) => (c.mails || []).map((m) => m.sourceId)),
+    ].filter(Boolean))];
     if (!ids.length) return undefined;
     let cancelled = false;
     fetchMethodRequest('POST', 'email-analysis/mails/reply-status', { sourceIds: ids })
@@ -539,6 +544,19 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report?._id]);
+
+  // Live read/unread toggle from the email drawer (parent): reflect it in the
+  // popover highlight immediately, without waiting for a page refresh.
+  useEffect(() => {
+    if (!readOverride?.sourceId) return;
+    setReadSourceIds((prev) => {
+      const next = new Set(prev);
+      if (readOverride.isRead) next.add(readOverride.sourceId);
+      else next.delete(readOverride.sourceId);
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOverride?.nonce]);
 
   const markGroupRead = async (sourceIds, label) => {
     const ids = [...new Set((sourceIds || []).filter(Boolean))].filter((id) => !readSourceIds.has(id));
@@ -829,7 +847,8 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                             type="button"
                             key={j}
                             onClick={() => onOpenSource(m.sourceId)}
-                            className="flex w-full items-start gap-2.5 border-0 bg-transparent px-3.5 py-2.5 text-left transition-colors hover:bg-accent/50"
+                            className={`flex w-full items-start gap-2.5 border-0 px-3.5 py-2.5 text-left transition-colors hover:bg-accent/50${isRead ? ' bg-transparent' : ''}`}
+                            style={isRead ? undefined : { background: chip.background, boxShadow: `inset 3px 0 0 ${chip.accent}` }}
                           >
                             <span
                               className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full${isRead ? ' bg-muted' : ''}`}
@@ -838,7 +857,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                               <RowIcon className={`h-3 w-3${isRead ? ' text-muted-foreground' : ''}`} style={isRead ? undefined : { color: chip.color }} />
                             </span>
                             <span className="min-w-0 flex-1 pt-0.5">
-                              <span className={`block truncate text-[12.5px] font-medium leading-tight ${isRead ? 'text-muted-foreground' : 'text-foreground'}`}>
+                              <span className={`block truncate text-[12.5px] leading-tight ${isRead ? 'font-medium text-muted-foreground' : 'font-semibold text-foreground'}`}>
                                 {m.subject || '(no subject)'}
                               </span>
                               {fromName && (

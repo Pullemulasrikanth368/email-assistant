@@ -745,18 +745,11 @@ export default class OutlookMessagesService {
       await this.#graph("PATCH", `/me/messages/${encodeURIComponent(id)}`, {
         data: { isRead },
       });
-      // Keep our DB in sync.
+      // Keep our DB in sync. Read state is tracked via the UNREAD label; a
+      // single operator avoids the $set+$addToSet path conflict on `labels`.
       await EmailAnalysisMail.updateOne(
         { email: this.email, provider: "outlook", providerMessageId: id },
-        {
-          $set: {
-            labels: isRead
-              ? (await EmailAnalysisMail.findOne({ email: this.email, providerMessageId: id }).select("labels").lean())
-                  ?.labels?.filter((l) => l !== "UNREAD") || []
-              : undefined,
-          },
-          ...(isRead ? {} : { $addToSet: { labels: "UNREAD" } }),
-        }
+        isRead ? { $pull: { labels: "UNREAD" } } : { $addToSet: { labels: "UNREAD" } }
       );
       updated += 1;
     }
