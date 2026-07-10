@@ -22,7 +22,7 @@ export default function RowAccordion({
   const widthSummary = row.columns.map((col) => `col-${col.width}`).join(' · ');
 
   return (
-    <section className="rcfg-row" id={`rcfg-row-${rowIdx}`}>
+    <section className={`rcfg-row${open ? ' rcfg-row--open' : ''}`} id={`rcfg-row-${rowIdx}`}>
       <div
         className="rcfg-row-head"
         role="button"
@@ -31,12 +31,17 @@ export default function RowAccordion({
         onClick={onToggle}
         onKeyDown={(e) => { if (e.key === 'Enter') onToggle(); }}
       >
-        <i className={`pi ${open ? 'pi-chevron-down' : 'pi-chevron-right'}`} />
-        <span className="rcfg-row-title">Row {rowIdx + 1}</span>
-        <span className="rcfg-row-meta">
-          {row.columns.length} column{row.columns.length > 1 ? 's' : ''} · {widthSummary}
-          {row.maxHeight ? ` · ${row.maxHeight}px` : ' · no height cap'}
-        </span>
+        <span className="rcfg-row-num">{rowIdx + 1}</span>
+        <div className="rcfg-row-headinfo">
+          <span className="rcfg-row-title">
+            Row {rowIdx + 1}
+            <i className={`pi ${open ? 'pi-chevron-down' : 'pi-chevron-right'} rcfg-row-chev`} />
+          </span>
+          <span className="rcfg-row-meta">
+            {row.columns.length} column{row.columns.length > 1 ? 's' : ''} · {widthSummary}
+            {row.maxHeight ? ` · ${row.maxHeight}px` : ' · no height cap'}
+          </span>
+        </div>
         <span className="rcfg-row-actions" onClick={(e) => e.stopPropagation()}>
           <button type="button" title="Move row up" disabled={rowIdx === 0} onClick={() => onMoveRow(rowIdx, -1)}>
             <i className="pi pi-arrow-up" />

@@ -44,6 +44,8 @@ router.post("/mail/mark-read", asyncHandler(emailAnalysisCtrl.markMailReadState)
 
 // AI-generated draft reply for a single email.
 router.post("/mails/:id/generate-reply", asyncHandler(emailAnalysisCtrl.generateAiReply));
+// Rewrite a selected snippet of draft text in a tone (professional | friendly).
+router.post("/rewrite-text", asyncHandler(emailAnalysisCtrl.rewriteDraftText));
 
 /**
  * Reports (the generated "morning brief").

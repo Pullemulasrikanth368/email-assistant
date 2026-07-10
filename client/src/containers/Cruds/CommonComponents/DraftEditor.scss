@@ -1,6 +1,36 @@
 /* CKEditor sizing/skin tweaks for the email draft editors */
 .draft-ck {
   width: 100%;
+  position: relative;
+
+  /* Blocking overlay + spinner shown while the AI rewrite is in flight.
+     Covers the editor so it can't be edited until the response arrives. */
+  .draft-ck__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(1px);
+    border-radius: 8px;
+    cursor: wait;
+  }
+
+  .draft-ck__overlay-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #2f5fa8;
+    background: #ffffff;
+    border: 1px solid #cdddf0;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
 
   .ck.ck-editor__editable_inline {
     min-height: 150px;
@@ -28,4 +58,70 @@
     border-color: #9db8d8 !important;
     box-shadow: none !important;
   }
+}
+
+/* Right-click "Rewrite" context menu (rendered at the document level via fixed
+   positioning, so it lives outside .draft-ck for z-index safety). */
+.draft-ctx-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 176px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e6ec;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(20, 30, 50, 0.16);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  color: #1f2937;
+  user-select: none;
+}
+
+.draft-ctx-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f1f5fb;
+  }
+
+  &__icon {
+    width: 18px;
+    text-align: center;
+    font-size: 13px;
+  }
+
+  &__label {
+    flex: 1;
+  }
+
+  &__arrow {
+    color: #94a3b8;
+    font-size: 11px;
+  }
+}
+
+.draft-ctx-submenu {
+  position: absolute;
+  top: -4px;
+  left: 100%;
+  margin-left: 2px;
+  min-width: 156px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e6ec;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(20, 30, 50, 0.16);
 }

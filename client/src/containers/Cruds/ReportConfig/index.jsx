@@ -187,6 +187,37 @@ export default function ReportConfigPage() {
     setOpenRows((prev) => new Set(prev).add(form.rows.length));
   };
 
+  // Open state is tracked by row index, so reordering/removing rows must remap
+  // those indices — otherwise the highlight would stay on a position instead of
+  // following the row that moved.
+  const handleMoveRow = (idx, dir) => {
+    const target = idx + dir;
+    if (target < 0 || target >= form.rows.length) return;
+    setRows((rows) => moveRow(rows, idx, dir));
+    setOpenRows((prev) => {
+      const next = new Set(prev);
+      const hadIdx = prev.has(idx);
+      const hadTarget = prev.has(target);
+      next.delete(idx);
+      next.delete(target);
+      if (hadIdx) next.add(target);
+      if (hadTarget) next.add(idx);
+      return next;
+    });
+  };
+
+  const handleRemoveRow = (idx) => {
+    setRows((rows) => removeRow(rows, idx));
+    setOpenRows((prev) => {
+      const next = new Set();
+      prev.forEach((i) => {
+        if (i === idx) return;          // the removed row
+        next.add(i > idx ? i - 1 : i);  // rows below it shift up one
+      });
+      return next;
+    });
+  };
+
   const usedSections = sectionsFromRows(form.rows);
   const availableSections = SECTION_KEYS.filter((key) => !usedSections.includes(key));
 
@@ -243,8 +274,8 @@ export default function ReportConfigPage() {
               rowCount={form.rows.length}
               open={openRows.has(rowIdx)}
               onToggle={() => toggleRow(rowIdx)}
-              onMoveRow={(idx, dir) => setRows((rows) => moveRow(rows, idx, dir))}
-              onRemoveRow={(idx) => setRows((rows) => removeRow(rows, idx))}
+              onMoveRow={handleMoveRow}
+              onRemoveRow={handleRemoveRow}
               onSetColumnCount={(idx, n) => setRows((rows) => setRowColumnCount(rows, idx, n))}
               onSetMaxHeight={(idx, value) => setRows((rows) => setRowMaxHeight(rows, idx, value))}
               boardProps={boardProps}

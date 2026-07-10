@@ -308,6 +308,7 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
         onChange={onReplyChange}
         disabled={phase === 'sending'}
         placeholder="AI-generated reply will appear here…"
+        contextMailId={mailId}
       />
 
       {/* Action buttons — a to-do email gets "Mark as complete & send" and

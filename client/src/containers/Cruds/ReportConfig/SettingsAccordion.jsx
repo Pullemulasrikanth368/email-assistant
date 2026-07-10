@@ -52,7 +52,7 @@ function CheckGrid({ items, selected, onChange }) {
 /* Non-layout report requirements: output style, requirement prompt and field visibility. */
 export default function SettingsAccordion({ form, setField, open, onToggle }) {
   return (
-    <section className="rcfg-row rcfg-settings">
+    <section className={`rcfg-row rcfg-settings${open ? ' rcfg-row--open' : ''}`}>
       <div
         className="rcfg-row-head"
         role="button"
@@ -61,9 +61,14 @@ export default function SettingsAccordion({ form, setField, open, onToggle }) {
         onClick={onToggle}
         onKeyDown={(e) => { if (e.key === 'Enter') onToggle(); }}
       >
-        <i className={`pi ${open ? 'pi-chevron-down' : 'pi-chevron-right'}`} />
-        <span className="rcfg-row-title">Report settings</span>
-        <span className="rcfg-row-meta">Style, requirement prompt and visible fields</span>
+        <span className="rcfg-row-num rcfg-row-num--icon"><i className="pi pi-sliders-h" /></span>
+        <div className="rcfg-row-headinfo">
+          <span className="rcfg-row-title">
+            Report settings
+            <i className={`pi ${open ? 'pi-chevron-down' : 'pi-chevron-right'} rcfg-row-chev`} />
+          </span>
+          <span className="rcfg-row-meta">Style, requirement prompt and visible fields</span>
+        </div>
       </div>
 
       {open && (

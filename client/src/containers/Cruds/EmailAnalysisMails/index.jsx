@@ -402,6 +402,7 @@ const DraftThreadEditor = ({ msg, onSave, onSaved, onSend, onDiscard }) => {
         onChange={handleHtmlChange}
         disabled={busy}
         placeholder="Write your draft…"
+        contextMailId={msg?._id}
       />
       <div className="ea-draft-inline-foot">
         <span className={cn('ea-draft-savestate', `ea-draft-savestate--${saveState || 'idle'}`)}>

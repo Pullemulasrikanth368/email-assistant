@@ -1,145 +1,253 @@
-/* Report Configuration screen: fixed (sticky) header + fixed left rail, scrollable
-   main area of row accordions. Reuses rc-* board/field styles from OperationsReport.scss
-   (the main area carries the .rc-panel class). */
+/* Report Configuration screen.
+   Sticky title + toolbar, a fixed left "sections" rail, and a scrollable main
+   area of row cards. Board chips reuse the rc-* markup from OperationsReport,
+   restyled here (scoped under .rcfg-page .rcfg-main) so the Reports screen is
+   untouched. */
 
 .rcfg-page {
-  background: #fff;
-  border: 1px solid #d9dcd6;
-  border-radius: 10px;
+  --rc-ink: #14181f;
+  --rc-muted: #667080;
+  --rc-faint: #9aa2ac;
+  --rc-line: #e6e9ec;
+  --rc-line-soft: #eef0f2;
+  --rc-accent: #1f6f6b;
+  --rc-accent-soft: #e7f2f0;
+  --rc-accent-ink: #14544f;
+  --rc-surface: #fff;
+  --rc-surface-2: #f7f9fa;
+  --rc-danger: #b3261e;
+
+  background: var(--rc-surface-2);
+  border: 1px solid var(--rc-line);
+  border-radius: 14px;
   min-height: calc(100vh - 20px);
   font-family: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
-  color: #14181f;
+  color: var(--rc-ink);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 
   .rcfg-loading {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #687180;
-    padding: 30px;
+    color: var(--rc-muted);
+    padding: 40px;
   }
 
-  /* ---------- fixed header ---------- */
+  /* ---------- header ---------- */
   .rcfg-header {
     position: sticky;
     top: 0;
     z-index: 20;
-    background: #fff;
-    border-bottom: 1px solid #eaecee;
-    border-radius: 10px 10px 0 0;
-    padding: 16px 20px 12px;
+    background: var(--rc-surface);
+    border-bottom: 1px solid var(--rc-line);
+    padding: 12px 18px 10px;
+  }
+
+  .rcfg-header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
   }
 
   .rcfg-eyebrow {
-    font-size: 11px;
-    letter-spacing: .07em;
+    font-size: 10px;
+    letter-spacing: .09em;
     text-transform: uppercase;
-    color: #687180;
+    color: var(--rc-accent);
+    font-weight: 700;
     margin-bottom: 2px;
   }
 
   .rcfg-title {
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+    margin: 0 0 3px;
   }
 
   .rcfg-sub {
-    font-size: 12.5px;
-    color: #687180;
-    margin: 0 0 12px;
-    max-width: 640px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--rc-muted);
+    margin: 0;
+    max-width: 620px;
   }
 
-  .rcfg-header-controls {
+  .rcfg-back.rcfg-back {
+    flex: none;
+    color: var(--rc-muted);
+    gap: 5px;
+
+    .pi { font-size: 11px; }
+    &:hover { color: var(--rc-ink); }
+  }
+
+  /* ---------- toolbar ---------- */
+  .rcfg-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 12px;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 9px 11px;
+    background: var(--rc-surface-2);
+    border: 1px solid var(--rc-line);
+    border-radius: 10px;
+  }
+
+  .rcfg-toolbar-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
   }
 
   .rcfg-control {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
 
     > label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #2a3340;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--rc-muted);
     }
   }
 
-  .rcfg-view-select {
-    min-width: 200px;
-  }
+  .rcfg-view-select { min-width: 190px; }
 
   .rcfg-name-input {
-    border: 1px solid #d9dcd6;
+    border: 1px solid var(--rc-line);
     border-radius: 7px;
-    padding: 7px 10px;
-    font-size: 13px;
-    min-width: 210px;
-    color: #14181f;
+    padding: 6px 10px;
+    font-size: 12.5px;
+    min-width: 200px;
+    background: #fff;
+    color: var(--rc-ink);
+    transition: border-color .12s, box-shadow .12s;
+
+    &::placeholder { color: var(--rc-faint); }
 
     &:focus {
       outline: none;
-      border-color: #1f6f6b;
+      border-color: var(--rc-accent);
+      box-shadow: 0 0 0 3px var(--rc-accent-soft);
     }
   }
 
-  .rcfg-header-actions {
+  .rcfg-default-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--rc-accent-soft);
+    color: var(--rc-accent-ink);
+    font-size: 11px;
+    font-weight: 600;
+
+    .pi { font-size: 9px; }
+  }
+
+  .rcfg-toolbar-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    margin-left: auto;
+
+    .pi { font-size: 10.5px; margin-right: 4px; }
+  }
+
+  /* Primary teal action + danger action (scoped, high specificity to beat the
+     shared Button variants). */
+  .rcfg-toolbar-actions .rcfg-btn-primary {
+    background: var(--rc-accent);
+    border-color: var(--rc-accent);
+    color: #fff;
+
+    &:hover:not(:disabled) { background: var(--rc-accent-ink); border-color: var(--rc-accent-ink); }
   }
 
   .rcfg-danger {
-    color: #b3261e;
-    border-color: rgba(179, 38, 30, .4);
+    color: var(--rc-danger);
+    border-color: rgba(179, 38, 30, .35);
 
-    &:hover {
-      background: rgba(179, 38, 30, .06);
-    }
+    &:hover:not(:disabled) { background: rgba(179, 38, 30, .06); }
   }
 
-  /* ---------- body: fixed rail + scrollable main ---------- */
+  /* ---------- body: rail + main ---------- */
   .rcfg-body {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 232px minmax(0, 1fr);
     align-items: start;
     flex: 1;
   }
 
   .rcfg-rail {
     position: sticky;
-    // Keep the rail below the sticky header; header height varies with wrapping,
-    // so leave generous headroom and let the rail scroll internally.
-    top: 150px;
-    max-height: calc(100vh - 170px);
+    top: 138px;
+    max-height: calc(100vh - 158px);
     overflow-y: auto;
-    border-right: 1px solid #eaecee;
-    padding: 14px 12px;
+    border-right: 1px solid var(--rc-line);
+    background: var(--rc-surface);
+    padding: 12px 11px;
   }
 
-  .rcfg-rail-group {
-    margin-bottom: 18px;
+  .rcfg-rail-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+
+    .rcfg-rail-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      padding: 6px 4px;
+      background: var(--rc-surface-2);
+      border: 1px solid var(--rc-line);
+      border-radius: 8px;
+
+      .v { font-size: 15px; font-weight: 750; color: var(--rc-accent); line-height: 1.1; }
+      .k { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--rc-faint); }
+    }
   }
+
+  .rcfg-rail-group { margin-bottom: 13px; }
 
   .rcfg-rail-head {
-    font-size: 10px;
-    letter-spacing: .06em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9.5px;
+    letter-spacing: .07em;
     text-transform: uppercase;
-    color: #9aa2ac;
-    margin-bottom: 6px;
+    color: var(--rc-faint);
+    font-weight: 700;
+    margin-bottom: 5px;
 
-    .n {
+    .pill {
+      display: inline-grid;
+      place-items: center;
+      min-width: 17px;
+      height: 16px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: var(--rc-accent);
+      color: #fff;
+      font-size: 9.5px;
       font-weight: 700;
-      color: #1f6f6b;
-      margin-left: 4px;
+      letter-spacing: 0;
+
+      &.pill-muted { background: #d3d8dd; color: #5b6472; }
     }
   }
 
@@ -148,20 +256,20 @@
     align-items: center;
     gap: 7px;
     width: 100%;
-    border: none;
+    border: 1px solid transparent;
     background: none;
     text-align: left;
-    font-size: 12px;
-    padding: 4px 4px;
-    border-radius: 6px;
-    color: #2a3340;
+    font-size: 11.5px;
+    padding: 4px 7px;
+    border-radius: 7px;
+    color: var(--rc-ink);
 
     .dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       flex: none;
-      background: #1f6f6b;
+      background: var(--rc-accent);
     }
 
     .lbl {
@@ -173,74 +281,116 @@
     }
 
     .row-tag {
-      font-size: 10px;
-      color: #687180;
-      background: #eef4f8;
-      border-radius: 8px;
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--rc-accent-ink);
+      background: var(--rc-accent-soft);
+      border-radius: 5px;
       padding: 1px 6px;
       flex: none;
     }
 
     &.used {
       cursor: pointer;
+      transition: background .12s, border-color .12s;
 
-      &:hover {
-        background: #eef4f8;
-      }
+      &:hover { background: var(--rc-surface-2); border-color: var(--rc-line); }
     }
 
     &.pending {
-      color: #9aa2ac;
-
-      .dot {
-        background: #d9dcd6;
-      }
+      color: var(--rc-faint);
+      .dot { background: #d3d8dd; }
     }
   }
 
   .rcfg-rail-empty {
-    font-size: 11px;
-    color: #9aa2ac;
-    padding: 2px 4px;
+    font-size: 10.5px;
+    color: var(--rc-faint);
+    padding: 2px 7px;
   }
 
-  .rcfg-main {
-    padding: 14px 18px 40px;
+  /* ---------- main scroll area ---------- */
+  .rcfg-main.rc-panel {
+    padding: 12px 14px 32px;
     min-width: 0;
+    background: var(--rc-surface-2);
   }
 
-  /* ---------- row accordions ---------- */
+  /* ---------- row / settings cards ---------- */
   .rcfg-row {
-    border: 1px solid #d9dcd6;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    background: #fff;
+    border: 1px solid var(--rc-line);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    background: var(--rc-surface);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    transition: border-color .12s, box-shadow .12s;
+
+    &:hover { border-color: #d8dde1; }
   }
+
+  /* Highlight the currently expanded row */
+  .rcfg-row--open {
+    border-color: var(--rc-accent);
+    box-shadow: 0 0 0 1px var(--rc-accent), 0 4px 14px rgba(31, 111, 107, .12);
+
+    .rcfg-row-head {
+      background: var(--rc-accent-soft);
+      border-radius: 10px 10px 0 0;
+    }
+
+    .rcfg-row-num { background: var(--rc-accent); color: #fff; }
+    .rcfg-row-title { color: var(--rc-accent-ink); }
+    .rcfg-row-title .rcfg-row-chev { color: var(--rc-accent); }
+  }
+
+  .rcfg-settings { border-style: solid; }
 
   .rcfg-row-head {
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 10px 12px;
+    gap: 10px;
+    padding: 9px 11px;
     cursor: pointer;
     user-select: none;
+    transition: background .12s;
+  }
 
-    > .pi {
-      font-size: 11px;
-      color: #687180;
-    }
+  .rcfg-row-num {
+    flex: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 8px;
+    background: var(--rc-accent-soft);
+    color: var(--rc-accent-ink);
+    font-size: 12px;
+    font-weight: 750;
+    display: grid;
+    place-items: center;
+
+    &.rcfg-row-num--icon .pi { font-size: 12px; }
+  }
+
+  .rcfg-row-headinfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex: 1;
+    min-width: 0;
   }
 
   .rcfg-row-title {
-    font-size: 13px;
-    font-weight: 650;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+
+    .rcfg-row-chev { font-size: 9.5px; color: var(--rc-faint); }
   }
 
   .rcfg-row-meta {
-    font-size: 11.5px;
-    color: #687180;
-    flex: 1;
-    min-width: 0;
+    font-size: 11px;
+    color: var(--rc-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -249,94 +399,153 @@
   .rcfg-row-actions {
     display: flex;
     gap: 4px;
+    flex: none;
 
     button {
-      border: 1px solid #d9dcd6;
+      border: 1px solid var(--rc-line);
       background: #fff;
-      border-radius: 6px;
-      width: 26px;
-      height: 26px;
+      border-radius: 7px;
+      width: 27px;
+      height: 27px;
       cursor: pointer;
-      color: #2a3340;
+      color: var(--rc-muted);
+      transition: background .12s, color .12s, border-color .12s;
 
-      .pi {
-        font-size: 11px;
-      }
+      .pi { font-size: 10.5px; }
 
       &:hover:not(:disabled) {
-        background: #eef4f8;
+        background: #fff;
+        color: var(--rc-accent-ink);
+        border-color: var(--rc-accent);
       }
 
-      &:disabled {
-        opacity: .4;
-        cursor: default;
-      }
+      &:disabled { opacity: .38; cursor: default; }
     }
 
     .rcfg-row-remove {
-      color: #b3261e;
-      border-color: rgba(179, 38, 30, .35);
+      color: var(--rc-danger);
+      border-color: rgba(179, 38, 30, .3);
+
+      &:hover:not(:disabled) { background: rgba(179, 38, 30, .07); color: var(--rc-danger); border-color: rgba(179, 38, 30, .5); }
     }
   }
 
   .rcfg-row-body {
-    border-top: 1px solid #eaecee;
-    padding: 12px;
+    border-top: 1px solid var(--rc-line-soft);
+    padding: 11px;
   }
 
   .rcfg-row-settings {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 12px;
+    gap: 14px;
+    padding: 9px 11px;
+    margin-bottom: 11px;
+    background: var(--rc-surface-2);
+    border: 1px solid var(--rc-line);
+    border-radius: 9px;
   }
 
-  .rcfg-cols-select {
-    min-width: 130px;
-  }
+  .rcfg-cols-select { min-width: 130px; }
 
   .rcfg-height-input {
-    border: 1px solid #d9dcd6;
+    border: 1px solid var(--rc-line);
     border-radius: 7px;
-    padding: 6px 10px;
-    font-size: 13px;
+    padding: 6px 9px;
+    font-size: 12.5px;
     width: 130px;
+    background: #fff;
 
     &:focus {
       outline: none;
-      border-color: #1f6f6b;
+      border-color: var(--rc-accent);
+      box-shadow: 0 0 0 3px var(--rc-accent-soft);
     }
   }
 
   .rcfg-hint {
     display: block;
-    font-size: 10.5px;
-    color: #9aa2ac;
+    font-size: 10px;
+    color: var(--rc-faint);
     margin-top: 3px;
-    max-width: 220px;
+    max-width: 210px;
+    line-height: 1.4;
   }
 
-  /* ---------- column board additions (on top of rc-col-board styles) ---------- */
+  /* ---------- column board (override shared rc-* within this screen) ---------- */
+  .rcfg-main {
+    .rc-col-board { gap: 9px; }
+
+    .rc-col {
+      border: 1px solid var(--rc-line);
+      border-radius: 9px;
+      background: var(--rc-surface-2);
+      padding: 8px;
+      gap: 5px;
+
+      &.rc-col-over {
+        border-color: var(--rc-accent);
+        border-style: solid;
+        background: var(--rc-accent-soft);
+        box-shadow: inset 0 0 0 1px var(--rc-accent);
+      }
+    }
+
+    .rc-order-row {
+      border: 1px solid var(--rc-line);
+      border-radius: 7px;
+      background: #fff;
+      padding: 6px 8px;
+      box-shadow: 0 1px 1px rgba(16, 24, 40, .03);
+      transition: border-color .12s, box-shadow .12s;
+
+      &:hover {
+        border-color: #cfd5da;
+        box-shadow: 0 2px 5px rgba(16, 24, 40, .06);
+      }
+    }
+
+    .rc-order-handle { color: var(--rc-faint); font-size: 11px; }
+
+    .rc-col-empty {
+      border: 1px dashed var(--rc-line);
+      border-radius: 7px;
+      color: var(--rc-faint);
+      background: #fff;
+      padding: 6px 4px;
+      font-size: 10.5px;
+    }
+  }
+
   .rcfg-col-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
+  }
+
+  .rc-col-head {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--rc-faint);
   }
 
   .rcfg-width-select {
-    height: 26px;
-    font-size: 11px;
-    padding: 0 8px;
-    width: 84px;
-    min-width: 84px;
+    height: 25px;
+    font-size: 10.5px;
+    padding: 0 7px;
+    width: 82px;
+    min-width: 82px;
   }
 
   .rcfg-chip-label {
     flex: 1;
-    font-size: 12px;
-    color: #2a3340;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--rc-ink);
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -346,43 +555,51 @@
   .rcfg-chip-remove {
     border: none;
     background: none;
-    color: #9aa2ac;
+    color: var(--rc-faint);
     cursor: pointer;
     padding: 2px;
+    border-radius: 5px;
 
-    .pi {
-      font-size: 10px;
-    }
+    .pi { font-size: 9.5px; }
 
-    &:hover {
-      color: #b3261e;
-    }
+    &:hover { color: var(--rc-danger); background: rgba(179, 38, 30, .08); }
   }
 
   .rcfg-add-select {
-    height: 28px;
-    font-size: 11.5px;
-    color: #1f6f6b;
+    height: 27px;
+    font-size: 11px;
+    color: var(--rc-accent);
     border-style: dashed;
-    margin-top: 2px;
+    border-color: var(--rc-accent);
+    background: transparent;
+    margin-top: 1px;
+
+    &:hover { background: var(--rc-accent-soft); }
   }
 
+  /* ---------- add row ---------- */
   .rcfg-addrow {
     display: flex;
     justify-content: center;
-    padding: 6px 0 20px;
+    padding: 6px 0 2px;
+
+    button {
+      border-style: dashed;
+      border-color: var(--rc-accent);
+      color: var(--rc-accent);
+
+      &:hover { background: var(--rc-accent-soft); }
+    }
   }
 
   @media (max-width: 900px) {
-    .rcfg-body {
-      grid-template-columns: 1fr;
-    }
+    .rcfg-body { grid-template-columns: 1fr; }
 
     .rcfg-rail {
       position: static;
       max-height: none;
       border-right: none;
-      border-bottom: 1px solid #eaecee;
+      border-bottom: 1px solid var(--rc-line);
     }
   }
 }

@@ -42,7 +42,8 @@ import kbService from "../services/knowledgeBase.service";
 import reportConfigService from "../services/reportConfig.service";
 
 /**@AI Reply */
-import aiReplyService from "../services/aiReply.service";
+import aiReplyService, { buildMailContextText, resolveSenderName } from "../services/aiReply.service";
+import rewriteService, { applySenderName } from "../services/rewrite.service";
 
 /**@Pre-Meeting Brief */
 import preMeetingBriefService from "../services/preMeetingBrief.service";
@@ -1721,6 +1722,7 @@ export default {
   setDefaultReportConfigCtrl,
   deleteReportConfigCtrl,
   generateAiReply,
+  rewriteDraftText,
   getConversationSummary,
   getAutoSync,
   setAutoSync,
@@ -1793,6 +1795,79 @@ async function generateAiReply(req, res) {
   } catch (err) {
     console.error("[EmailAnalysis] AI reply generation failed:", err.message);
     return res.json({ errorCode: 9400, errorMessage: `AI reply failed: ${err.message}` });
+  }
+}
+
+/**
+ * True when the selected text reads as a request to WRITE a reply/response
+ * (e.g. "Please give me a formal email response for this as a reply") rather
+ * than draft content to be rephrased. Such selections are routed through the
+ * full reply generator so the thread is analysed and a real reply is produced.
+ */
+function looksLikeReplyInstruction(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length > 400) return false; // long text is almost certainly real content
+  const asksToProduce = /\b(give me|provide|write|draft|compose|prepare|generate|create|need|want|can you|could you|please)\b/i.test(t);
+  const mentionsReply = /\b(reply|replies|response|respond|answer|email|message|mail)\b/i.test(t);
+  return asksToProduce && mentionsReply;
+}
+
+/**
+ * Rewrite a selected snippet of draft text, or — when the selection is an
+ * instruction like "write a formal reply to this" — generate a full reply by
+ * analysing the mail thread. Powers the "Rewrite" / "Refine" context menu.
+ *
+ * Body: { text, mode, mailId } — mode is professional | friendly | polish |
+ *   reframe | elaborate. `tone` is accepted as a fallback for older clients.
+ * Response: { respCode, text, mode, provider, generatedReply }
+ */
+async function rewriteDraftText(req, res) {
+  const text = req.body?.text;
+  // `mode` is the current field; `tone` kept as a fallback for older clients.
+  const mode = req.body?.mode || req.body?.tone;
+  const mailId = req.body?.mailId;
+
+  if (!text || !String(text).trim()) {
+    return res.json({ errorCode: 9003, errorMessage: "No text was provided to rewrite." });
+  }
+
+  try {
+    const mail = mailId
+      ? await EmailAnalysisMail.findOne({ _id: mailId, active: true }).lean()
+      : null;
+
+    // The connected account holder's name (Gmail or Outlook), so any sign-off
+    // uses the real name instead of a "[Your Name]" placeholder.
+    const senderName = mail ? await resolveSenderName(mail) : "";
+
+    // Selection is a "write me a reply" instruction + we have the source mail:
+    // generate a real reply from the thread, honouring the chosen tone and
+    // using the instruction as extra guidance.
+    if (mail && looksLikeReplyInstruction(text)) {
+      const tone = mode === "friendly" ? "friendly" : "professional";
+      const gen = await aiReplyService.generateReply(mail, { tone, instruction: text, senderName });
+      return res.json({
+        respCode: 200,
+        text: applySenderName(gen.reply, senderName),
+        mode: mode || tone,
+        provider: gen.provider,
+        generatedReply: true,
+      });
+    }
+
+    // Otherwise rewrite/refine the selection itself, grounded in the thread.
+    const contextText = mail ? await buildMailContextText(mail) : "";
+    const result = await rewriteService.rewriteText(text, mode, { contextText, senderName });
+    return res.json({
+      respCode: 200,
+      text: result.text,
+      mode: result.mode,
+      provider: result.provider,
+      generatedReply: false,
+    });
+  } catch (err) {
+    console.error("[EmailAnalysis] Rewrite failed:", err.message);
+    return res.json({ errorCode: 9400, errorMessage: `Rewrite failed: ${err.message}` });
   }
 }
 
