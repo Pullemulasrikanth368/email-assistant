@@ -72,10 +72,9 @@ const fetchMethodRequest = (method, url, body = null, type = "", mul = false, ro
         return sendRequestToServer(method, url, body, headers, route)
             .then(response => {
                 if (response) {
-                    if (response.errorCode && response.errorCode === 9001) { // token expiry
-                        return response;
-                    }
-                    else if (response.errorCode && response.erroCode === 401) {
+                    if (response.errorCode && (response.errorCode === 9001 || response.errorCode === 401)) { // token expiry
+                        localStorage.removeItem('loginCredentials');
+                        window.location.href = "/";
                         return response;
                     }
                     else {
@@ -188,9 +187,10 @@ const sendRequestToServer = (method, url, body, headers, route) => {
         .then(responseJson => {
             const isSettingsUrl = url === 'settings'
             // console.log("RESP", responseJson);
-            if (responseJson && responseJson?.errorCode === 401) {
-                // redirectToLogin();
-                return;
+            if (responseJson && (responseJson?.errorCode === 401 || responseJson?.errorCode === 9001)) {
+                localStorage.removeItem('loginCredentials');
+                window.location.href = "/";
+                return responseJson;
             }
             return responseJson;
         }).catch(err => {

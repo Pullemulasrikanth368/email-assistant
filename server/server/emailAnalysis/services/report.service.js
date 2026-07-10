@@ -81,7 +81,7 @@ async function deliverBriefToTeams(report) {
 /** Start/end of the calendar day that `date` falls in. */
 function dayBounds(date) {
   const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
+  start.setUTCHours(0, 0, 0, 0);
   const end = new Date(start.getTime() + DAY_MS);
   return { start, end };
 }
@@ -92,20 +92,21 @@ function dayLabel(date) {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 
 /** Start of the ISO week (Monday 00:00) that `date` falls in. */
 function weekStartOf(date) {
   const x = new Date(date);
-  x.setHours(0, 0, 0, 0);
-  const dow = (x.getDay() + 6) % 7; // 0 = Monday
-  x.setDate(x.getDate() - dow);
+  x.setUTCHours(0, 0, 0, 0);
+  const dow = (x.getUTCDay() + 6) % 7; // 0 = Monday
+  x.setUTCDate(x.getUTCDate() - dow);
   return x;
 }
 
 function weekLabel(start) {
-  return `Week of ${new Date(start).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}`;
+  return `Week of ${new Date(start).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
 }
 
 /** Convenience counters from a brief. */

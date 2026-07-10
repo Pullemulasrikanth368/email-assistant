@@ -55,6 +55,10 @@ const ConnectionsDelivery = () => {
   // AI engine for the email-analysis flow (persisted in DB)
   const [aiModel, setAiModel] = useState('openai');
 
+  // Sync settings (persisted in Settings DB)
+  const [backfillDays, setBackfillDays] = useState(30);
+  const [maxResults, setMaxResults] = useState(500);
+
   // Live mail-sync progress (background workers + manual syncs)
   const [syncStatus, setSyncStatus] = useState(null);
   const syncPollRef = useRef(null);
@@ -101,6 +105,7 @@ const ConnectionsDelivery = () => {
     getOutlookStatus();
     getIncludeSpam();
     getAiModel();
+    getSyncSettings();
 
     // Poll mail-sync progress (no loader overlay) so the bar reflects the
     // background workers in real time.
@@ -134,6 +139,9 @@ const ConnectionsDelivery = () => {
       const current = source.find((a) => a.email === adminEmail) || source[0];
       setConnectedProvider(current.provider || 'google');
       setAdminEmail(current.email || '');
+    } else if (outlookConnected && outlookEmail) {
+      setConnectedProvider('outlook');
+      setAdminEmail(outlookEmail);
     } else {
       setConnectedProvider(null);
       setAdminEmail('');
@@ -171,9 +179,23 @@ const ConnectionsDelivery = () => {
     if (resp?.connected) {
       setOutlookConnected(true);
       setOutlookEmail(resp.email || '');
+      setSourceAccounts(prev => {
+        if (!prev.length) {
+          setConnectedProvider('outlook');
+          setAdminEmail(resp.email || '');
+        }
+        return prev;
+      });
     } else {
       setOutlookConnected(false);
       setOutlookEmail('');
+      setSourceAccounts(prev => {
+        if (!prev.length) {
+          setConnectedProvider(null);
+          setAdminEmail('');
+        }
+        return prev;
+      });
     }
   };
 
@@ -214,6 +236,71 @@ const ConnectionsDelivery = () => {
     }
   };
 
+  const getSyncSettings = async () => {
+    try {
+      const res = await apiRequest('GET', 'settings');
+      if (res && res.respCode === 200 && res.settings && res.settings[0]) {
+        const s = res.settings[0];
+        setBackfillDays(s.emailAnalysisSyncBackfillDays !== undefined ? s.emailAnalysisSyncBackfillDays : 30);
+        setMaxResults(s.emailAnalysisSyncMaxResults !== undefined ? s.emailAnalysisSyncMaxResults : 500);
+      }
+    } catch (err) {
+      console.error('Failed to load sync settings:', err);
+    }
+  };
+
+  const handleBackfillDaysChange = (val) => {
+    setBackfillDays(val === '' ? '' : parseInt(val, 10));
+  };
+
+  const handleMaxResultsChange = (val) => {
+    setMaxResults(val === '' ? '' : parseInt(val, 10));
+  };
+
+  const saveBackfillDays = async (val) => {
+    const numericVal = Number(val) || 30;
+    try {
+      const getRes = await apiRequest('GET', 'settings');
+      if (getRes && getRes.respCode === 200 && getRes.settings && getRes.settings[0]) {
+        const s = getRes.settings[0];
+        const payload = {
+          ...s,
+          emailAnalysisSyncBackfillDays: numericVal,
+        };
+        const putRes = await apiRequest('PUT', 'settings', payload);
+        if (putRes && (putRes.respCode === 205 || putRes.respCode === 200)) {
+          showToasterMessage('Backfill window updated successfully', 'success');
+        } else {
+          showToasterMessage(putRes?.errorMessage || 'Failed to update backfill window', 'error');
+        }
+      }
+    } catch (err) {
+      /* handled by apiRequest */
+    }
+  };
+
+  const saveMaxResults = async (val) => {
+    const numericVal = Number(val) || 500;
+    try {
+      const getRes = await apiRequest('GET', 'settings');
+      if (getRes && getRes.respCode === 200 && getRes.settings && getRes.settings[0]) {
+        const s = getRes.settings[0];
+        const payload = {
+          ...s,
+          emailAnalysisSyncMaxResults: numericVal,
+        };
+        const putRes = await apiRequest('PUT', 'settings', payload);
+        if (putRes && (putRes.respCode === 205 || putRes.respCode === 200)) {
+          showToasterMessage('Max results limit updated successfully', 'success');
+        } else {
+          showToasterMessage(putRes?.errorMessage || 'Failed to update max results limit', 'error');
+        }
+      }
+    } catch (err) {
+      /* handled by apiRequest */
+    }
+  };
+
   const disconnectMicrosoft = async () => {
     const resp = await apiRequest('POST', 'auth/microsoft/teams/disconnect', { email: msEmail });
     if (resp?.respCode) {
@@ -240,6 +327,10 @@ const ConnectionsDelivery = () => {
         if (resp?.respCode) {
           setOutlookConnected(false);
           setOutlookEmail('');
+          if (!sourceAccounts.length) {
+            setConnectedProvider(null);
+            setAdminEmail('');
+          }
         }
       } else {
         // Google accounts use the emailAnalysis endpoint
@@ -449,14 +540,6 @@ const ConnectionsDelivery = () => {
                 )}
               </div>
             )}
-
-            <DeliveryRow
-              icon={<span className="cd-ic-text">!</span>}
-              name="Include spam"
-              desc="Also read Spam mail when syncing (shows as Junk in analytics)"
-              checked={includeSpam}
-              onChange={toggleIncludeSpam}
-            />
           </div>
 
           {/* Delivery */}
@@ -552,6 +635,50 @@ const ConnectionsDelivery = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          {/* Sync settings */}
+          <div className="cd-panel">
+            <div className="cd-ph">Sync settings</div>
+            <div className="cd-field">
+              <label>Sync Backfill Window (Days)</label>
+              <input
+                value={backfillDays}
+                onChange={(e) => handleBackfillDaysChange(e.target.value)}
+                onBlur={() => saveBackfillDays(backfillDays)}
+                placeholder="30"
+                className="cd-input"
+                type="number"
+                min={1}
+              />
+              <div className="cd-ds">Number of days of email history fetched during sync backfill</div>
+            </div>
+
+            <div className="cd-field">
+              <label>Sync Max Results</label>
+              <input
+                value={maxResults}
+                onChange={(e) => handleMaxResultsChange(e.target.value)}
+                onBlur={() => saveMaxResults(maxResults)}
+                placeholder="500"
+                className="cd-input"
+                type="number"
+                min={1}
+              />
+              <div className="cd-ds">Maximum number of emails fetched during initial sync</div>
+            </div>
+
+            <div className="cd-conn">
+              <div className="cd-ic"><span className="cd-ic-text">!</span></div>
+              <div className="cd-conn-text">
+                <div className="cd-nm">Include Spam in Sync</div>
+                <div className="cd-ds">When enabled, Gmail spam folder is included in the analysis</div>
+              </div>
+              <div className="d-flex align-items-center gap-2">
+                <StatusPill on={includeSpam}>{includeSpam ? 'on' : 'off'}</StatusPill>
+                <Switch checked={includeSpam} onCheckedChange={toggleIncludeSpam} />
+              </div>
             </div>
           </div>
         </div>

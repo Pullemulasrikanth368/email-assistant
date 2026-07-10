@@ -40,6 +40,7 @@ import OutlookUser from "../../microsoft/models/outlookUser.model";
 /**@KB + ReportConfig services */
 import kbService from "../services/knowledgeBase.service";
 import reportConfigService from "../services/reportConfig.service";
+import outlookCategoryConfigService from "../services/outlookCategoryConfig.service";
 
 /**@AI Reply */
 import aiReplyService, { buildMailContextText, resolveSenderName } from "../services/aiReply.service";
@@ -1666,6 +1667,53 @@ async function deleteReportConfigCtrl(req, res) {
   return res.json({ respCode: 200, respMessage: "Report config deleted." });
 }
 
+/* ====================== OUTLOOK CATEGORY CONFIG ====================== */
+
+/**
+ * GET /api/email-analysis/outlook-category-config
+ * Returns the current Outlook category label config (merged with defaults).
+ */
+async function getOutlookCategoryConfig(req, res) {
+  const email = await resolveAccount(req);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await outlookCategoryConfigService.getOutlookCategoryConfig(email);
+  return res.json({ respCode: 200, config });
+}
+
+/**
+ * POST /PUT /api/email-analysis/outlook-category-config
+ * Save (upsert) the Outlook category label config.
+ * After saving, automatically re-pushes updated labels to all already-prioritized
+ * Outlook emails so Outlook reflects the new names immediately.
+ *
+ * Body: { priorityMap?, categoryMap?, intentMap?, replyNeededEnabled?, replyNeededLabel?, replyNeededColour? }
+ */
+async function saveOutlookCategoryConfig(req, res) {
+  const email = await resolveAccount(req);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  try {
+    const config = await outlookCategoryConfigService.saveOutlookCategoryConfig(email, req.body || {});
+    return res.json({
+      respCode: 200,
+      respMessage: "Outlook category config saved. Labels are being updated in Outlook.",
+      config,
+    });
+  } catch (err) {
+    return res.json({ errorCode: 9501, errorMessage: err.message });
+  }
+}
+
+/**
+ * DELETE /api/email-analysis/outlook-category-config
+ * Reset config to system defaults (removes the saved DB doc).
+ */
+async function resetOutlookCategoryConfig(req, res) {
+  const email = await resolveAccount(req);
+  if (!email) return res.json({ errorCode: 9001, errorMessage: "No connected account." });
+  const config = await outlookCategoryConfigService.resetOutlookCategoryConfig(email);
+  return res.json({ respCode: 200, respMessage: "Outlook category config reset to defaults.", config });
+}
+
 export default {
   emailAnalysisGoogleLogin,
   emailAnalysisGoogleWebhook,
@@ -1728,6 +1776,9 @@ export default {
   setAutoSync,
   getSyncInterval,
   setSyncInterval,
+  getOutlookCategoryConfig,
+  saveOutlookCategoryConfig,
+  resetOutlookCategoryConfig,
 };
 
 // In-flight AI reply generations keyed by mail id, so a background prefetch

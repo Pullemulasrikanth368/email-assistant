@@ -2,8 +2,12 @@ import express from 'express';
 import multer from 'multer';
 import asyncHandler from 'express-async-handler';
 import draftCtrl from '../controllers/emailDraft.controller';
+import authenticate from '../../middlewares/authenticate';
 
 const router = express.Router(); // eslint-disable-line new-cap
+
+// Protect all draft endpoints
+router.use(authenticate.isAllowed);
 
 // Attachment uploads land in memory and are written to disk in the controller.
 const upload = multer({

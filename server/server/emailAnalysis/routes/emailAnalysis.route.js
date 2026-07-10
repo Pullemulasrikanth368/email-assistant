@@ -2,8 +2,12 @@ import express from "express";
 import asyncHandler from "express-async-handler";
 
 import emailAnalysisCtrl from "../controllers/emailAnalysis.controller";
+import authenticate from "../../middlewares/authenticate";
 
 const router = express.Router(); // eslint-disable-line new-cap
+
+// Protect all email-analysis endpoints
+router.use(authenticate.isAllowed);
 
 /**
  * Email-analysis mail data endpoints (read-only views over email_analysis_mails).
@@ -124,5 +128,16 @@ router.post("/auto-sync", asyncHandler(emailAnalysisCtrl.setAutoSync));
  */
 router.get("/sync-interval",  asyncHandler(emailAnalysisCtrl.getSyncInterval));
 router.post("/sync-interval", asyncHandler(emailAnalysisCtrl.setSyncInterval));
+
+/**
+ * Outlook category label configuration.
+ * Lets users rename / recolour / disable category labels from the UI.
+ * On POST/PUT the service automatically re-pushes updated labels to all
+ * already-prioritized Outlook emails.
+ */
+router.get("/outlook-category-config",    asyncHandler(emailAnalysisCtrl.getOutlookCategoryConfig));
+router.post("/outlook-category-config",   asyncHandler(emailAnalysisCtrl.saveOutlookCategoryConfig));
+router.put("/outlook-category-config",    asyncHandler(emailAnalysisCtrl.saveOutlookCategoryConfig));
+router.delete("/outlook-category-config", asyncHandler(emailAnalysisCtrl.resetOutlookCategoryConfig));
 
 export default router;

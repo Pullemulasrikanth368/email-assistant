@@ -37,6 +37,8 @@ async function updateSettings(req, res, next) {
       'emailAnalysisBriefTime',
       'emailAnalysisIncludeSpam',
       'emailAnalysisModel',
+      'emailAnalysisSyncBackfillDays',
+      'emailAnalysisSyncMaxResults',
     ];
 
     const update = {};

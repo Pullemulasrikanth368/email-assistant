@@ -9,6 +9,7 @@ const SCOPES = [
   "User.Read",
   "Mail.ReadWrite",
   "Mail.Send",
+  "MailboxSettings.ReadWrite",
 ];
 
 export default class OutlookAuthService {

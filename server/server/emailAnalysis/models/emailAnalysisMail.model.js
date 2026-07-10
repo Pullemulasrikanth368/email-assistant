@@ -96,6 +96,7 @@ const EmailAnalysisMailSchema = new mongoose.Schema({
   junkRescuedAt: { type: Date, default: null },
 
   active: { type: Boolean, default: true },
+  categoriesSynced: { type: Boolean, default: false, index: true },
   // Set when removed via one-click cleanup (soft-delete). Drives dashboard
   // "removed" counts and records when/why it was cleaned up.
   removedAt: { type: Date, default: null },
