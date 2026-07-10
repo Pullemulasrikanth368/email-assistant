@@ -389,6 +389,9 @@ export default class OutlookMessagesService {
                 labels: fresh.labels, receivedAt: fresh.receivedAt, active: true,
               } }
             );
+          } else {
+            // Reconcile read/unread state changed in Outlook since last sync.
+            await this.#syncReadState(existing, message.isRead);
           }
           continue;
         }
@@ -414,6 +417,21 @@ export default class OutlookMessagesService {
       }
     }
     return savedCount;
+  }
+
+  /**
+   * Reconcile a stored mail's read state with Outlook's current isRead flag.
+   * Read state is tracked via the UNREAD label; a single operator keeps it in
+   * sync. No-op when the two already agree, so most synced rows aren't rewritten.
+   */
+  async #syncReadState(existing, isRead) {
+    if (typeof isRead !== "boolean") return;
+    const hasUnread = (existing.labels || []).includes("UNREAD");
+    if (isRead === !hasUnread) return; // already in sync
+    await EmailAnalysisMail.updateOne(
+      { _id: existing._id },
+      isRead ? { $pull: { labels: "UNREAD" } } : { $addToSet: { labels: "UNREAD" } }
+    );
   }
 
   #formatMessage(message) {
