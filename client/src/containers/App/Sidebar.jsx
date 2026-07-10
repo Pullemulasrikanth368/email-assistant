@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   // { label: 'Drafts', path: '/drafts', icon: PenLine },
   // { label: 'Bulk Email', path: '/bulkEmailSend', icon: Send },
   { label: 'Connections', path: '/connectionsDelivery', icon: Settings },
+  { label: 'Outlook Labels', path: '/outlookCategoryConfig', icon: SlidersHorizontal },
 ];
 
 const ADMIN_ITEMS = [

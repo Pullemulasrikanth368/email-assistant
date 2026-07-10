@@ -39,7 +39,6 @@ const Settings = () => {
     sendGridEmail: '',
     aiType: 'openai',
     emailAnalysisBriefTime: '06:00',
-    emailAnalysisIncludeSpam: false,
     emailAnalysisModel: 'openai',
   });
 
@@ -60,7 +59,6 @@ const Settings = () => {
           sendGridEmail: s.sendGridEmail || '',
           aiType: s.aiType || 'openai',
           emailAnalysisBriefTime: s.emailAnalysisBriefTime || '06:00',
-          emailAnalysisIncludeSpam: s.emailAnalysisIncludeSpam || false,
           emailAnalysisModel: s.emailAnalysisModel || 'openai',
         });
       }
@@ -181,14 +179,6 @@ const Settings = () => {
                 placeholder="Select AI model"
               />
               <span className="ea-field-hint">Backend used for email analysis and brief generation</span>
-            </div>
-            <div className="ea-field ea-field-switch">
-              <label className="ea-label">Include Spam in Sync</label>
-              <InputSwitch
-                checked={form.emailAnalysisIncludeSpam}
-                onChange={(e) => handleChange('emailAnalysisIncludeSpam', e.value)}
-              />
-              <span className="ea-field-hint">When enabled, Gmail spam folder is included in the analysis</span>
             </div>
           </div>
         </section>

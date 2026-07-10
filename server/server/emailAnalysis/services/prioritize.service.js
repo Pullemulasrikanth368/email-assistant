@@ -5,6 +5,7 @@ import { getActiveKnowledgeBaseConfig } from "./knowledgeBase.service";
 import { rescueImportantJunk } from "./junkRescue.service";
 import { createAutoDraftsForMails } from "./autoDraft.service";
 import { isPromotionalSender } from "./promotionalSender.util";
+import { createMailService } from "./mailProvider.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHUNK = 25; // emails per AI call
@@ -222,10 +223,9 @@ export async function prioritizeDay(email, day, opts = {}) {
   if (!opts.force) query.priority = null; // only unscored mails
 
   const mails = await EmailAnalysisMail.find(query, {
-    providerMessageId: 1, from: 1, subject: 1, body: 1, snippet: 1, isJunk: 1,
+    providerMessageId: 1, from: 1, subject: 1, body: 1, snippet: 1, isJunk: 1, provider: 1,
   }).lean();
   if (!mails.length) return 0;
-
   const knowledgeBaseConfig = await getActiveKnowledgeBaseConfig(email);
 
   let updated = 0;
@@ -261,6 +261,8 @@ export async function prioritizeDay(email, day, opts = {}) {
     }
 
     const byId = new Map(results.map((r) => [String(r.id), r]));
+    // Collect items that are Outlook emails, to push categories back after write
+    const outlookCategoryItems = [];
     const ops = slice.map((m) => {
       const r = byId.get(String(m.providerMessageId)) || {};
       const aiPriority = normPriority(r.priority);
@@ -278,6 +280,18 @@ export async function prioritizeDay(email, day, opts = {}) {
       }
       const needsReply = !!r.needsReply && !NO_DRAFT_CATEGORIES.includes(clamped.category);
       if (needsReply) needsReplyIds.push(m.providerMessageId);
+
+      // Queue this message for Outlook category push if it's an Outlook email
+      if (m.provider === "outlook") {
+        outlookCategoryItems.push({
+          providerMessageId: m.providerMessageId,
+          priority: clamped.priority,
+          category: clamped.category,
+          intent: r.intent || null,
+          needsReply,
+        });
+      }
+
       return {
         updateOne: {
           filter: { email, providerMessageId: m.providerMessageId },
@@ -300,6 +314,24 @@ export async function prioritizeDay(email, day, opts = {}) {
     if (ops.length) {
       const res = await EmailAnalysisMail.bulkWrite(ops);
       updated += res?.modifiedCount || ops.length;
+    }
+
+    // Push AI category labels back to Outlook (best-effort, non-blocking)
+    if (outlookCategoryItems.length) {
+      try {
+        const mailService = await createMailService(email);
+        if (typeof mailService.bulkPushCategories === "function") {
+          const pushRes = await mailService.bulkPushCategories(outlookCategoryItems);
+          if (pushRes?.pushedIds?.length) {
+            await EmailAnalysisMail.updateMany(
+              { email, provider: "outlook", providerMessageId: { $in: pushRes.pushedIds } },
+              { $set: { categoriesSynced: true } }
+            );
+          }
+        }
+      } catch (err) {
+        console.error(`[EmailAnalysis] Outlook category push failed for ${email}:`, err.message);
+      }
     }
   }
 
@@ -333,7 +365,15 @@ export async function prioritizePendingForAccount(email, opts = {}) {
   if (!opts.force) filter.priority = null;
 
   const rows = await EmailAnalysisMail.find(filter, { receivedAt: 1 }).lean();
-  if (!rows.length) return 0;
+  if (!rows.length) {
+    // Even if there are no new mails to prioritize, check for any pending category syncs
+    try {
+      await syncPendingOutlookCategories(email);
+    } catch (err) {
+      console.error(`[EmailAnalysis] Post-prioritize category sync failed for ${email}:`, err.message);
+    }
+    return 0;
+  }
 
   // Group into distinct calendar days.
   const days = new Set();
@@ -355,7 +395,65 @@ export async function prioritizePendingForAccount(email, opts = {}) {
     console.error(`[EmailAnalysis] Junk rescue failed for ${email}:`, err.message);
   }
 
+  // Push any pending/unsynced categories to Outlook
+  try {
+    await syncPendingOutlookCategories(email);
+  } catch (err) {
+    console.error(`[EmailAnalysis] Post-prioritize category sync failed for ${email}:`, err.message);
+  }
+
   return total;
 }
 
-export default { prioritizeDay, prioritizePendingForAccount };
+/**
+ * Find all active, prioritized Outlook emails for this account that have NOT
+ * had their categories successfully pushed/synchronized to Outlook yet, and
+ * push them now.
+ *
+ * @param {string} email
+ * @returns {Promise<{ pushed: number, failed: number }>}
+ */
+export async function syncPendingOutlookCategories(email) {
+  if (!email) return { pushed: 0, failed: 0 };
+
+  try {
+    const mails = await EmailAnalysisMail.find({
+      email,
+      provider: "outlook",
+      active: true,
+      priority: { $ne: null },
+      categoriesSynced: { $ne: true },
+    }, {
+      providerMessageId: 1, priority: 1, category: 1, intent: 1, needsReply: 1
+    }).lean();
+
+    if (!mails.length) return { pushed: 0, failed: 0 };
+
+    console.log(`[EmailAnalysis] Found ${mails.length} pending Outlook category push(es) for ${email}`);
+
+    const outlookCategoryItems = mails.map((m) => ({
+      providerMessageId: m.providerMessageId,
+      priority: m.priority,
+      category: m.category,
+      intent: m.intent || null,
+      needsReply: !!m.needsReply,
+    }));
+
+    const mailService = await createMailService(email);
+    if (typeof mailService.bulkPushCategories === "function") {
+      const pushRes = await mailService.bulkPushCategories(outlookCategoryItems);
+      if (pushRes?.pushedIds?.length) {
+        await EmailAnalysisMail.updateMany(
+          { email, provider: "outlook", providerMessageId: { $in: pushRes.pushedIds } },
+          { $set: { categoriesSynced: true } }
+        );
+      }
+      return { pushed: pushRes?.pushedIds?.length || 0, failed: pushRes?.failedIds?.length || 0 };
+    }
+  } catch (err) {
+    console.error(`[EmailAnalysis] syncPendingOutlookCategories failed for ${email}:`, err.message);
+  }
+  return { pushed: 0, failed: 0 };
+}
+
+export default { prioritizeDay, prioritizePendingForAccount, syncPendingOutlookCategories };

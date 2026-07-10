@@ -22,14 +22,11 @@ import config from "../../config/config";
 import syncProgress from "./syncProgress";
 
 // Attachments are written here, mirroring the existing attachmentProcessor
+import Settings from "../../models/settings.model";
+
 // convention of saving under <server>/server/upload/<bucket>.
 const UPLOAD_DIR = path.resolve(__dirname, "../../upload/email-analysis");
 const UPLOAD_REL = "server/upload/email-analysis";
-
-// Initial backfill window: the last month.
-const BACKFILL_DAYS = 30;
-const INITIAL_QUERY = `newer_than:${BACKFILL_DAYS}d`;
-const INITIAL_MAX_RESULTS = 500;
 
 // Gentle pause between sends to stay under Gmail's per-user rate limits.
 const SEND_THROTTLE_MS = 200;
@@ -253,6 +250,26 @@ export default class EmailAnalysisMessagesService {
     this.user = null;
     this.gmail = null;
     this.reader = null;
+    this.backfillDays = 30;
+    this.maxResults = 500;
+  }
+
+  async #loadSyncSettings() {
+    try {
+      const s = await Settings.findOne({ active: true })
+        .select("emailAnalysisSyncBackfillDays emailAnalysisSyncMaxResults")
+        .lean();
+      if (s) {
+        if (typeof s.emailAnalysisSyncBackfillDays === "number") {
+          this.backfillDays = s.emailAnalysisSyncBackfillDays;
+        }
+        if (typeof s.emailAnalysisSyncMaxResults === "number") {
+          this.maxResults = s.emailAnalysisSyncMaxResults;
+        }
+      }
+    } catch (err) {
+      console.warn("[Gmail] Failed to load sync settings, using defaults:", err.message);
+    }
   }
 
   /**
@@ -593,6 +610,7 @@ export default class EmailAnalysisMessagesService {
   async syncForUser() {
     syncProgress.begin(this.email);
     try {
+      await this.#loadSyncSettings();
       await this.#buildAuthedReader();
       const result = (!this.user.initialSyncDone || !this.user.historyId)
         ? await this.#initialSync()
@@ -613,22 +631,25 @@ export default class EmailAnalysisMessagesService {
    * @param {number} days
    * @returns {Promise<{ mode: string, saved: number }>}
    */
-  async backfillRecent(days = BACKFILL_DAYS) {
+  async backfillRecent(days) {
     syncProgress.begin(this.email);
     try {
+    await this.#loadSyncSettings();
     await this.#buildAuthedReader();
     syncProgress.phase("fetching");
 
+    const targetDays = typeof days === "number" ? days : this.backfillDays;
+
     // Read ALL mail types (inbox, spam/junk, promotions, etc.) — only trash is excluded.
     const messages = await this.reader.listMessages({
-      query: `newer_than:${days}d -in:trash`,
+      query: `newer_than:${targetDays}d -in:trash`,
       labelIds: [],
-      maxResults: INITIAL_MAX_RESULTS,
+      maxResults: this.maxResults,
       includeSpamTrash: true,
     });
 
     const saved = await this.#saveMessages(messages.map((m) => m.id));
-    await this.#reconcileDrafts(days);
+    await this.#reconcileDrafts(targetDays);
 
     // If this account never baselined a historyId, set it so incremental sync
     // can take over afterwards.
@@ -639,7 +660,7 @@ export default class EmailAnalysisMessagesService {
       await EmailAnalysisUser.saveData(this.user);
     }
 
-    console.log(`[EmailAnalysis] Backfill (${days}d) for ${this.email}: saved=${saved}`);
+    console.log(`[EmailAnalysis] Backfill (${targetDays}d) for ${this.email}: saved=${saved}`);
     syncProgress.done();
     return { mode: "backfill", saved };
     } catch (err) {
@@ -648,19 +669,14 @@ export default class EmailAnalysisMessagesService {
     }
   }
 
-  /**
-   * Reconcile drafts against Gmail after a backfill: any stored draft in the
-   * sync window that no longer exists in Gmail's Drafts was discarded or sent —
-   * deactivate it. Skipped when the listing hits the cap (live set incomplete).
-   */
   async #reconcileDrafts(days) {
     try {
       const live = await this.reader.listMessages({
         query: `in:draft newer_than:${days}d`,
-        maxResults: INITIAL_MAX_RESULTS,
+        maxResults: this.maxResults,
         includeSpamTrash: true,
       });
-      if (live.length >= INITIAL_MAX_RESULTS) return 0;
+      if (live.length >= this.maxResults) return 0;
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
       const res = await EmailAnalysisMail.updateMany(
         {
@@ -681,17 +697,17 @@ export default class EmailAnalysisMessagesService {
   }
 
   async #initialSync() {
-    console.log(`[EmailAnalysis] Initial sync (last ${BACKFILL_DAYS}d) for ${this.email} (all mail incl. spam)`);
+    console.log(`[EmailAnalysis] Initial sync (last ${this.backfillDays}d) for ${this.email} (all mail incl. spam)`);
 
     // includeSpamTrash returns SPAM + TRASH; `-in:trash` keeps spam but drops trash.
     const messages = await this.reader.listMessages({
-      query: `${INITIAL_QUERY} -in:trash`,
+      query: `newer_than:${this.backfillDays}d -in:trash`,
       labelIds: [],
-      maxResults: INITIAL_MAX_RESULTS,
+      maxResults: this.maxResults,
       includeSpamTrash: true,
     });
-    if (messages.length >= INITIAL_MAX_RESULTS) {
-      console.warn(`[EmailAnalysis] Initial sync hit the ${INITIAL_MAX_RESULTS} message cap for ${this.email}; older last-week mails may be skipped.`);
+    if (messages.length >= this.maxResults) {
+      console.warn(`[EmailAnalysis] Initial sync hit the ${this.maxResults} message cap for ${this.email}; older last-week mails may be skipped.`);
     }
 
     // Capture the current historyId BEFORE we rely on incremental sync.

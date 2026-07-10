@@ -7,12 +7,17 @@ import EmailAnalysisMail from "../models/emailAnalysisMail.model";
 import OutlookAuthService from "./outlook.auth.service";
 import syncProgress from "./syncProgress";
 import { safeAttachmentFilename } from "../../utils/gmailMessage.util";
+import {
+  ensureMasterCategories,
+  bulkPushCategories,
+  pushCategoriesToMessage,
+} from "./outlookCategorySync.service";
+
+import Settings from "../../models/settings.model";
 
 const UPLOAD_DIR = path.resolve(__dirname, "../../upload/email-analysis");
 const UPLOAD_REL = "server/upload/email-analysis";
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
-const BACKFILL_DAYS = 30;
-const INITIAL_MAX_RESULTS = 500;
 
 // Outlook folders we sync, with our sourceFolder tag and the user-doc field
 // holding each folder's incremental delta cursor.
@@ -62,6 +67,26 @@ export default class OutlookMessagesService {
     this.email = email;
     this.user = null;
     this.auth = new OutlookAuthService();
+    this.backfillDays = 30;
+    this.maxResults = 500;
+  }
+
+  async #loadSyncSettings() {
+    try {
+      const s = await Settings.findOne({ active: true })
+        .select("emailAnalysisSyncBackfillDays emailAnalysisSyncMaxResults")
+        .lean();
+      if (s) {
+        if (typeof s.emailAnalysisSyncBackfillDays === "number") {
+          this.backfillDays = s.emailAnalysisSyncBackfillDays;
+        }
+        if (typeof s.emailAnalysisSyncMaxResults === "number") {
+          this.maxResults = s.emailAnalysisSyncMaxResults;
+        }
+      }
+    } catch (err) {
+      console.warn("[Outlook] Failed to load sync settings, using defaults:", err.message);
+    }
   }
 
   async #loadUser() {
@@ -126,7 +151,11 @@ export default class OutlookMessagesService {
   async syncForUser() {
     syncProgress.begin(this.email);
     try {
+      await this.#loadSyncSettings();
       await this.#loadUser();
+      // Ensure master categories exist before syncing emails
+      await this.ensureOutlookMasterCategories();
+
       const result = this.user.initialSyncDone && this.user.deltaLink
         ? await this.#incrementalSync()
         : await this.#initialSync();
@@ -138,13 +167,15 @@ export default class OutlookMessagesService {
     }
   }
 
-  async backfillRecent(days = BACKFILL_DAYS) {
+  async backfillRecent(days) {
     syncProgress.begin(this.email);
     try {
+      await this.#loadSyncSettings();
       await this.#loadUser();
-      const messages = await this.#listRecentMessages(days);
+      const targetDays = typeof days === "number" ? days : this.backfillDays;
+      const messages = await this.#listRecentMessages(targetDays);
       const saved = await this.#saveMessages(messages);
-      await this.#reconcileDrafts(messages, days);
+      await this.#reconcileDrafts(messages, targetDays);
       if (!this.user.deltaLink) await this.#baselineDelta();
       this.user.initialSyncDone = true;
       this.user.lastSyncedAt = new Date();
@@ -158,10 +189,10 @@ export default class OutlookMessagesService {
   }
 
   async #initialSync() {
-    console.log(`[EmailAnalysis] Outlook initial sync (last ${BACKFILL_DAYS}d) for ${this.email}`);
-    const messages = await this.#listRecentMessages(BACKFILL_DAYS);
+    console.log(`[EmailAnalysis] Outlook initial sync (last ${this.backfillDays}d) for ${this.email}`);
+    const messages = await this.#listRecentMessages(this.backfillDays);
     const saved = await this.#saveMessages(messages);
-    await this.#reconcileDrafts(messages, BACKFILL_DAYS);
+    await this.#reconcileDrafts(messages, this.backfillDays);
     await this.#baselineDelta();
     this.user.initialSyncDone = true;
     this.user.lastSyncedAt = new Date();
@@ -222,7 +253,7 @@ export default class OutlookMessagesService {
    * the result cap (the live set would be incomplete).
    */
   async #reconcileDrafts(messages, days) {
-    if ((messages || []).length >= INITIAL_MAX_RESULTS) return 0;
+    if ((messages || []).length >= this.maxResults) return 0;
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const liveIds = messages.filter((m) => m._sourceFolder === "draft").map((m) => m.id);
     const res = await EmailAnalysisMail.updateMany(
@@ -261,10 +292,10 @@ export default class OutlookMessagesService {
         });
         url = data["@odata.nextLink"];
         params = null;
-      } while (url && all.length < INITIAL_MAX_RESULTS);
+      } while (url && all.length < this.maxResults);
     }
 
-    return all.slice(0, INITIAL_MAX_RESULTS);
+    return all.slice(0, this.maxResults);
   }
 
   /**
@@ -701,5 +732,40 @@ export default class OutlookMessagesService {
       snippet: data.bodyPreview || "",
       mimeType: data.body?.contentType === "html" ? "text/html" : "text/plain",
     };
+  }
+
+  /* ─── Outlook category label sync ─── */
+
+  /**
+   * Ensure our custom master categories exist in the user's Outlook account.
+   * Call once per session / after first sync. Best-effort.
+   */
+  async ensureOutlookMasterCategories() {
+    await this.#loadUser();
+    await ensureMasterCategories(this.#graph.bind(this), this.email);
+  }
+
+  /**
+   * Push AI category labels back to a single Outlook message.
+   *
+   * @param {string} providerMessageId
+   * @param {{ priority, category, intent, needsReply }} fields
+   * @returns {Promise<{ pushed: boolean, labels: string[] }>}
+   */
+  async pushCategories(providerMessageId, fields) {
+    await this.#loadUser();
+    return pushCategoriesToMessage(this.#graph.bind(this), providerMessageId, fields);
+  }
+
+  /**
+   * Bulk-push AI category labels for multiple messages after the prioritize pass.
+   * Each item: { providerMessageId, priority, category, intent, needsReply }
+   *
+   * @param {Array} items
+   * @returns {Promise<{ pushed: number, failed: number }>}
+   */
+  async bulkPushCategories(items = []) {
+    await this.#loadUser();
+    return bulkPushCategories(this.#graph.bind(this), items);
   }
 }

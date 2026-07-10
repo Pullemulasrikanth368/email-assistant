@@ -20,6 +20,7 @@ const KnowledgeBase = React.lazy(() => import('../Cruds/KnowledgeBase/index.jsx'
 const Drafts = React.lazy(() => import('../Cruds/Drafts/index.jsx'));
 const ConnectionsDelivery = React.lazy(() => import('../Settings/ConnectionsDelivery/index.jsx'));
 const Settings = React.lazy(() => import('../Settings/index.jsx'));
+const OutlookCategoryConfig = React.lazy(() => import('../Settings/OutlookCategoryConfig/index.jsx'));
 
 const Loading = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -61,6 +62,7 @@ const router = createBrowserRouter([
       // { path: '/drafts',                   Component: () => P(Drafts) },
       { path: '/connectionsDelivery', Component: () => P(ConnectionsDelivery) },
       { path: '/settings', Component: () => P(Settings) },
+      { path: '/outlookCategoryConfig', Component: () => P(OutlookCategoryConfig) },
       { path: '/users', Component: () => P(Users) },
       { path: '/roles', Component: () => P(Roles) },
       { path: '*', Component: () => <Navigate to="/emailAnalysisMails" replace /> },

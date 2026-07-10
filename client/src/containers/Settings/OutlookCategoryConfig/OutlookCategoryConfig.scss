@@ -1,0 +1,200 @@
+.occ-root {
+  padding: 1.5rem;
+  max-width: 1100px;
+}
+
+/* ── Header ── */
+.occ-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.occ-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.occ-header-icon {
+  font-size: 2rem;
+  color: #0078d4;
+  margin-top: 2px;
+}
+
+.occ-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 4px;
+}
+
+.occ-subtitle {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0;
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.occ-header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.occ-save-btn {
+  background: #0078d4 !important;
+  border-color: #0078d4 !important;
+  font-weight: 600;
+}
+
+.occ-reset-btn {
+  color: #6b7280 !important;
+  border-color: #d1d5db !important;
+}
+
+/* ── Legend ── */
+.occ-legend {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.occ-legend-item {
+  font-size: 0.8rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ── Section ── */
+.occ-section {
+  margin-bottom: 0.5rem;
+}
+
+.occ-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
+/* ── Entries ── */
+.occ-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.occ-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.occ-entry:hover {
+  background: #f0f4ff;
+  border-color: #bfdbfe;
+}
+
+.occ-entry--disabled {
+  opacity: 0.55;
+  background: #f3f4f6;
+}
+
+.occ-toggle {
+  flex-shrink: 0;
+}
+
+.occ-db-value {
+  flex-shrink: 0;
+  min-width: 170px;
+}
+
+.occ-db-badge {
+  display: inline-block;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.occ-arrow {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.occ-label-input {
+  flex: 1;
+  min-width: 140px;
+  font-size: 0.875rem !important;
+  border-radius: 6px !important;
+}
+
+.occ-colour-dropdown {
+  width: 140px !important;
+  font-size: 0.875rem !important;
+  flex-shrink: 0;
+}
+
+.occ-colour-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.occ-colour-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── Reply Needed row ── */
+.occ-reply-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  flex-wrap: wrap;
+}
+
+/* ── Footer ── */
+.occ-footer {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── Loading ── */
+.occ-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #6b7280;
+  padding: 2rem;
+  font-size: 0.9rem;
+}

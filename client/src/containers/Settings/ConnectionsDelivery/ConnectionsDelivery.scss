@@ -218,10 +218,20 @@
   flex-direction: column;
   gap: 8px;
 
+  &:not(:last-child) {
+    margin-bottom: 16px;
+  }
+
   label {
     font-size: 13px;
     color: #4B5563;
   }
+}
+
+.cd-field + .cd-conn {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #F3F4F6;
 }
 
 .cd-time-dropdown {
@@ -302,4 +312,22 @@ button.app-btn {
   display: flex;
   justify-content: flex-end;
   padding-top: 4px;
+}
+
+.cd-input {
+  width: 100%;
+  max-width: 280px;
+  background: #ffffff;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #111827;
+  height: 36px;
+  padding: 0 12px;
+
+  &:focus {
+    outline: none;
+    border-color: #111827;
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+  }
 }

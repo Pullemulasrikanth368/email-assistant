@@ -48,6 +48,10 @@ const SettingsSchema = new mongoose.Schema({
   // AI backend for the email-analysis flow: "openai" (default) or "ollama".
   emailAnalysisModel: { type: String, default: "openai" },
 
+  // Sync constraints
+  emailAnalysisSyncBackfillDays: { type: Number, default: 30 },
+  emailAnalysisSyncMaxResults: { type: Number, default: 500 },
+
 }, { usePushEach: true, timestamps: true });
 
 /**

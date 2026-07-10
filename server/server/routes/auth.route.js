@@ -3,6 +3,7 @@ import asyncHandler from 'express-async-handler';
 import emailAnalysisCtrl from '../emailAnalysis/controllers/emailAnalysis.controller';
 import microsoftCtrl from '../microsoft/controllers/microsoft.controller';
 import authCtrl from '../controllers/auth.controller';
+import authenticate from '../middlewares/authenticate';
 
 const router = express.Router(); // eslint-disable-line new-cap
 
@@ -13,10 +14,10 @@ const router = express.Router(); // eslint-disable-line new-cap
  */
 router.get("/google/email-analysis", asyncHandler(emailAnalysisCtrl.emailAnalysisGoogleLogin));
 router.get("/google/email-analysis/webhook", asyncHandler(emailAnalysisCtrl.emailAnalysisGoogleWebhook));
-router.get("/google/email-analysis/status", asyncHandler(emailAnalysisCtrl.emailAnalysisStatus));
-router.get("/google/email-analysis/accounts", asyncHandler(emailAnalysisCtrl.listEmailAnalysisAccounts));
-router.post("/google/email-analysis/disconnect", asyncHandler(emailAnalysisCtrl.disconnectEmailAnalysisAccount));
-router.post("/google/email-analysis/sync", asyncHandler(emailAnalysisCtrl.syncEmailAnalysisMails));
+router.get("/google/email-analysis/status", authenticate.isAllowed, asyncHandler(emailAnalysisCtrl.emailAnalysisStatus));
+router.get("/google/email-analysis/accounts", authenticate.isAllowed, asyncHandler(emailAnalysisCtrl.listEmailAnalysisAccounts));
+router.post("/google/email-analysis/disconnect", authenticate.isAllowed, asyncHandler(emailAnalysisCtrl.disconnectEmailAnalysisAccount));
+router.post("/google/email-analysis/sync", authenticate.isAllowed, asyncHandler(emailAnalysisCtrl.syncEmailAnalysisMails));
 
 /**
  * Email-analysis Outlook connection (Microsoft Graph mail).
@@ -29,9 +30,9 @@ router.post("/google/email-analysis/sync", asyncHandler(emailAnalysisCtrl.syncEm
  */
 router.get("/microsoft/outlook", asyncHandler(microsoftCtrl.outlookLogin));
 router.get("/microsoft/outlook/webhook", asyncHandler(microsoftCtrl.outlookWebhook));
-router.get("/microsoft/outlook/status", asyncHandler(microsoftCtrl.outlookStatus));
-router.post("/microsoft/outlook/disconnect", asyncHandler(microsoftCtrl.disconnectOutlook));
-router.post("/microsoft/outlook/sync", asyncHandler(microsoftCtrl.syncOutlook));
+router.get("/microsoft/outlook/status", authenticate.isAllowed, asyncHandler(microsoftCtrl.outlookStatus));
+router.post("/microsoft/outlook/disconnect", authenticate.isAllowed, asyncHandler(microsoftCtrl.disconnectOutlook));
+router.post("/microsoft/outlook/sync", authenticate.isAllowed, asyncHandler(microsoftCtrl.syncOutlook));
 
 /**
  * Microsoft (Entra ID) Teams connection (separate, isolated flow).
@@ -40,8 +41,8 @@ router.post("/microsoft/outlook/sync", asyncHandler(microsoftCtrl.syncOutlook));
  */
 router.get("/microsoft/teams", asyncHandler(microsoftCtrl.microsoftLogin));
 router.get("/microsoft/teams/webhook", asyncHandler(microsoftCtrl.microsoftWebhook));
-router.get("/microsoft/teams/status", asyncHandler(microsoftCtrl.microsoftStatus));
-router.post("/microsoft/teams/disconnect", asyncHandler(microsoftCtrl.disconnectMicrosoftAccount));
+router.get("/microsoft/teams/status", authenticate.isAllowed, asyncHandler(microsoftCtrl.microsoftStatus));
+router.post("/microsoft/teams/disconnect", authenticate.isAllowed, asyncHandler(microsoftCtrl.disconnectMicrosoftAccount));
 
 /** POST /api/auth/register — create a new employee account, returns JWT */
 router.post("/register", asyncHandler(authCtrl.register));
