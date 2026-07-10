@@ -42,6 +42,33 @@ export default function RowAccordion({
             {row.maxHeight ? ` · ${row.maxHeight}px` : ' · no height cap'}
           </span>
         </div>
+        <span className="rcfg-row-headctrls" onClick={(e) => e.stopPropagation()}>
+          <div className="rcfg-control">
+            <label>Columns</label>
+            <Select value={String(row.columns.length)} onValueChange={(n) => onSetColumnCount(rowIdx, Number(n))}>
+              <SelectTrigger className="rcfg-cols-select"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {COLUMN_OPTIONS.map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n} column{n > 1 ? 's' : ''}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="rcfg-control">
+            <label>Max height (px)</label>
+            <input
+              className="rcfg-height-input"
+              type="number"
+              min={200}
+              max={1200}
+              step={50}
+              value={row.maxHeight ?? ''}
+              placeholder={String(DEFAULT_ROW_MAX_HEIGHT)}
+              title="Columns scroll inside this height. Leave empty for no cap."
+              onChange={(e) => onSetMaxHeight(rowIdx, e.target.value)}
+            />
+          </div>
+        </span>
         <span className="rcfg-row-actions" onClick={(e) => e.stopPropagation()}>
           <button type="button" title="Move row up" disabled={rowIdx === 0} onClick={() => onMoveRow(rowIdx, -1)}>
             <i className="pi pi-arrow-up" />
@@ -57,34 +84,6 @@ export default function RowAccordion({
 
       {open && (
         <div className="rcfg-row-body">
-          <div className="rcfg-row-settings">
-            <div className="rcfg-control">
-              <label>Columns</label>
-              <Select value={String(row.columns.length)} onValueChange={(n) => onSetColumnCount(rowIdx, Number(n))}>
-                <SelectTrigger className="rcfg-cols-select"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {COLUMN_OPTIONS.map((n) => (
-                    <SelectItem key={n} value={String(n)}>{n} column{n > 1 ? 's' : ''}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="rcfg-control">
-              <label>Max height (px)</label>
-              <input
-                className="rcfg-height-input"
-                type="number"
-                min={200}
-                max={1200}
-                step={50}
-                value={row.maxHeight ?? ''}
-                placeholder={String(DEFAULT_ROW_MAX_HEIGHT)}
-                onChange={(e) => onSetMaxHeight(rowIdx, e.target.value)}
-              />
-              <span className="rcfg-hint">Columns scroll inside this height. Leave empty for no cap.</span>
-            </div>
-          </div>
-
           <ColumnBoard rowIdx={rowIdx} columns={row.columns} {...boardProps} />
         </div>
       )}

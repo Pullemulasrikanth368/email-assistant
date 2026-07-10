@@ -435,25 +435,23 @@
     padding: 11px;
   }
 
-  .rcfg-row-settings {
+  .rcfg-row-headctrls {
     display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    padding: 9px 11px;
-    margin-bottom: 11px;
-    background: var(--rc-surface-2);
-    border: 1px solid var(--rc-line);
-    border-radius: 9px;
+    align-items: flex-end;
+    gap: 10px;
+    flex: none;
+
+    .rcfg-control > label { font-size: 9px; }
   }
 
-  .rcfg-cols-select { min-width: 130px; }
+  .rcfg-cols-select { min-width: 108px; }
 
   .rcfg-height-input {
     border: 1px solid var(--rc-line);
     border-radius: 7px;
-    padding: 6px 9px;
-    font-size: 12.5px;
-    width: 130px;
+    padding: 5px 8px;
+    font-size: 12px;
+    width: 92px;
     background: #fff;
 
     &:focus {
@@ -461,15 +459,6 @@
       border-color: var(--rc-accent);
       box-shadow: 0 0 0 3px var(--rc-accent-soft);
     }
-  }
-
-  .rcfg-hint {
-    display: block;
-    font-size: 10px;
-    color: var(--rc-faint);
-    margin-top: 3px;
-    max-width: 210px;
-    line-height: 1.4;
   }
 
   /* ---------- column board (override shared rc-* within this screen) ---------- */

@@ -141,18 +141,48 @@ const tierClass = (tier) => (tier === 'Critical' ? 'crit' : tier === 'Important'
 
 // Turn an event's "when" into calendar-tile parts; null when it isn't a parseable date
 // (free-text like "next week" then falls back to being shown as-is).
-const parseEventWhen = (when) => {
-  if (!when) return null;
-  // Times extracted from emails are wall-clock times; a trailing "Z" is usually
-  // AI noise, and honouring it would shift the display into the viewer's timezone.
-  const d = new Date(String(when).replace(/Z$/i, ''));
+const fmtEventTime = (d) => d.toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
+
+// Resolve an event's display date. Prefers the server-resolved start/end
+// (year-anchored, ranges, relative words already applied), falling back to a
+// best-effort parse of the raw `when` string for older/LLM-derived events.
+const parseEventWhen = (event) => {
+  if (!event) return null;
+
+  // Preferred path: server attached a concrete, timezone-less local datetime.
+  if (event.start) {
+    const start = new Date(event.start);
+    if (!Number.isNaN(start.getTime())) {
+      const end = event.end ? new Date(event.end) : null;
+      const hasTime = event.hasTime !== false;
+      const time = hasTime
+        ? (end && !Number.isNaN(end.getTime())
+            ? `${fmtEventTime(start)} – ${fmtEventTime(end)}`
+            : fmtEventTime(start))
+        : null;
+      return {
+        month: start.toLocaleString('en', { month: 'short' }),
+        day: start.getDate(),
+        weekday: start.toLocaleString('en', { weekday: 'short' }),
+        time,
+      };
+    }
+  }
+
+  // Fallback: raw string only. Times are wall-clock, so strip a trailing "Z";
+  // inject the current year when none is present so bare "Jul 8" doesn't default
+  // to 2001 and render the wrong weekday.
+  const raw = String(event.when || '').replace(/Z$/i, '').trim();
+  if (!raw) return null;
+  const withYear = /\b\d{4}\b/.test(raw) ? raw : `${raw} ${new Date().getFullYear()}`;
+  const d = new Date(withYear);
   if (Number.isNaN(d.getTime())) return null;
-  const hasTime = /\d{1,2}:\d{2}/.test(String(when));
+  const hasTime = /\d{1,2}:\d{2}/.test(raw) || /\d{1,2}\s?(am|pm)/i.test(raw);
   return {
     month: d.toLocaleString('en', { month: 'short' }),
     day: d.getDate(),
     weekday: d.toLocaleString('en', { weekday: 'short' }),
-    time: hasTime ? d.toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' }) : null,
+    time: hasTime ? fmtEventTime(d) : null,
   };
 };
 
@@ -1017,13 +1047,42 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     calendarConflicts: sectionEnabled('calendarConflicts') && collisions.length > 0 && panel(
       'calendarConflicts', 'Schedule collisions', collisions.length,
       <>
-        {collisions?.map((c, i) => (
-          <div className="orm-coll" key={i}>
-            <div className="ct">{c.type}</div>
-            <div className="cs">{c.summary}{c.when ? ` · ${c.when}` : ''}</div>
-            {c.suggestion && <div className="cg"><b>Suggested:</b> {c.suggestion}</div>}
-          </div>
-        ))}
+        {collisions?.map((c, i) => {
+          const sev = (c.severity || 'low').toLowerCase();
+          const sevLabel = sev === 'high' ? 'Conflict' : sev === 'medium' ? 'Tight' : 'Heads up';
+          const slotFlag = { overlap: 'Clashes', untimed: 'Time not set', clear: 'No clash' };
+          return (
+            <div className={`orm-coll sev-${sev}`} key={i}>
+              <div className="ct">
+                <span className={`orm-coll-sev sev-${sev}`}>{sevLabel}</span>
+                {c.type}
+              </div>
+              <div className="cs">{c.summary}{c.when ? ` · ${c.when}` : ''}</div>
+              {c.reason && <div className="cr">{c.reason}</div>}
+              {Array.isArray(c.slots) && c.slots.length > 0 && (
+                <ul className="orm-coll-slots">
+                  {c.slots.map((s, j) => (
+                    <li
+                      className={`slot ${s.status || 'clear'}`}
+                      key={j}
+                      onClick={() => s.sourceId && onOpenSource(s.sourceId)}
+                      role={s.sourceId ? 'button' : undefined}
+                      tabIndex={s.sourceId ? 0 : undefined}
+                    >
+                      <span className="slot-time">{s.time || 'No time'}</span>
+                      <span className="slot-title">{s.title}</span>
+                      <span className={`slot-flag ${s.status || 'clear'}`}>
+                        {slotFlag[s.status] || slotFlag.clear}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {c.note && <div className="cr cr-note">{c.note}</div>}
+              {c.suggestion && <div className="cg"><b>Suggested:</b> {c.suggestion}</div>}
+            </div>
+          );
+        })}
       </>,
       { amber: true, headerColor: 'var(--high)' }
     ),
@@ -1079,7 +1138,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
       'events', 'Events mentioned', events.length,
       <>
         {events?.map((event, i) => {
-          const w = parseEventWhen(event.when);
+          const w = parseEventWhen(event);
           return (
             <div className="orm-event" key={i} onClick={() => onOpenSource(event.sourceId)} role="button" tabIndex={0}>
               <div className={`orm-event-date${w ? '' : ' none'}`}>

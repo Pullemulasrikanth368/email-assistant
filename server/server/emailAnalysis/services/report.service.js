@@ -163,35 +163,153 @@ const EVENT_CATEGORIES = ["Meetings & Scheduling"];
 const TIME_RE = /\b(\d{1,2}(:\d{2})?\s?(am|pm))\b/i;
 const RELATIVE_DAY_RE = /\b(today|tomorrow|yesterday)\b/i;
 const MONTH_DAY_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}\b/i;
+// A single am/pm clock time, e.g. "9am", "2:30 pm".
+const CLOCK_RE = /\b(\d{1,2})(?::(\d{2}))?\s?(am|pm)\b/i;
+// A single 24-hour time, e.g. "14:00". Minutes required to avoid matching bare numbers.
+const CLOCK24_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
+// A start–end range with am/pm, e.g. "3-4pm", "3:00 PM - 4:30 PM", "3 to 4 pm".
+// The start meridiem is optional and inherited from the end when omitted.
+const RANGE_RE = /\b(\d{1,2})(?::(\d{2}))?\s?(am|pm)?\s?(?:-|–|—|to)\s?(\d{1,2})(?::(\d{2}))?\s?(am|pm)\b/i;
+// A 24-hour start–end range, e.g. "14:00-15:30".
+const RANGE24_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\s?(?:-|–|—|to)\s?([01]?\d|2[0-3]):([0-5]\d)\b/;
+
+// When an email states a start but no end, assume a standard slot length.
+const DEFAULT_MEETING_MS = 60 * 60 * 1000; // 1 hour
+// Two meetings this close (one ending, the next starting) leave no transition
+// time — flagged as a softer "tight turnaround" rather than a hard clash.
+const BACK_TO_BACK_MS = 15 * 60 * 1000; // 15 minutes
+
+/** Format a Date as a short clock label, e.g. "9:00 AM". */
+function fmtClock(d) {
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+/**
+ * Serialize a Date as a timezone-less local datetime ("2026-07-08T19:00:00").
+ * Meeting times are wall-clock (a "7pm IST" invite should read 7pm everywhere),
+ * so we deliberately omit the "Z"/offset — the client re-parses it as local and
+ * the wall-clock value is preserved regardless of server/viewer timezone.
+ */
+function toLocalIso(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+}
+
+/** Turn a matched hour/minute/meridiem into 24-hour parts. */
+function toHourMin(hourStr, minStr, meridiem) {
+  let hour = parseInt(hourStr, 10);
+  const min = minStr ? parseInt(minStr, 10) : 0;
+  if (meridiem) {
+    hour %= 12;
+    if (/pm/i.test(meridiem)) hour += 12;
+  }
+  return { hour, min };
+}
 
 /** Plain-code guess at a "when" string from subject/body — no AI involved. */
 function extractWhen(mail) {
   const hay = `${mail.subject || ""} ${String(mail.body || mail.snippet || "").slice(0, 300)}`;
   const day = hay.match(RELATIVE_DAY_RE)?.[1];
-  const time = hay.match(TIME_RE)?.[1];
   const monthDay = hay.match(MONTH_DAY_RE)?.[0];
-  if (day && time) return `${day[0].toUpperCase()}${day.slice(1)} ${time}`;
-  if (monthDay && time) return `${monthDay} ${time}`;
-  if (day) return day[0].toUpperCase() + day.slice(1);
-  if (monthDay) return monthDay;
+  // Prefer a full range so the end time survives for accurate overlap checks;
+  // fall back to a single start time (am/pm, then 24-hour).
+  const time =
+    hay.match(RANGE_RE)?.[0] ||
+    hay.match(RANGE24_RE)?.[0] ||
+    hay.match(TIME_RE)?.[1] ||
+    hay.match(CLOCK24_RE)?.[0];
+  const dayPart = day ? day[0].toUpperCase() + day.slice(1) : monthDay || "";
+  if (dayPart && time) return `${dayPart} ${time}`;
   if (time) return time;
+  if (dayPart) return dayPart;
   return mail.receivedAt ? new Date(mail.receivedAt).toDateString() : "";
 }
 
 /**
- * Resolve a "when" string into a real Date, anchored on the mail's
- * receivedAt so relative words ("Today 12:00 PM") resolve correctly.
+ * Resolve a "when" string into a concrete meeting interval { start, end } and
+ * report whether a real clock time was found. Times are pinned explicitly
+ * (native Date can't parse "Wed 9:00"), so collision detection can tell an
+ * actual timed meeting apart from a day-only guess and compare true intervals.
+ *
+ * Returns { start: Date, end: Date, hasTime: boolean, hasEnd: boolean }.
+ *  - hasTime true  → start carries a real hour/minute; safe to compare overlaps.
+ *  - hasEnd  true  → end came from an explicit range; otherwise it is a default
+ *                    1-hour slot after start.
+ *  - hasTime false → only the day is known; start is midnight of that day.
  */
-function resolveWhenDate(whenText, receivedAt) {
+function resolveWhenMoment(whenText, receivedAt) {
   const anchor = receivedAt ? new Date(receivedAt) : new Date();
   const text = String(whenText || "").trim();
-  if (!text) return anchor;
-  const relative = text
+  const dayOnlyResult = (day, hasTime) => ({
+    start: day,
+    end: new Date(day.getTime() + DEFAULT_MEETING_MS),
+    hasTime,
+    hasEnd: false,
+  });
+  if (!text) return dayOnlyResult(anchor, false);
+
+  // Substitute relative words with concrete dates, then strip every time token
+  // so the remainder parses cleanly as a calendar day.
+  const dayText = text
     .replace(/\btoday\b/i, anchor.toDateString())
     .replace(/\btomorrow\b/i, new Date(anchor.getTime() + DAY_MS).toDateString())
     .replace(/\byesterday\b/i, new Date(anchor.getTime() - DAY_MS).toDateString());
-  const parsed = new Date(relative);
-  return Number.isNaN(parsed.getTime()) ? anchor : parsed;
+  const dayOnly = dayText
+    .replace(RANGE_RE, "")
+    .replace(RANGE24_RE, "")
+    .replace(CLOCK_RE, "")
+    .replace(CLOCK24_RE, "")
+    .trim();
+  let day = new Date(dayOnly);
+  if (Number.isNaN(day.getTime())) {
+    // No parseable day (e.g. "9am" alone) → anchor on the email's own day.
+    day = new Date(anchor);
+  } else if (!/\b\d{4}\b/.test(dayOnly)) {
+    // A bare month/day like "Jul 08" parses to year 2001 in V8 (no year given).
+    // Anchor the year on the email's own date so the meeting lands in the right one.
+    day.setFullYear(anchor.getFullYear());
+  }
+  day.setHours(0, 0, 0, 0);
+  const at = (hour, min) => {
+    const d = new Date(day);
+    d.setHours(hour, min, 0, 0);
+    return d;
+  };
+
+  // 1) explicit am/pm range — most informative. Start meridiem inherits end's.
+  let m = text.match(RANGE_RE);
+  if (m) {
+    const endMer = m[6];
+    const s = toHourMin(m[1], m[2], m[3] || endMer);
+    const e = toHourMin(m[4], m[5], endMer);
+    const start = at(s.hour, s.min);
+    let end = at(e.hour, e.min);
+    if (end <= start) end = new Date(end.getTime() + DAY_MS); // spans midnight
+    return { start, end, hasTime: true, hasEnd: true };
+  }
+  // 2) explicit 24-hour range
+  m = text.match(RANGE24_RE);
+  if (m) {
+    const start = at(parseInt(m[1], 10), parseInt(m[2], 10));
+    let end = at(parseInt(m[3], 10), parseInt(m[4], 10));
+    if (end <= start) end = new Date(end.getTime() + DAY_MS);
+    return { start, end, hasTime: true, hasEnd: true };
+  }
+  // 3) single am/pm time — default 1-hour slot
+  m = text.match(CLOCK_RE);
+  if (m) {
+    const { hour, min } = toHourMin(m[1], m[2], m[3]);
+    const start = at(hour, min);
+    return { start, end: new Date(start.getTime() + DEFAULT_MEETING_MS), hasTime: true, hasEnd: false };
+  }
+  // 4) single 24-hour time — default 1-hour slot
+  m = text.match(CLOCK24_RE);
+  if (m) {
+    const start = at(parseInt(m[1], 10), parseInt(m[2], 10));
+    return { start, end: new Date(start.getTime() + DEFAULT_MEETING_MS), hasTime: true, hasEnd: false };
+  }
+  // Day only.
+  return dayOnlyResult(day, false);
 }
 
 /**
@@ -216,26 +334,86 @@ function buildTodoListFromMails(mails) {
 function buildEventsFromMails(mails) {
   return mails
     .filter((m) => EVENT_CATEGORIES.includes(m.category))
-    .map((m) => ({
-      title: m.subject || "(no subject)",
-      when: extractWhen(m),
-      type: "meeting",
-      owner: "",
-      sourceId: m.providerMessageId || String(m._id),
-    }));
+    .map((m) => {
+      const when = extractWhen(m);
+      // Resolve the date server-side (year-anchored, ranges, relative words) and
+      // attach it so the client can render without re-parsing the raw string.
+      const { start, end, hasTime, hasEnd } = resolveWhenMoment(when, m.receivedAt);
+      return {
+        title: m.subject || "(no subject)",
+        when,
+        start: when ? toLocalIso(start) : null,
+        end: hasEnd ? toLocalIso(end) : null,
+        hasTime,
+        type: "meeting",
+        owner: "",
+        sourceId: m.providerMessageId || String(m._id),
+      };
+    });
+}
+
+// Severity ranking so the most urgent clashes surface first.
+const SEVERITY_RANK = { high: 0, medium: 1, low: 2 };
+
+/** Two meeting intervals overlap iff each starts before the other ends. */
+function intervalsOverlap(a, b) {
+  return a.start < b.end && b.start < a.end;
+}
+
+/** True when one interval sits entirely inside the other. */
+function intervalContains(a, b) {
+  return (a.start <= b.start && a.end >= b.end) || (b.start <= a.start && b.end >= a.end);
+}
+
+/** Normalized title for detecting duplicate invites (same slot, same subject). */
+function normTitle(t) {
+  return String(t || "")
+    .toLowerCase()
+    .replace(/\b(re|fwd|fw)\b[:\s]*/gi, "")
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+}
+
+/** Short label for a meeting slot in a reason line. */
+function slotLabel(x) {
+  if (!x.hasTime) return "time TBD";
+  return x.hasEnd ? `${fmtClock(x.start)}–${fmtClock(x.end)}` : `${fmtClock(x.start)} (~1h)`;
 }
 
 /**
- * Detect schedule collisions from the events built above — same-day
- * crowding (3+) or two events within 2 hours of each other on the same day.
+ * Detect schedule collisions from the events built above.
+ *
+ * Each meeting is modeled as an interval [start, end]. The end comes from an
+ * explicit range in the email ("3-4pm") when present; otherwise it defaults to
+ * a 1-hour slot (DEFAULT_MEETING_MS). Within a single day we classify:
+ *
+ *   high — Conflict:  two intervals overlap (startA < endB && startB < endA).
+ *   high — Contained: one meeting sits entirely inside another.
+ *   high — Duplicate: overlapping AND near-identical subject (double invite).
+ *   medium — Tight:   0–15 min gap between one ending and the next starting.
+ *   low  — Busy day:  3+ events on a day; a load roll-up listing each slot.
+ *
+ * Every collision carries a `severity` and a detailed `reason`. A day-only
+ * event (no clock time) can't be compared for overlap, so it only feeds the
+ * busy-day roll-up. Results are sorted high -> low.
  */
 function detectCollisionsFromEvents(events, mails) {
   const receivedById = new Map(mails.map((m) => [String(m.providerMessageId || m._id), m.receivedAt]));
-  const withDates = events.map((e) => ({ e, date: resolveWhenDate(e.when, receivedById.get(e.sourceId)) }));
+  const withMoments = events.map((e) => {
+    // Prefer the date already resolved on the event (buildEventsFromMails) so
+    // collisions and the events list agree; fall back for LLM-derived events.
+    const preStart = e.start ? new Date(e.start) : null;
+    if (preStart && !Number.isNaN(preStart.getTime())) {
+      const end = e.end ? new Date(e.end) : new Date(preStart.getTime() + DEFAULT_MEETING_MS);
+      return { e, start: preStart, end, hasTime: !!e.hasTime, hasEnd: !!e.end };
+    }
+    const { start, end, hasTime, hasEnd } = resolveWhenMoment(e.when, receivedById.get(e.sourceId));
+    return { e, start, end, hasTime, hasEnd };
+  });
 
   const byDay = new Map();
-  for (const entry of withDates) {
-    const dayKey = entry.date.toDateString();
+  for (const entry of withMoments) {
+    const dayKey = entry.start.toDateString();
     if (!byDay.has(dayKey)) byDay.set(dayKey, []);
     byDay.get(dayKey).push(entry);
   }
@@ -244,31 +422,126 @@ function detectCollisionsFromEvents(events, mails) {
   for (const [dayKey, entries] of byDay) {
     if (entries.length < 2) continue;
 
+    const timed = entries
+      .filter((x) => x.hasTime)
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+
+    // All-pairs overlap detection (Conflict / Contained / Duplicate).
+    for (let i = 0; i < timed.length; i++) {
+      for (let j = i + 1; j < timed.length; j++) {
+        const a = timed[i];
+        const b = timed[j];
+        // Sorted by start, so once b starts at/after a ends, no later b overlaps a.
+        if (b.start >= a.end) break;
+        if (!intervalsOverlap(a, b)) continue;
+
+        const overlapMs = Math.min(a.end, b.end) - Math.max(a.start, b.start);
+        const overlapMin = Math.max(1, Math.round(overlapMs / 60000));
+        const window = `${dayKey} · ${fmtClock(a.start)}–${fmtClock(a.end)} vs ${fmtClock(b.start)}–${fmtClock(b.end)}`;
+
+        if (normTitle(a.e.title) && normTitle(a.e.title) === normTitle(b.e.title)) {
+          collisions.push({
+            type: "Meeting",
+            severity: "high",
+            summary: `Possible duplicate: "${a.e.title}" is booked twice`,
+            reason:
+              `Two meetings with the same subject overlap on ${dayKey} ` +
+              `(${slotLabel(a)} and ${slotLabel(b)}). This is likely a duplicate or double invite.`,
+            when: window,
+            items: [a.e.sourceId, b.e.sourceId],
+            suggestion: "Confirm these are the same meeting and drop the duplicate.",
+          });
+        } else if (intervalContains(a, b)) {
+          const [outer, inner] = a.end - a.start >= b.end - b.start ? [a, b] : [b, a];
+          collisions.push({
+            type: "Meeting",
+            severity: "high",
+            summary: `Time clash: "${inner.e.title}" falls inside "${outer.e.title}"`,
+            reason:
+              `"${outer.e.title}" runs ${slotLabel(outer)} and "${inner.e.title}" (${slotLabel(inner)}) ` +
+              `sits entirely within it — you'd be double-booked the whole time.`,
+            when: window,
+            items: [a.e.sourceId, b.e.sourceId],
+            suggestion: `Move "${inner.e.title}" out of the "${outer.e.title}" window, or decline one.`,
+          });
+        } else {
+          collisions.push({
+            type: "Meeting",
+            severity: "high",
+            summary: `Time clash: "${a.e.title}" overlaps "${b.e.title}"`,
+            reason:
+              `"${a.e.title}" runs ${slotLabel(a)} and "${b.e.title}" runs ${slotLabel(b)} — ` +
+              `they overlap by ${overlapMin} min, so both need you at the same time.`,
+            when: window,
+            items: [a.e.sourceId, b.e.sourceId],
+            suggestion: `Move "${b.e.title}" to after ${fmtClock(a.end)}, or shorten/decline one of them.`,
+          });
+        }
+      }
+    }
+
+    // Adjacent tight turnarounds (no buffer), only where the pair doesn't overlap.
+    for (let i = 0; i < timed.length - 1; i++) {
+      const a = timed[i];
+      const b = timed[i + 1];
+      if (intervalsOverlap(a, b)) continue;
+      const gap = b.start - a.end;
+      if (gap >= 0 && gap <= BACK_TO_BACK_MS) {
+        const gapMin = Math.round(gap / 60000);
+        collisions.push({
+          type: "Meeting",
+          severity: "medium",
+          summary: `Tight turnaround: "${a.e.title}" → "${b.e.title}"`,
+          reason:
+            `"${a.e.title}" ends around ${fmtClock(a.end)} and "${b.e.title}" starts at ` +
+            `${fmtClock(b.start)} — only ${gapMin} min between them, leaving no transition time.`,
+          when: `${dayKey} · ${fmtClock(a.start)}–${fmtClock(a.end)} then ${fmtClock(b.start)}`,
+          items: [a.e.sourceId, b.e.sourceId],
+          suggestion: "Add a buffer between the two, or confirm you can switch over immediately.",
+        });
+      }
+    }
+
+    // Same-day crowding — a load roll-up listing each slot, even when nothing clashes.
     if (entries.length >= 3) {
+      const ordered = [...entries].sort(
+        (a, b) => (a.hasTime ? a.start : Infinity) - (b.hasTime ? b.start : Infinity)
+      );
+      // Per-meeting breakdown: what it is, when, and how it's affected.
+      const slots = ordered.map((x) => {
+        let status = "clear"; // has a time and doesn't overlap anything
+        if (!x.hasTime) status = "untimed"; // no stated time — can't compare
+        else if (ordered.some((o) => o !== x && o.hasTime && intervalsOverlap(x, o))) {
+          status = "overlap"; // clashes with another timed meeting (see HIGH cards)
+        }
+        return {
+          time: x.hasTime ? (x.hasEnd ? `${fmtClock(x.start)}–${fmtClock(x.end)}` : `${fmtClock(x.start)} (~1h)`) : null,
+          title: x.e.title,
+          status,
+          sourceId: x.e.sourceId,
+        };
+      });
+      const untimed = slots.filter((s) => s.status === "untimed").length;
+      const clashing = slots.filter((s) => s.status === "overlap").length;
       collisions.push({
         type: "Meeting",
+        severity: "low",
         summary: `${entries.length} meetings/events land on the same day`,
+        reason: `${entries.length} items are scheduled on ${dayKey}.`,
+        slots,
+        note:
+          (clashing ? `${clashing} directly clash (flagged above). ` : "") +
+          (untimed ? `${untimed} ${untimed === 1 ? "has" : "have"} no stated time, so ${untimed === 1 ? "its overlap" : "their overlaps"} can't be confirmed automatically.` : ""),
         when: dayKey,
         items: entries.map((x) => x.e.sourceId),
         suggestion: "Review and reschedule lower-priority items to spread the load.",
       });
-      continue;
-    }
-
-    const sorted = [...entries].sort((a, b) => a.date - b.date);
-    for (let i = 0; i < sorted.length - 1; i++) {
-      const gapMs = sorted[i + 1].date - sorted[i].date;
-      if (gapMs <= 2 * 60 * 60 * 1000) {
-        collisions.push({
-          type: "Meeting",
-          summary: `"${sorted[i].e.title}" and "${sorted[i + 1].e.title}" fall within 2 hours of each other`,
-          when: dayKey,
-          items: [sorted[i].e.sourceId, sorted[i + 1].e.sourceId],
-          suggestion: "Confirm timing or delegate one of the two.",
-        });
-      }
     }
   }
+
+  collisions.sort(
+    (a, b) => (SEVERITY_RANK[a.severity] ?? 3) - (SEVERITY_RANK[b.severity] ?? 3)
+  );
   return collisions;
 }
 
@@ -318,6 +591,11 @@ function mergeCollisions(brief, collisions) {
   );
   const fresh = collisions.filter((c) => !existing.has(`${c.when}|${[...(c.items || [])].sort().join(",")}`));
   brief.collisions = [...(brief.collisions || []), ...fresh];
+  // Keep the most urgent clashes first regardless of source (code vs LLM).
+  // LLM-derived collisions carry no severity, so they sort after the code ones.
+  brief.collisions.sort(
+    (a, b) => (SEVERITY_RANK[a.severity] ?? 3) - (SEVERITY_RANK[b.severity] ?? 3)
+  );
   return brief;
 }
 

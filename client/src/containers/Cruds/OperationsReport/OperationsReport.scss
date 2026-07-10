@@ -994,22 +994,131 @@
   /* Collisions */
   .orm-coll {
     border: 1px solid var(--high);
+    border-left-width: 4px;
     background: #fff;
     border-radius: 3px;
     padding: 11px;
     margin-bottom: 10px;
 
+    &.sev-high { border-color: var(--high); background: var(--high-bg); }
+    &.sev-medium { border-color: var(--med); background: var(--med-bg); }
+    &.sev-low { border-color: var(--low); background: var(--low-bg); }
+
     .ct {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-family: var(--mono);
       font-size: 11px;
       text-transform: uppercase;
       color: var(--high);
     }
 
+    .orm-coll-sev {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      padding: 1px 6px;
+      border-radius: 3px;
+      color: #fff;
+
+      &.sev-high { background: var(--high); }
+      &.sev-medium { background: var(--med); }
+      &.sev-low { background: var(--low); }
+    }
+
     .cs {
       font-weight: 600;
       font-size: 12px;
       margin: 4px 0;
+    }
+
+    .cr {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--ink2);
+      margin-bottom: 4px;
+    }
+
+    .cr-note {
+      font-style: italic;
+      opacity: 0.9;
+    }
+
+    .orm-coll-slots {
+      list-style: none;
+      margin: 6px 0;
+      padding: 0;
+
+      .slot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 8px;
+        border-radius: 3px;
+        font-size: 12px;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+
+        & + .slot {
+          margin-top: 3px;
+        }
+
+        &:hover {
+          background: rgba(0, 0, 0, 0.03);
+        }
+
+        &.overlap {
+          border-left-color: var(--high);
+        }
+        &.untimed {
+          border-left-color: var(--med);
+        }
+        &.clear {
+          border-left-color: var(--low);
+        }
+
+        .slot-time {
+          font-family: var(--mono);
+          font-size: 11px;
+          font-weight: 600;
+          white-space: nowrap;
+          min-width: 116px;
+          color: var(--ink);
+        }
+
+        .slot-title {
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .slot-flag {
+          font-family: var(--mono);
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          padding: 1px 6px;
+          border-radius: 3px;
+          white-space: nowrap;
+
+          &.overlap {
+            background: var(--high-bg);
+            color: var(--high);
+          }
+          &.untimed {
+            background: var(--med-bg);
+            color: var(--med);
+          }
+          &.clear {
+            background: var(--low-bg);
+            color: var(--low);
+          }
+        }
+      }
     }
 
     .cg {
