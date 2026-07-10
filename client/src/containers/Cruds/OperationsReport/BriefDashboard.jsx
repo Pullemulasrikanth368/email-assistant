@@ -692,6 +692,14 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
 
   /* -------- section renderers, keyed the same as the report-config's rows -------- */
   const sectionNodes = {
+    narrativeSummary: sectionEnabled('narrativeSummary') && (brief.narrative || keyPoints.length > 0) && panel(
+      'narrativeSummary', 'AI Email Summary', null,
+      <div className="orm-narrative-summary">
+        {brief.narrative && <div className="orm-narr"><p>{brief.narrative}</p></div>}
+        {keyPoints.length > 0 && renderKeyPoints(keyPoints)}
+      </div>
+    ),
+
     decisionQueue: sectionEnabled('decisionQueue') && decisions.length > 0 && panel(
       'decisionQueue', 'Decisions needed today', decisions.length,
       <>

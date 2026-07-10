@@ -124,6 +124,18 @@ function textOf(html = "") {
     .trim();
 }
 
+/** Clean truncation that doesn't slice words in the middle */
+function cleanTruncate(text, maxLen = 160) {
+  const plain = String(text || "").trim();
+  if (plain.length <= maxLen) return plain;
+  const cut = plain.slice(0, maxLen);
+  const lastSpace = cut.lastIndexOf(' ');
+  if (lastSpace > 0) {
+    return cut.slice(0, lastSpace) + '...';
+  }
+  return cut + '...';
+}
+
 function listContains(values = [], value = "") {
   const normalized = String(value || "").toLowerCase();
   return values.some((item) => normalized.includes(String(item || "").toLowerCase()));
@@ -214,7 +226,7 @@ export function fallbackBriefFromEmails(emails = [], kb) {
       reason: e.subject || "(no subject)",
       subject: e.subject || "(no subject)",
       from: e.from || "",
-      summary: textOf(e.body).slice(0, 160) || "(no content)",
+      summary: cleanTruncate(textOf(e.body), 160) || "(no content)",
       matchedKeywords: tier === "Critical" ? critMatched : tier === "Important" ? impMatched : [],
     };
   });
@@ -233,7 +245,7 @@ export function fallbackBriefFromEmails(emails = [], kb) {
     const senders = [...new Set(items.map((e) => String(e.from || "").replace(/<[^>]*>/g, "").trim()).filter(Boolean))];
     // Subjects live in keyPoints only (deduped) — the summary just states the theme,
     // so the two never repeat each other.
-    const keyPoints = [...new Set(items.map((e) => (e.subject || "(no subject)").split(/\s+/).slice(0, 5).join(" ")))].slice(0, 8);
+    const keyPoints = [...new Set(items.map((e) => (e.subject || "(no subject)").trim()))].slice(0, 8);
     return {
       category,
       count: items.length,
