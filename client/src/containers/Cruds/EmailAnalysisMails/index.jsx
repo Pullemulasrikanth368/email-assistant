@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useCallback } from 'rea
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
-import { RefreshCw, Trash2, Flag, Link, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays, X, Inbox, Send, FileText, Ban, ChevronDown, Tag } from 'lucide-react';
+import { RefreshCw, Trash2, Flag, Link, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays, X, Inbox, Send, FileText, Ban, Tag } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dropdown } from 'primereact/dropdown';
 import { cn } from '@/lib/utils';
 import './EmailAnalysisMails.scss';
 
@@ -167,6 +168,16 @@ const MAIL_CATEGORIES = [
   'Promotions & Marketing',
   'Personal',
   'Junk',
+];
+
+// Category filter options for the PrimeReact Dropdown. "All categories" uses a
+// non-empty sentinel — PrimeReact returns the whole option object (not the
+// value) when an option's value is falsy, which would break the API payload.
+// The sentinel maps back to an empty `category` (omitted from the request).
+const ALL_CATEGORIES = 'all';
+const CATEGORY_OPTIONS = [
+  { label: 'All categories', value: ALL_CATEGORIES },
+  ...MAIL_CATEGORIES.map((c) => ({ label: c, value: c })),
 ];
 
 // Rank used to sort highest -> lowest priority within a day.
@@ -558,6 +569,9 @@ const EmailAnalysisMails = () => {
     if (key === folder) return;
     setFolder(key);
     setFirst(0);
+    // The AI category filter only applies to the inbox; clear it when leaving
+    // so a stale filter doesn't silently narrow Sent/Drafts/Junk.
+    if (key !== 'inbox') setCategory('');
     setSelectedId(null);
     setSelectedMail(null);
     setShowReadingPaneMobile(false);
@@ -1587,20 +1601,23 @@ const EmailAnalysisMails = () => {
             ))}
           </div>
 
-          {/* AI category dropdown */}
-          <div className={cn('ea-cat-filter', { active: !!category })} title="Filter by AI category">
-            <Tag size={13} />
-            <select
-              className="ea-cat-select"
-              value={category}
-              onChange={(e) => selectCategory(e.target.value)}
+          {/* AI category filter — inbox only */}
+          {folder === 'inbox' && (
+            <Dropdown
+              value={category || ALL_CATEGORIES}
+              options={CATEGORY_OPTIONS}
+              onChange={(e) => selectCategory(e.value === ALL_CATEGORIES ? '' : e.value)}
+              className={cn('ea-cat-dd', { active: !!category })}
+              panelClassName="ea-cat-dd-panel"
               aria-label="Filter by category"
-            >
-              <option value="">All categories</option>
-              {MAIL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <ChevronDown size={13} className="ea-cat-caret" />
-          </div>
+              valueTemplate={(option) => (
+                <span className="ea-cat-dd-value">
+                  <Tag size={13} />
+                  {option ? option.label : 'All categories'}
+                </span>
+              )}
+            />
+          )}
 
           <button
             type="button"

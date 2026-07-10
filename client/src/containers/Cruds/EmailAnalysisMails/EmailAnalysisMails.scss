@@ -1783,48 +1783,44 @@
     }
   }
 
-  /* ---- AI category dropdown ---- */
-  .ea-cat-filter {
-    position: relative;
+  /* ---- AI category filter (PrimeReact Dropdown, styled as a pill) ---- */
+  .ea-cat-dd.p-dropdown {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
     height: 26px;
-    padding: 0 8px;
     margin-right: 6px;
-    border: 1px dashed #c5cbd3;
-    border-radius: 13px;
     color: var(--ea-muted);
     background: transparent;
+    border: 1px dashed #c5cbd3;
+    border-radius: 13px;
+    box-shadow: none;
     transition: background .12s, border-color .12s, color .12s;
 
-    &:hover { background: #eef0f2; color: var(--ea-ink); }
+    &:not(.p-disabled):hover { background: #eef0f2; border-color: #c5cbd3; color: var(--ea-ink); }
+    &:not(.p-disabled).p-focus { outline: none; box-shadow: none; border-color: #b6bdc9; }
+
+    .p-dropdown-label {
+      display: flex;
+      align-items: center;
+      padding: 0 2px 0 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: inherit;
+      line-height: 24px;
+    }
+
+    .ea-cat-dd-value { display: inline-flex; align-items: center; gap: 6px; }
+
+    .p-dropdown-trigger {
+      width: 22px;
+      color: inherit;
+      opacity: .55;
+    }
 
     &.active {
       color: #111827;
       background: #e8eaf0;
       border: 1px solid #b6bdc9;
-    }
-
-    .ea-cat-select {
-      appearance: none;
-      -webkit-appearance: none;
-      border: 0;
-      background: transparent;
-      font-size: 12px;
-      font-weight: 600;
-      color: inherit;
-      padding-right: 14px;
-      max-width: 150px;
-      cursor: pointer;
-      outline: none;
-      text-overflow: ellipsis;
-    }
-
-    .ea-cat-caret {
-      position: absolute;
-      right: 7px;
-      pointer-events: none;
     }
   }
 
@@ -2225,5 +2221,24 @@
 
       &:hover { background: #0a4bb8; }
     }
+  }
+}
+
+/* AI category dropdown PANEL — portaled to <body>, so top-level.
+   Tighter option spacing + a narrower panel than the PrimeReact default. */
+.ea-cat-dd-panel.p-dropdown-panel {
+  min-width: 172px !important;
+  width: max-content;
+
+  .p-dropdown-items {
+    padding: 3px;
+  }
+
+  .p-dropdown-item {
+    padding: 5px 12px;
+    font-size: 12.5px;
+    line-height: 1.25;
+    border-radius: 6px;
+    white-space: nowrap;
   }
 }
