@@ -1691,6 +1691,9 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    /* Cards keep their natural height — a short card (few groups) must not
+       stretch to its row's tallest neighbour and show a large dead area. */
+    align-items: start;
 
     @media (max-width: 767px) {
       grid-template-columns: 1fr;
@@ -1707,6 +1710,9 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    /* Compact cards: cap the card itself; the groups list scrolls inside,
+       so a category with many points never stretches the whole row. */
+    max-height: 340px;
     border: 1px solid var(--line);
     border-top: 3px solid var(--cat-accent, var(--accent));
     border-radius: 8px;
@@ -1723,6 +1729,7 @@
     .orm-cat-head {
       display: flex;
       align-items: center;
+      flex-shrink: 0;
       gap: 8px;
       padding: 8px 10px;
       background: linear-gradient(to bottom, var(--cat-soft, var(--paper)), rgba(255, 255, 255, 0));
@@ -1796,6 +1803,12 @@
       line-height: 1.5;
       margin: 0;
       padding: 2px 12px 0;
+      /* Don't let a long summary swallow the capped card — it scrolls too,
+         leaving room for the groups list below. */
+      flex-shrink: 0;
+      max-height: 128px;
+      overflow-y: auto;
+      scrollbar-width: thin;
     }
 
     /* Inline emphasis the AI is allowed to emit in summaries/key points. */
@@ -1869,27 +1882,42 @@
       flex-direction: column;
       gap: 8px;
       padding: 8px 12px 4px;
+      min-width: 0;
+      /* Fill whatever height the capped card leaves and scroll inside it —
+         the summary above and the "N sources" footer below stay fixed. */
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      /* Fade scrolled-off text at the edges so a half-clipped line doesn't
+         read as overlapping the summary above the scroll area. */
+      mask-image: linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
 
-      /* More than four points → cap the height and scroll within the card. */
-      &.scrollable {
-        max-height: 200px;
-        overflow-y: auto;
-        padding-right: 8px;
-        scrollbar-width: thin;
-
-        &::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        &::-webkit-scrollbar-thumb {
-          background: var(--line);
-          border-radius: 3px;
-        }
-
-        &::-webkit-scrollbar-thumb:hover {
-          background: var(--cat-accent, var(--muted));
-        }
+      &::-webkit-scrollbar {
+        width: 6px;
       }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--line);
+        border-radius: 3px;
+      }
+
+      &::-webkit-scrollbar-thumb:hover {
+        background: var(--cat-accent, var(--muted));
+      }
+
+      &.scrollable {
+        padding-right: 8px;
+      }
+    }
+
+    /* Groups following the category summary get a rule so the (possibly
+       scrolled/clipped) list never visually merges into the summary text. */
+    .txt + .orm-cat-groups {
+      margin-top: 8px;
+      border-top: 1px dashed var(--line);
     }
 
     .orm-cat-group + .orm-cat-group {
@@ -1986,6 +2014,7 @@
 
     /* Compact footer: total emails in the category (replaces "Mails (n)"). */
     .orm-cat-foot {
+      flex-shrink: 0;
       margin: 6px 12px 10px;
       padding-top: 6px;
       border-top: 1px dashed var(--line);
