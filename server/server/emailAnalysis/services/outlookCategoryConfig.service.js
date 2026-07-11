@@ -229,6 +229,14 @@ async function _repushOutlookLabels(email, config) {
 
   try {
     const service = await createMailService(email);
+
+    // Sync/update master category definitions/colors in Outlook first
+    if (typeof service.ensureOutlookMasterCategories === 'function') {
+      await service.ensureOutlookMasterCategories().catch((err) => {
+        console.warn(`[OutlookCategoryConfig] Master category sync failed during repush for ${email}:`, err.message);
+      });
+    }
+
     if (typeof service.bulkPushCategories !== 'function') return;
 
     // bulkPushCategories uses buildOutlookCategories internally — we need to

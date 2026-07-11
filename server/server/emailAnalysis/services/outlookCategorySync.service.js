@@ -190,21 +190,39 @@ export async function ensureMasterCategories(graphFn, email = null) {
     }
 
     const data = await graphFn("GET", "/me/outlook/masterCategories", {});
-    const existing = new Set((data.value || []).map((c) => c.displayName));
+    const existingMap = new Map((data.value || []).map((c) => [c.displayName, c]));
 
-    const missing = labelsToSync.filter((label) => !existing.has(label));
-    for (const label of missing) {
-      try {
-        await graphFn("POST", "/me/outlook/masterCategories", {
-          data: {
-            displayName: label,
-            color: customColors[label] || "none",
-          },
-        });
-        console.log(`[OutlookCategorySync] Registered master category: "${label}"`);
-      } catch (err) {
-        // Duplicate or permission error — safe to ignore
-        console.warn(`[OutlookCategorySync] Could not register category "${label}":`, err.message);
+    for (const label of labelsToSync) {
+      const targetColor = customColors[label] || "none";
+      const existing = existingMap.get(label);
+
+      if (!existing) {
+        try {
+          await graphFn("POST", "/me/outlook/masterCategories", {
+            data: {
+              displayName: label,
+              color: targetColor,
+            },
+          });
+          console.log(`[OutlookCategorySync] Registered master category: "${label}" with color ${targetColor}`);
+        } catch (err) {
+          // Duplicate or permission error — safe to ignore
+          console.warn(`[OutlookCategorySync] Could not register category "${label}":`, err.message);
+        }
+      } else {
+        // If color mismatch, update it via PATCH /me/outlook/masterCategories/{id}
+        if (existing.color !== targetColor) {
+          try {
+            await graphFn("PATCH", `/me/outlook/masterCategories/${encodeURIComponent(existing.id)}`, {
+              data: {
+                color: targetColor,
+              },
+            });
+            console.log(`[OutlookCategorySync] Updated master category color: "${label}" to ${targetColor}`);
+          } catch (err) {
+            console.warn(`[OutlookCategorySync] Could not update category color for "${label}":`, err.message);
+          }
+        }
       }
     }
   } catch (err) {
