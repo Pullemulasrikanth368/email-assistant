@@ -1,4 +1,5 @@
-/* Reply Studio — Quick Replies / Detailed Reply / Custom AI Reply Generator.
+/* Reply Studio — Quick Replies + the Detailed Reply workspace (with the
+   "Customize with AI" panel folded in).
    Lives inside .operations-report (email drawer), so it inherits the report
    theme tokens (--ink, --muted, --line, --crit, --high, --low, …). Fallbacks
    are provided so the studio also renders sanely outside that scope. */
@@ -17,7 +18,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 980px; /* readability cap on very wide screens */
+  max-width: 980px;
+  /* readability cap on very wide screens */
   margin-top: 16px;
 
   /* ---------- section cards ---------- */
@@ -48,6 +50,7 @@
       color: var(--rs-ink);
       flex: none;
     }
+
     .rs-card-title {
       margin: 0;
       font-size: 13.5px;
@@ -55,6 +58,7 @@
       color: var(--rs-ink);
       letter-spacing: .01em;
     }
+
     .rs-card-sub {
       font-size: 11.5px;
       color: var(--rs-muted);
@@ -82,6 +86,7 @@
       align-items: center;
       gap: 6px;
     }
+
     .rs-qcard-badge {
       display: inline-flex;
       align-items: center;
@@ -91,6 +96,7 @@
       border-radius: 50%;
       flex: none;
     }
+
     .rs-qcard-label {
       font-size: 12px;
       font-weight: 700;
@@ -99,15 +105,29 @@
 
     &.rs-qcard--yes {
       border-top: 3px solid var(--rs-yes);
-      .rs-qcard-badge { background: var(--rs-yes-bg); color: var(--rs-yes); }
+
+      .rs-qcard-badge {
+        background: var(--rs-yes-bg);
+        color: var(--rs-yes);
+      }
     }
+
     &.rs-qcard--no {
       border-top: 3px solid var(--rs-no);
-      .rs-qcard-badge { background: var(--rs-no-bg); color: var(--rs-no); }
+
+      .rs-qcard-badge {
+        background: var(--rs-no-bg);
+        color: var(--rs-no);
+      }
     }
+
     &.rs-qcard--maybe {
       border-top: 3px solid var(--rs-maybe);
-      .rs-qcard-badge { background: var(--rs-maybe-bg); color: var(--rs-maybe); }
+
+      .rs-qcard-badge {
+        background: var(--rs-maybe-bg);
+        color: var(--rs-maybe);
+      }
     }
 
     .rs-qcard-text {
@@ -122,8 +142,16 @@
       line-height: 1.45;
       color: var(--rs-ink);
       background: #fafbfa;
-      &:focus { outline: 2px solid rgba(31, 111, 107, .35); outline-offset: 1px; background: #fff; }
-      &:disabled { opacity: .6; }
+
+      &:focus {
+        outline: 2px solid rgba(31, 111, 107, .35);
+        outline-offset: 1px;
+        background: #fff;
+      }
+
+      &:disabled {
+        opacity: .6;
+      }
     }
   }
 
@@ -134,9 +162,11 @@
     gap: 8px;
     flex-wrap: wrap;
   }
+
   .rs-actions--compact {
     gap: 6px;
-    margin-top: auto; /* pin to the card bottom so the three cards align */
+    margin-top: auto;
+    /* pin to the card bottom so the three cards align */
   }
 
   .rs-btn {
@@ -153,23 +183,37 @@
     cursor: pointer;
     transition: background .15s, border-color .15s;
 
-    &:hover:not(:disabled) { background: #f4f5f3; border-color: #c4c8c1; }
-    &:disabled { opacity: .5; cursor: default; }
-    &:focus-visible { outline: 2px solid rgba(31, 111, 107, .5); outline-offset: 1px; }
+    &:hover:not(:disabled) {
+      background: #f4f5f3;
+      border-color: #c4c8c1;
+    }
 
-    .pi { font-size: 12px; }
-  }
+    &:disabled {
+      opacity: .5;
+      cursor: default;
+    }
 
-  .rs-btn--insert {
-    border-color: var(--rs-ink);
+    &:focus-visible {
+      outline: 2px solid rgba(31, 111, 107, .5);
+      outline-offset: 1px;
+    }
+
+    .pi {
+      font-size: 12px;
+    }
   }
 
   .rs-btn--send {
     background: var(--rs-ink);
     border-color: var(--rs-ink);
     color: #fff;
-    margin-left: auto; /* primary action sits at the row's end */
-    &:hover:not(:disabled) { background: #2a3140; border-color: #2a3140; }
+    margin-left: auto;
+
+    /* primary action sits at the row's end */
+    &:hover:not(:disabled) {
+      background: #2a3140;
+      border-color: #2a3140;
+    }
   }
 
   /* ---------- detailed reply ---------- */
@@ -179,6 +223,7 @@
     gap: 8px;
     margin-left: auto;
   }
+
   .rs-field-label {
     font-size: 11px;
     font-weight: 600;
@@ -186,20 +231,124 @@
     letter-spacing: .05em;
     color: var(--rs-muted);
     margin: 0;
+    white-space: nowrap;
   }
+
   .rs-select {
     min-width: 160px;
     height: 32px;
     font-size: 12.5px;
     background: #fff;
   }
+
   .rs-type-opt {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    &.rs-type--yes { color: var(--rs-yes); }
-    &.rs-type--no { color: var(--rs-no); }
-    &.rs-type--maybe { color: var(--rs-maybe); }
+
+    &.rs-type--yes {
+      color: var(--rs-yes);
+    }
+
+    &.rs-type--no {
+      color: var(--rs-no);
+    }
+
+    &.rs-type--maybe {
+      color: var(--rs-maybe);
+    }
+  }
+
+  /* Detailed / Custom AI segmented mode switch in the card header. */
+  .rs-mode-switch {
+    display: inline-flex;
+    border: 1px solid var(--rs-line);
+    border-radius: 8px;
+    background: #f4f5f3;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .rs-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    color: var(--rs-muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+
+    &:hover:not(:disabled) {
+      color: var(--rs-ink);
+    }
+
+    &.active {
+      background: #fff;
+      color: var(--rs-ink);
+      box-shadow: 0 1px 2px rgba(20, 24, 31, .12);
+    }
+
+    &:disabled {
+      opacity: .5;
+      cursor: default;
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(31, 111, 107, .5);
+      outline-offset: 1px;
+    }
+  }
+
+  /* "Custom AI" mode — the custom-generation controls inside the
+     Detailed Reply card. */
+  .rs-custom-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid var(--rs-line);
+    border-radius: 8px;
+    background: #fafbfa;
+    padding: 12px;
+  }
+
+  /* Autosave status + action row under the Detailed Reply editor. */
+  .rs-draft-foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    .rs-actions {
+      flex: 1;
+    }
+  }
+
+  .rs-savestate {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--rs-muted);
+    white-space: nowrap;
+
+    .pi {
+      font-size: 11px;
+    }
+
+    &.rs-savestate--saved {
+      color: var(--rs-yes);
+    }
+
+    &.rs-savestate--failed {
+      color: var(--rs-no);
+    }
   }
 
   .rs-placeholder {
@@ -224,9 +373,20 @@
     line-height: 1.5;
     color: var(--rs-ink);
     background: #fafbfa;
-    &::placeholder { color: #9aa1ab; }
-    &:focus { outline: 2px solid rgba(31, 111, 107, .35); outline-offset: 1px; background: #fff; }
-    &:disabled { opacity: .6; }
+
+    &::placeholder {
+      color: #9aa1ab;
+    }
+
+    &:focus {
+      outline: 2px solid rgba(31, 111, 107, .35);
+      outline-offset: 1px;
+      background: #fff;
+    }
+
+    &:disabled {
+      opacity: .6;
+    }
   }
 
   .rs-chips {
@@ -234,6 +394,7 @@
     flex-wrap: wrap;
     gap: 6px;
   }
+
   .rs-chip {
     border: 1px solid var(--rs-line);
     background: #fff;
@@ -244,9 +405,21 @@
     border-radius: 14px;
     cursor: pointer;
     transition: background .15s, border-color .15s;
-    &:hover:not(:disabled) { background: #f4f5f3; }
-    &.active { background: var(--rs-ink); border-color: var(--rs-ink); color: #fff; }
-    &:disabled { opacity: .5; cursor: default; }
+
+    &:hover:not(:disabled) {
+      background: #f4f5f3;
+    }
+
+    &.active {
+      background: var(--rs-ink);
+      border-color: var(--rs-ink);
+      color: #fff;
+    }
+
+    &:disabled {
+      opacity: .5;
+      cursor: default;
+    }
   }
 
   .rs-controls {
@@ -255,6 +428,7 @@
     gap: 12px;
     flex-wrap: wrap;
   }
+
   .rs-control {
     display: flex;
     flex-direction: column;
@@ -275,9 +449,20 @@
     cursor: pointer;
     margin-left: auto;
     transition: background .15s;
-    &:hover:not(:disabled) { background: #2a3140; }
-    &:disabled { opacity: .5; cursor: default; }
-    &:focus-visible { outline: 2px solid rgba(31, 111, 107, .5); outline-offset: 1px; }
+
+    &:hover:not(:disabled) {
+      background: #2a3140;
+    }
+
+    &:disabled {
+      opacity: .5;
+      cursor: default;
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(31, 111, 107, .5);
+      outline-offset: 1px;
+    }
   }
 
   /* ---------- loading / error states ---------- */
@@ -294,13 +479,29 @@
       background: linear-gradient(90deg, #eef0ee 25%, #f7f8f6 50%, #eef0ee 75%);
       background-size: 200% 100%;
       animation: rs-shimmer 1.2s ease-in-out infinite;
-      &.short { width: 55%; }
+
+      &.short {
+        width: 55%;
+      }
     }
-    &.rs-skeleton--tall { padding: 10px 0; span { height: 12px; } }
+
+    &.rs-skeleton--tall {
+      padding: 10px 0;
+
+      span {
+        height: 12px;
+      }
+    }
   }
+
   @keyframes rs-shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
+    from {
+      background-position: 200% 0;
+    }
+
+    to {
+      background-position: -200% 0;
+    }
   }
 
   .rs-error {
@@ -315,8 +516,13 @@
     border-radius: 8px;
     padding: 8px 10px;
 
-    .pi-exclamation-triangle { font-size: 13px; }
-    .rs-btn { margin-left: auto; }
+    .pi-exclamation-triangle {
+      font-size: 13px;
+    }
+
+    .rs-btn {
+      margin-left: auto;
+    }
   }
 
   /* CKEditor inside the studio: keep the editing area a comfortable size and
@@ -326,6 +532,7 @@
     max-height: 320px;
     font-size: 13px;
   }
+
   /* Don't turn the toolbar into a scroll container (overflow-x: auto) — that
      clips CKEditor's dropdown panels (heading, font size/color) so they render
      detached or hidden. CKEditor's built-in item grouping (the "⋮" button)
@@ -334,25 +541,39 @@
   /* ---------- responsive ---------- */
   /* Tablet / narrow drawer: 2 + 1 quick-reply cards */
   @media (max-width: 1100px) {
-    .rs-qgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rs-qgrid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   /* Mobile: stack everything, full-width primary actions */
   @media (max-width: 640px) {
-    .rs-qgrid { grid-template-columns: 1fr; }
+    .rs-qgrid {
+      grid-template-columns: 1fr;
+    }
 
-    .rs-card-head { align-items: flex-start; }
+    .rs-card-head {
+      align-items: flex-start;
+    }
+
     .rs-type-pick {
       margin-left: 0;
       width: 100%;
-      .rs-select { flex: 1; }
+
+      .rs-select {
+        flex: 1;
+      }
     }
 
     .rs-controls {
       flex-direction: column;
       align-items: stretch;
-      .rs-control .rs-select { width: 100%; }
+
+      .rs-control .rs-select {
+        width: 100%;
+      }
     }
+
     .rs-generate-btn,
     .rs-btn--send {
       margin-left: 0;
@@ -372,7 +593,10 @@
     margin: 0;
     font-size: 13px;
     color: #3a4150;
-    b { word-break: break-word; }
+
+    b {
+      word-break: break-word;
+    }
   }
 
   .rs-confirm-preview {
@@ -385,7 +609,14 @@
     font-size: 13px;
     line-height: 1.5;
     color: #14181f;
-    p { margin: 0 0 8px; &:last-child { margin-bottom: 0; } }
+
+    p {
+      margin: 0 0 8px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
   }
 
   .rs-confirm-actions {
@@ -405,13 +636,20 @@
       padding: 7px 14px;
       border-radius: 7px;
       cursor: pointer;
-      &:hover { background: #f4f5f3; }
+
+      &:hover {
+        background: #f4f5f3;
+      }
     }
+
     .rs-btn--send {
       background: #14181f;
       border-color: #14181f;
       color: #fff;
-      &:hover { background: #2a3140; }
+
+      &:hover {
+        background: #2a3140;
+      }
     }
   }
 }

@@ -33,7 +33,18 @@ export const fetchCustomReply = (mailId, { prompt, tone, length, language }) =>
 export const sendReplyOnThread = (sourceId, html) =>
   fetchMethodRequest('POST', 'email-analysis/mail/reply', { sourceId, html });
 
-/** Save HTML as a real draft (app + provider Drafts folder). */
+/** Update an existing draft's content in place (app + provider). */
+export const autosaveReplyDraft = (draftId, html, subject) =>
+  fetchMethodRequest('POST', `email-analysis/drafts/${draftId}/autosave`, {
+    body: html,
+    subject,
+  });
+
+/** Delete a draft everywhere (app + provider Drafts folder). */
+export const deleteReplyDraft = (draftId) =>
+  fetchMethodRequest('DELETE', `email-analysis/drafts/${draftId}`);
+
+/** Create a real draft (app + provider Drafts folder). */
 export const saveReplyDraft = (mail, sourceId, html, subject) => {
   const match = String(mail?.from || '').match(/<([^>]+)>/);
   const toAddr = (match ? match[1] : (String(mail?.from || '').includes('@') ? mail.from : '')).trim();

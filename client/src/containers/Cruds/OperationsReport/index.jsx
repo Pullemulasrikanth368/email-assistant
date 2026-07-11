@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import moment from 'moment';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
-import AiDraftReply from '../CommonComponents/AiDraftReply';
 import ReplyStudio from '../CommonComponents/ReplyStudio/ReplyStudio';
 import useCategoryLabels from '../CommonComponents/useCategoryLabels';
 import MailThread from '../CommonComponents/MailThread';
@@ -66,8 +65,6 @@ const OperationsReport = () => {
   const [briefTime, setBriefTime] = useState('06:00');
   const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
   const [readState, setReadState] = useState({ busy: false, isRead: false });
-  // Reply Studio -> main composer bridge: bumping the nonce inserts the html.
-  const [insertSignal, setInsertSignal] = useState(null);
   // Signal that pushes a live read/unread toggle down to the dashboard so the
   // mails popover highlight updates immediately (no page refresh needed).
   const [readOverride, setReadOverride] = useState(null);
@@ -178,7 +175,6 @@ const OperationsReport = () => {
   const onOpenSource = useCallback(async (sourceId) => {
     if (!sourceId) return;
     setReadState({ busy: false, isRead: false });
-    setInsertSignal(null);
     setEmailDrawer({ visible: true, loading: true, mail: null, sourceId });
     try {
       const res = await fetchMethodRequest('GET', `email-analysis/mails/by-source/${encodeURIComponent(sourceId)}`);
@@ -476,10 +472,6 @@ const OperationsReport = () => {
   const renderEmailDrawer = () => {
     const { loading: drawerLoading, mail, sourceId } = emailDrawer;
     const { risk, triage } = findAiFlag(sourceId);
-    // Open to-do linked to this email — switches the draft panel's actions to
-    // "Mark as complete & send" / "Send only".
-    const todoForSource = (activeReport?.brief?.todoList || [])
-      .find((t) => t.sourceId === sourceId && t.status !== 'Completed') || null;
 
     return (
       <div className="operations-report orm-drawer">
@@ -558,24 +550,14 @@ const OperationsReport = () => {
             )}
 
             <div className="orm-reply-section">
-              {/* Quick Replies / Detailed Reply / Custom AI Reply Generator.
-                  "Insert into Reply" pushes content into the composer below. */}
+              {/* Quick Replies + the Detailed Reply workspace (custom AI
+                  generation folded in). The Detailed Reply editor is the
+                  composer — it autosaves to the mail's single draft. */}
               <ReplyStudio
-                mail={mail}
-                sourceId={mail.providerMessageId || sourceId}
-                onInsert={(html) => setInsertSignal((p) => ({ html, nonce: (p?.nonce || 0) + 1 }))}
-              />
-              <div className="orm-composer-label">Reply composer</div>
-              <AiDraftReply
                 key={mail._id}
-                mailId={mail._id}
-                sourceId={mail.providerMessageId || sourceId}
                 mail={mail}
-                initialDraft={mail.draft}
-                todo={todoForSource}
-                reportId={activeReport?._id}
-                onCompleted={refreshActiveReport}
-                insertSignal={insertSignal}
+                sourceId={mail.providerMessageId || sourceId}
+                onSent={refreshActiveReport}
               />
             </div>
           </>

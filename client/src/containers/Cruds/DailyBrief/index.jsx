@@ -9,7 +9,6 @@ import config from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import { BriefDashboard, scoreColor } from '../OperationsReport/BriefDashboard';
 import ReplyStudio from '../CommonComponents/ReplyStudio/ReplyStudio';
-import AiDraftReply from '../CommonComponents/AiDraftReply';
 import MailThread from '../CommonComponents/MailThread';
 import '../OperationsReport/OperationsReport.scss';
 
@@ -22,8 +21,6 @@ const DailyBrief = () => {
 
   // Email-detail drawer (screen 04)
   const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
-  // Reply Studio "Insert into Reply" -> pushes content into the composer below.
-  const [insertSignal, setInsertSignal] = useState(null);
   const [readState, setReadState] = useState({ busy: false, isRead: false });
   // Signal that pushes a live read/unread toggle down to the dashboard so the
   // mails popover highlight updates immediately (no page refresh needed).
@@ -168,10 +165,6 @@ const DailyBrief = () => {
   const renderEmailDrawer = () => {
     const { loading: dl, mail, sourceId } = emailDrawer;
     const { risk, triage } = findAiFlag(sourceId);
-    // Open to-do linked to this email — switches the draft panel's actions to
-    // "Mark as complete & send" / "Send only".
-    const todoForSource = (report?.brief?.todoList || [])
-      .find((t) => t.sourceId === sourceId && t.status !== 'Completed') || null;
     return (
       <div className="operations-report orm-drawer">
         <div className="orm-drawer-head">
@@ -223,27 +216,16 @@ const DailyBrief = () => {
             {/* Complete conversation thread (older messages collapse) */}
             <MailThread mail={mail} />
 
-            {/* Quick Replies / Detailed Reply / Custom AI Reply Generator +
-                the draft composer — needs-reply mails arrive with an
-                auto-created draft, shown pre-loaded. "Insert into Reply"
-                pushes content into the composer below. */}
+            {/* Quick Replies + the Detailed Reply workspace (custom AI
+                generation folded in). Needs-reply mails arrive with an
+                auto-created draft — it's resumed in the Detailed Reply
+                editor, which autosaves to that single draft. */}
             <div className="orm-reply-section">
               <ReplyStudio
-                mail={mail}
-                sourceId={mail.providerMessageId || sourceId}
-                onInsert={(html) => setInsertSignal((p) => ({ html, nonce: (p?.nonce || 0) + 1 }))}
-              />
-              <div className="orm-composer-label">Reply composer</div>
-              <AiDraftReply
                 key={mail._id}
-                mailId={mail._id}
-                sourceId={mail.providerMessageId || sourceId}
                 mail={mail}
-                initialDraft={mail.draft}
-                todo={todoForSource}
-                reportId={report?._id}
-                onCompleted={() => fetchReport(date)}
-                insertSignal={insertSignal}
+                sourceId={mail.providerMessageId || sourceId}
+                onSent={() => fetchReport(date)}
               />
             </div>
 

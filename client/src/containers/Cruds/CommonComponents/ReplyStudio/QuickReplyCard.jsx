@@ -11,7 +11,7 @@ const TYPE_META = {
  * One small quick-reply editor. `type` (yes/no/maybe) drives the icon and
  * color; `label` is the AI's contextual button label for this mail (e.g.
  * "Accept", "Will attend", "Tentative") and falls back to Yes/No/Maybe.
- * Text stays editable; actions: Copy, Insert into composer, Regenerate, Send.
+ * Text stays editable; actions: Copy, Regenerate, Send.
  */
 const QuickReplyCard = ({
   type,
@@ -19,7 +19,6 @@ const QuickReplyCard = ({
   value,
   onChange,
   onCopy,
-  onInsert,
   onRegenerate,
   onSend,
   loading = false,
@@ -58,7 +57,6 @@ const QuickReplyCard = ({
       <ReplyActions
         compact
         onCopy={onCopy}
-        onInsert={onInsert}
         onRegenerate={onRegenerate}
         onSend={onSend}
         busy={busy || loading}

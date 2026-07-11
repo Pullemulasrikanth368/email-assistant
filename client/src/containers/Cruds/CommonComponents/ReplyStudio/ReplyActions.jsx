@@ -1,9 +1,9 @@
-import { Copy, RefreshCw, CornerDownLeft, Save, Send } from 'lucide-react';
+import { Copy, RefreshCw, Send } from 'lucide-react';
 
 /**
  * Shared action row for a reply editor.
  * Renders only the actions whose handler is provided:
- *   onRegenerate, onCopy, onSaveDraft, onInsert, onSend
+ *   onRegenerate, onCopy, onSend
  * `compact` renders icon-only buttons (quick-reply cards); the full row shows
  * labels. Send is always the primary action and is disabled when the content
  * is empty (`sendDisabled`) or anything is in flight (`busy`).
@@ -11,12 +11,9 @@ import { Copy, RefreshCw, CornerDownLeft, Save, Send } from 'lucide-react';
 const ReplyActions = ({
   onRegenerate,
   onCopy,
-  onSaveDraft,
-  onInsert,
   onSend,
   busy = false,
   regenerating = false,
-  saving = false,
   sending = false,
   sendDisabled = false,
   compact = false,
@@ -46,32 +43,6 @@ const ReplyActions = ({
       >
         <Copy size={13} />
         {!compact && <span>Copy</span>}
-      </button>
-    )}
-    {onSaveDraft && (
-      <button
-        type="button"
-        className="rs-btn"
-        onClick={onSaveDraft}
-        disabled={busy || sendDisabled}
-        title="Save this reply as a draft"
-        aria-label="Save as draft"
-      >
-        {saving ? <i className="pi pi-spin pi-spinner" /> : <Save size={13} />}
-        {!compact && <span>Save as Draft</span>}
-      </button>
-    )}
-    {onInsert && (
-      <button
-        type="button"
-        className="rs-btn rs-btn--insert"
-        onClick={onInsert}
-        disabled={busy || sendDisabled}
-        title="Insert this reply into the main reply composer"
-        aria-label="Insert into reply composer"
-      >
-        <CornerDownLeft size={13} />
-        <span>{compact ? 'Insert' : 'Insert into Reply'}</span>
       </button>
     )}
     {onSend && (

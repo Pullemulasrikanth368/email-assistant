@@ -8,21 +8,20 @@ const TYPES = ['yes', 'no', 'maybe'];
 
 /**
  * "Quick Replies" card — three short editable replies (Yes / No / Maybe)
- * generated in one AI call and cached on the mail. Each card can be copied,
- * inserted into the main composer, regenerated individually, or sent (the
- * parent owns the send confirmation).
+ * generated in one AI call and cached on the mail. Each card is edited in
+ * place, and can be copied, regenerated individually, or sent (the parent
+ * owns the send confirmation).
  *
  * The AI also returns a contextual button label per option (Accept / Reject,
  * Will attend / Unable to attend, …) which replaces the generic Yes/No/Maybe
  * and is reported up via `onLabels` so other sections can reuse it.
  *
  * @param mailId   EmailAnalysisMail._id
- * @param onInsert (text) => void — push plain text into the main composer
  * @param onSend   (text, label) => void — parent confirms + sends
  * @param onLabels (labels) => void — { yes, no, maybe } contextual labels
  * @param sendingType currently-sending type ('yes'|'no'|'maybe'|null)
  */
-const QuickRepliesSection = ({ mailId, onInsert, onSend, onLabels, sendingType = null }) => {
+const QuickRepliesSection = ({ mailId, onSend, onLabels, sendingType = null }) => {
   const [texts, setTexts] = useState({ yes: '', no: '', maybe: '' });
   const [labels, setLabels] = useState({ yes: '', no: '', maybe: '' });
   const [loading, setLoading] = useState(true);
@@ -118,7 +117,6 @@ const QuickRepliesSection = ({ mailId, onInsert, onSend, onLabels, sendingType =
               busy={!!regenType || !!sendingType}
               onChange={(v) => setTexts((t) => ({ ...t, [type]: v }))}
               onCopy={() => copy(type)}
-              onInsert={() => onInsert(texts[type])}
               onRegenerate={() => regenerate(type)}
               onSend={() => onSend(texts[type], type)}
             />
