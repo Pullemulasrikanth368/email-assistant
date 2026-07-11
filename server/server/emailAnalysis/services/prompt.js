@@ -135,11 +135,15 @@ ANALYSIS RULES:
     - "title": a short headline for the point/category (e.g. "Google security alerts", "Payment issue").
     - "summary": 1-2 complete, user-readable sentences with enough concrete info (who, what, deadline, what to do) that the reader doesn't need to open the emails. Do not truncate or end with an ellipsis.
     - "mails": [{ "sourceId", "subject", "from" }] — one entry per email backing this point, so the UI can link each mail beside the point. Never leave it empty.
-13. categorySummaries: group the emails by their "category" field (emails with no category go under "Other"). For EACH distinct category produce { "category", "count", "summary", "keyPoints", "mails" }:
+13. categorySummaries: group the emails by their "category" field (emails with no category go under "Other"). For EACH distinct category produce { "category", "count", "summary", "keyPoints", "mails", "groups" }:
     - "summary": 2-3 COMPLETE sentences covering what the emails in that category were about — who they're from, the common theme, and anything needing attention. Write full, complete sentences; never truncate or end with an ellipsis. Format it with ONLY these inline HTML tags so the UI can style it: <b>…</b> around key entities (people, companies, batch/order/invoice numbers, dates, amounts), <mark>…</mark> around phrases the reader should notice, and <span class="danger">…</span> around genuinely urgent or risky words (e.g. recall, failure, deviation, overdue, urgent, breach, complaint, shortage, escalation). Use tags sparingly — highlight words or short phrases, never whole sentences; no other tags and no attributes except class="danger".
     - "keyPoints": 0-8 short phrases naming the concrete items in the category (e.g. "CAPA submission <span class="danger">overdue</span>", "Batch <b>B-102</b> deviation", "Audit on <b>Jul 12</b>"). Same inline tags allowed. Do not truncate phrases in the middle or make them too short to read. Leave the array empty for trivial categories like newsletters. DEDUPLICATE: two emails about the same thing produce ONE key point.
     - The summary and keyPoints must NOT repeat each other: the summary describes the overall theme and what needs attention; keyPoints name the individual items. Never enumerate subject lines inside the summary.
     - "mails": [{ "sourceId", "subject", "from" }] — one entry for EVERY email in that category, so the UI can link each mail under the summary.
+    - "groups": REQUIRED for EVERY category that has at least one email — never omit it and never return an empty array. This applies to ALL categories equally (Personal, Travel, newsletters, promotions, Other — no exceptions). Cluster the SAME category's emails into topic groups (Gmail-style) by actually READING each email's body/content, not just its subject line:
+        * "group_title": a SHORT bold headline for the cluster describing what the emails are actually about (e.g. "OpenAI API Funding", "Queens Sightseeing Discounts", "Flight Onboard Details"). Base it on the email content, not a generic label.
+        * "summary": 1-2 COMPLETE, easy-to-understand sentences that MERGE the content of ALL emails in the group so the reader understands them without opening any — preserve the concrete details from the bodies (amounts, dates, names, confirmation/booking numbers, places). Never truncate or end with an ellipsis. Same inline tags allowed as "summary" above (<b>, <mark>, <span class="danger">); no other tags.
+        * "email_ids": [sourceId, ...] — the sourceIds (from this category's "mails") backing this group. EVERY email in the category must appear in EXACTLY ONE group; never leave a mail out and never place a mail in two groups. GROUP related emails together (same topic / same sender thread / same subject) into ONE group; a genuinely unrelated email is its own single-email group (title + one-line summary of its content + its id).
     One entry per category — never skip a category that has at least one email. Do NOT use these HTML tags anywhere else in the output — plain text everywhere except categorySummaries.
 
 COMPLETENESS REQUIREMENTS — apply to every required output key; an empty array is acceptable ONLY when no email contains any relevant material, never for brevity:
@@ -159,7 +163,7 @@ Return ONLY a valid JSON object (no markdown) with EXACTLY these keys:
   "narrative": string,
   "narrativeKeyPoints": [{ "title": string, "summary": string, "mails": [{ "sourceId": string, "subject": string, "from": string }] }],
   "triage": [{ "sourceId": string, "tier": "Critical"|"Important"|"Low", "reason": string, "subject": string, "from": string, "summary": string, "matchedKeywords": [string] }],
-  "categorySummaries": [{ "category": string, "count": number, "summary": string, "keyPoints": [string], "mails": [{ "sourceId": string, "subject": string, "from": string }] }],
+  "categorySummaries": [{ "category": string, "count": number, "summary": string, "keyPoints": [string], "mails": [{ "sourceId": string, "subject": string, "from": string }], "groups": [{ "group_title": string, "summary": string, "email_ids": [string] }] }],
   "decisionQueue": [{ "title": string, "why": string, "deadline": string, "sourceId": string }],
   "risks": [{ "category": string, "summary": string, "likelihood": number, "impact": number, "riskScore": number, "clock": string, "affectedArea": string, "mitigation": string, "trend": "New"|"Escalating"|"Stable"|"Cooling", "sourceId": string }],
   "todoList": [{ "task": string, "deadline": string, "status": "Open", "sourceId": string }],
@@ -176,6 +180,43 @@ ${JSON.stringify(yesterdayRisks || [])}
 
 INBOX (${safeEmails.length} emails):
 ${JSON.stringify(safeEmails)}
+`;
+}
+
+/**
+ * Focused prompt that groups ONE category's emails into Gmail-style topic
+ * groups by reading their bodies. Used as a reliable fallback when the main
+ * brief prompt doesn't emit per-category "groups" (the mega-prompt often drops
+ * that nested field). Runs through the SAME aiClient (OpenAI/Ollama).
+ *
+ * @param {string} categoryName
+ * @param {Array}  emails - [{ id, from, subject, body }]
+ * @returns {string} prompt (expects a JSON object back: { groups: [...] })
+ */
+export function buildCategoryGroupPrompt(categoryName = 'Other', emails = []) {
+  const safe = emails.map((e) => ({
+    id: e.id,
+    from: e.from || '',
+    subject: e.subject || '',
+    body: String(e.body || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000),
+  }));
+  return `You are grouping the emails of a SINGLE inbox category ("${categoryName}") into topic groups, Gmail-style, by READING each email's body — not just its subject line.
+
+RULES:
+- Cluster emails about the SAME topic/thread/subject/bill/order/trip/account into ONE group even when their subject lines differ (e.g. "Electricity Bill for June" and "Electricity Bill for July" are the SAME topic → one group; all invoices from one vendor → one group).
+- Keep a genuinely unrelated email as its own single-email group.
+- EVERY email below must appear in EXACTLY ONE group; never drop one and never place one in two groups.
+
+For each group produce:
+- "group_title": a SHORT headline describing what the emails are about, based on their content.
+- "summary": 1-2 COMPLETE, easy-to-understand sentences that MERGE the content of ALL emails in the group so the reader understands them without opening any. Preserve the concrete details from the bodies — when there are several amounts/prices/dates state EACH one (e.g. both bill amounts). Never truncate or end with an ellipsis. You MAY use only these inline tags: <b>…</b>, <mark>…</mark>, <span class="danger">…</span>.
+- "email_ids": the "id" values of the emails in this group.
+
+Return ONLY valid JSON of EXACTLY this shape (no markdown, no extra keys):
+{ "groups": [ { "group_title": string, "summary": string, "email_ids": [string] } ] }
+
+EMAILS (${safe.length}):
+${JSON.stringify(safe)}
 `;
 }
 

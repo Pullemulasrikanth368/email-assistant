@@ -1728,6 +1728,42 @@
       background: linear-gradient(to bottom, var(--cat-soft, var(--paper)), rgba(255, 255, 255, 0));
     }
 
+    /* "Mark all as read" — pinned to the right of the category badge/count. */
+    .orm-cat-markall {
+      margin-left: auto;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .02em;
+      color: var(--cat-color, var(--muted));
+      background: #fff;
+      border: 1px solid var(--cat-border, var(--line));
+      border-radius: 999px;
+      padding: 3px 9px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s ease, box-shadow .15s ease, opacity .15s ease;
+
+      svg {
+        width: 12px;
+        height: 12px;
+      }
+
+      &:hover:not(:disabled) {
+        background: var(--cat-soft, var(--paper));
+        box-shadow: 0 1px 3px rgba(23, 43, 77, .10);
+      }
+
+      &:disabled {
+        cursor: default;
+        opacity: .45;
+      }
+    }
+
     .cat {
       flex-shrink: 0;
       font-weight: 650;
@@ -1764,7 +1800,8 @@
 
     /* Inline emphasis the AI is allowed to emit in summaries/key points. */
     .txt,
-    .orm-cat-kps {
+    .orm-cat-kps,
+    .orm-cat-group-text {
 
       b,
       strong {
@@ -1820,21 +1857,142 @@
       }
     }
 
-    /* Bare card (summary only, key points hidden/absent) still gets bottom air. */
+    /* Bare card (summary only, groups/key points hidden/absent) still gets bottom air. */
     .txt:last-child {
       padding-bottom: 10px;
     }
 
-    /* "Mails (n)" trigger pinned to the card's bottom — opens the shadcn
-       popover (styled with Tailwind utility classes directly in the JSX). */
-    .orm-cat-mails-trigger-row {
-      margin: 0 12px 10px;
-      padding-top: 8px;
-      border-top: 1px dashed var(--line);
+    /* Gmail-style topic groups: bold title – merged summary, then a
+       "From: link · link" row with a per-mail read toggle beside each link. */
+    .orm-cat-groups {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 8px 12px 4px;
+
+      /* More than four points → cap the height and scroll within the card. */
+      &.scrollable {
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 8px;
+        scrollbar-width: thin;
+
+        &::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background: var(--line);
+          border-radius: 3px;
+        }
+
+        &::-webkit-scrollbar-thumb:hover {
+          background: var(--cat-accent, var(--muted));
+        }
+      }
     }
 
-    .orm-kp-mails-toggle {
-      margin: 0;
+    .orm-cat-group + .orm-cat-group {
+      border-top: 1px dashed var(--line);
+      padding-top: 8px;
+    }
+
+    .orm-cat-group-text {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .orm-cat-group-title {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .orm-cat-group-dash {
+      color: var(--muted);
+    }
+
+    .orm-cat-group-from {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 2px 4px;
+      margin-top: 4px;
+      font-size: 11.5px;
+
+      .lbl {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+        color: var(--muted);
+        margin-right: 2px;
+      }
+    }
+
+    .orm-cat-fromitem {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    /* Unread = accent-coloured, semibold; read = dimmed, normal weight. */
+    .orm-cat-maillink {
+      cursor: pointer;
+      font-weight: 650;
+      color: var(--cat-color, var(--accent));
+      border-bottom: 1px solid transparent;
+      transition: border-color .15s ease, opacity .15s ease;
+
+      &:hover {
+        border-bottom-color: currentColor;
+      }
+
+      &.read {
+        font-weight: 500;
+        color: var(--muted);
+        opacity: .8;
+      }
+    }
+
+    /* Per-point "mark as read" toggle, beside the mail links. */
+    .orm-cat-groupread {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 4px;
+      border: 0;
+      background: transparent;
+      padding: 1px;
+      cursor: pointer;
+      color: var(--cat-color, var(--muted));
+      opacity: .7;
+      transition: opacity .15s ease;
+
+      svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+
+    .orm-cat-sep {
+      color: var(--line);
+      margin: 0 1px;
+    }
+
+    /* Compact footer: total emails in the category (replaces "Mails (n)"). */
+    .orm-cat-foot {
+      margin: 6px 12px 10px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--line);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: .02em;
+      color: var(--muted);
     }
   }
 

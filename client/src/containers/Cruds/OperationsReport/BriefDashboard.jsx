@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
-import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from '@/components/ui/popover';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import DOMPurify from 'dompurify';
 import {
-  Info, Mail, MailCheck, MailMinus, MailOpen, CalendarClock, ListChecks, History, ClipboardList, ClipboardCheck,
+  Info, Mail, MailCheck, MailOpen, CalendarClock, ListChecks, History, ClipboardList, ClipboardCheck,
   AlertTriangle, HelpCircle, CheckCircle2, Users, FileText,
 } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
@@ -272,6 +271,47 @@ const categoryChipStyle = (category) => {
   let hash = 7;
   for (let i = 0; i < name.length; i += 1) hash = ((hash * 31) + name.charCodeAt(i)) >>> 0;
   return CATEGORY_CHIP_STYLES[hash % CATEGORY_CHIP_STYLES.length];
+};
+
+// Strip reply/forward prefixes ("Re:", "Fwd:", "Fw:", localised variants) so
+// a reply and its original share one conversation key — like Gmail threading.
+const normalizeSubject = (subject = '') => {
+  let s = String(subject).trim();
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/^\s*(re|fwd?|fw|aw|sv|antw|wg)\s*:\s*/i, '');
+  } while (s !== prev);
+  return s.replace(/\s+/g, ' ').trim();
+};
+
+// Fallback grouping (AI disconnected / older reports with no AI groups): cluster
+// a category's mails the way Gmail groups a conversation — by thread when we
+// have a threadId, otherwise by normalized subject. Related mails (same topic /
+// reply chain) collapse into ONE point; unrelated mails stay separate. Without
+// AI we can't write a merged prose summary, so the point title IS the topic
+// (subject) and each mail is a clickable Mail 1..N.
+const buildConversationGroups = (mails = []) => {
+  const map = new Map();
+  const order = [];
+  mails.forEach((m) => {
+    const base = normalizeSubject(m.subject || '');
+    const key = m.threadId
+      ? `t:${m.threadId}`
+      : `s:${(base || String(m.sourceId || '')).toLowerCase()}`;
+    if (!map.has(key)) {
+      map.set(key, { title: base || (m.subject || '(no subject)'), mails: [] });
+      order.push(key);
+    }
+    map.get(key).mails.push(m);
+  });
+  return order.map((k) => {
+    const g = map.get(k);
+    // No AI here to merge the bodies into a readable summary, so the point is
+    // just the topic (subject) + its clickable Mail 1..N. The merged prose
+    // summary comes from the AI when the brief is generated with AI connected.
+    return { group_title: g.title, summary: '', mails: g.mails };
+  });
 };
 
 const TRIAGE_MATRIX_POSITION = {
@@ -585,22 +625,27 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     const ids = [...new Set((sourceIds || []).filter(Boolean))]
       .filter((id) => (isRead ? !readSourceIds.has(id) : readSourceIds.has(id)));
     if (!ids.length) return;
+    // Optimistic: flip the read highlight immediately, then roll back to the
+    // prior state if the provider write fails.
+    const apply = (read) => setReadSourceIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => { if (read) next.add(id); else next.delete(id); });
+      return next;
+    });
+    apply(isRead);
     try {
       const res = await fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
         messageIds: ids,
         isRead,
       });
       if (res?.respCode) {
-        setReadSourceIds((prev) => {
-          const next = new Set(prev);
-          ids.forEach((id) => { if (isRead) next.add(id); else next.delete(id); });
-          return next;
-        });
         showToasterMessage(`Marked ${ids.length} mail${ids.length > 1 ? 's' : ''} as ${isRead ? 'read' : 'unread'}${label ? ` for ${label}` : ''}`, 'success');
       } else {
+        apply(!isRead); // rollback
         showToasterMessage(res?.errorMessage || `Could not mark as ${isRead ? 'read' : 'unread'}`, 'error');
       }
     } catch {
+      apply(!isRead); // rollback
       showToasterMessage(`Could not mark as ${isRead ? 'read' : 'unread'}`, 'error');
     }
   };
@@ -814,118 +859,122 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
               '--cat-tint': chip.background,
               '--cat-border': chip.borderColor,
             };
-            const mailsTrigger = mails.length > 0 && (
-              <div className="orm-cat-mails-trigger-row">
-                <PopoverTrigger asChild>
-                  <button type="button" className="orm-kp-mails-toggle border-0 bg-transparent p-0">
-                    <Mail className="h-3 w-3" />
-                    Mails <span className="n">({mails.length})</span>
-                  </button>
-                </PopoverTrigger>
-              </div>
-            );
+            const label = catLabel(c.category) || 'Other';
+            const count = c.count != null ? c.count : mails.length;
 
-            const card = (
-              <div className="orm-cat-summary" style={cardStyle}>
-                <div className="orm-cat-head">
-                  <span className="orm-chip cat">{catLabel(c.category) || 'Other'}</span>
-                  {(c.count != null || mails.length > 0) && (
-                    <span className="cnt">{c.count != null ? c.count : mails.length}</span>
-                  )}
-                </div>
-                <div className="txt" dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(c.summary) }} />
-                {(c.keyPoints || []).length > 0 && (
-                  <ul className={`orm-cat-kps${(c.keyPoints || []).length > 5 ? ' two-col' : ''}`}>
-                    {(c.keyPoints || []).map((k, j) => (
-                      <li key={j} dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(k) }} />
-                    ))}
-                  </ul>
-                )}
-                {mailsTrigger}
-              </div>
-            );
+            // Topic groups: prefer the server-validated AI groups; when absent
+            // (older reports, or AI disconnected) group the category's own mails
+            // by sender, so every card renders the same full-width, clickable
+            // points instead of a flat bullet list.
+            const groups = (Array.isArray(c.groups) && c.groups.length)
+              ? c.groups
+              : buildConversationGroups(mails);
+            // In the fallback the category summary is just boilerplate
+            // ("N email(s) from …. Reconnect AI …") — hide it.
+            const showSummary = c.summary && !/Reconnect AI/i.test(c.summary);
 
-            if (!mails.length) return <div key={i}>{card}</div>;
+            // "Mark all as read" for the whole category.
+            const allIds = mails.map((m) => m.sourceId).filter(Boolean);
+            const allRead = allIds.length > 0 && allIds.every((id) => readSourceIds.has(id));
 
             return (
-              <Popover key={i}>
-                {card}
-                <PopoverContent
-                  align="start"
-                  sideOffset={10}
-                  className="w-80 max-w-[90vw] border-0 bg-transparent p-0 shadow-none"
-                >
-                  <div
-                    className="overflow-hidden rounded-xl shadow-xl ring-1 ring-black/5"
-                    style={{ borderTop: `3px solid ${chip.accent}` }}
-                  >
-                    <div className="flex items-center justify-between gap-2 px-3.5 py-2.5" style={{ background: chip.soft }}>
-                      <span className="text-[13px] font-semibold" style={{ color: chip.color }}>{catLabel(c.category) || 'Other'}</span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10.5px] font-medium" style={{ color: chip.color }}>
-                          {mails.length}
-                        </span>
-                        <button
-                          type="button"
-                          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-colors hover:bg-black/10"
-                          title="Mark all as read"
-                          aria-label="Mark all as read"
-                          onClick={() => markGroupRead(mails.map((m) => m.sourceId), catLabel(c.category) || 'Other')}
-                        >
-                          <MailCheck className="h-3.5 w-3.5" style={{ color: chip.color }} />
-                        </button>
-                      </span>
-                    </div>
-                    <div className="max-h-72 divide-y divide-border/60 overflow-y-auto bg-popover">
-                      {mails.map((m, j) => {
-                        const isRead = readSourceIds.has(m.sourceId);
-                        const RowIcon = isRead ? MailOpen : Mail;
-                        const fromName = (m.from || '').replace(/<[^>]*>/g, '').trim();
-                        return (
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            key={j}
-                            onClick={() => onOpenSource(m.sourceId)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') onOpenSource(m.sourceId); }}
-                            className={`flex w-full cursor-pointer items-start gap-2.5 border-0 px-3.5 py-2.5 text-left transition-colors hover:bg-accent/50${isRead ? ' bg-transparent' : ''}`}
-                            style={isRead ? undefined : { background: chip.background, boxShadow: `inset 3px 0 0 ${chip.accent}` }}
-                          >
-                            <span
-                              className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full${isRead ? ' bg-muted' : ''}`}
-                              style={isRead ? undefined : { background: chip.soft }}
-                            >
-                              <RowIcon className={`h-3 w-3${isRead ? ' text-muted-foreground' : ''}`} style={isRead ? undefined : { color: chip.color }} />
-                            </span>
-                            <span className="min-w-0 flex-1 pt-0.5">
-                              <span className={`block truncate text-[12.5px] leading-tight ${isRead ? 'font-medium text-muted-foreground' : 'font-semibold text-foreground'}`}>
-                                {m.subject || '(no subject)'}
-                              </span>
-                              {fromName && (
-                                <span className="mt-1 block truncate text-[11px] text-muted-foreground">
-                                  {fromName}
-                                </span>
-                              )}
-                            </span>
-                            <button
-                              type="button"
-                              className="mt-0.5 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-colors hover:bg-black/10"
-                              title={isRead ? 'Mark as unread' : 'Mark as read'}
-                              aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
-                              onClick={(e) => { e.stopPropagation(); markGroupRead([m.sourceId], catLabel(c.category) || 'Other', !isRead); }}
-                            >
-                              {isRead
-                                ? <MailMinus className="h-3.5 w-3.5 text-muted-foreground" />
-                                : <MailCheck className="h-3.5 w-3.5" style={{ color: chip.color }} />}
-                            </button>
+              <div className="orm-cat-summary" style={cardStyle} key={i}>
+                <div className="orm-cat-head">
+                  <span className="orm-chip cat">{label}</span>
+                  {(c.count != null || mails.length > 0) && <span className="cnt">{count}</span>}
+                  {allIds.length > 0 && (
+                    <button
+                      type="button"
+                      className="orm-cat-markall"
+                      title={allRead ? 'All mails read' : 'Mark all as read'}
+                      aria-label="Mark all as read"
+                      disabled={allRead}
+                      onClick={() => markGroupRead(allIds, label)}
+                    >
+                      <MailCheck className="h-3 w-3" />
+                      <span>Mark all read</span>
+                    </button>
+                  )}
+                </div>
+
+                {showSummary && (
+                  <div className="txt" dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(c.summary) }} />
+                )}
+
+                {groups.length > 0 && (
+                  <div className={`orm-cat-groups${groups.length > 4 ? ' scrollable' : ''}`}>
+                    {groups.map((g, gi) => {
+                      const gMails = g.mails || [];
+                      const gIds = gMails.map((m) => m.sourceId).filter(Boolean);
+                      const gAllRead = gIds.length > 0 && gIds.every((id) => readSourceIds.has(id));
+                      return (
+                        <div className="orm-cat-group" key={gi}>
+                          <div className="orm-cat-group-text">
+                            {g.group_title && (
+                              <span
+                                className="orm-cat-group-title"
+                                dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(g.group_title) }}
+                              />
+                            )}
+                            {g.summary && (
+                              <>
+                                {g.group_title && <span className="orm-cat-group-dash"> – </span>}
+                                <span
+                                  className="orm-cat-group-summary"
+                                  dangerouslySetInnerHTML={{ __html: sanitizeSummaryHtml(g.summary) }}
+                                />
+                              </>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
+                          {gMails.length > 0 && (
+                            <div className="orm-cat-group-from">
+                              <span className="lbl">From:</span>
+                              {gMails.map((m, mi) => {
+                                const isRead = readSourceIds.has(m.sourceId);
+                                const fromName = (m.from || '').replace(/<[^>]*>/g, '').trim();
+                                // Sequential "Mail 1 · Mail 2 · …" labels; the real
+                                // sender/subject stays in the hover tooltip.
+                                const hover = [fromName, m.subject].filter(Boolean).join(' — ') || `Mail ${mi + 1}`;
+                                return (
+                                  <span className="orm-cat-fromitem" key={mi}>
+                                    <span
+                                      className={`orm-cat-maillink${isRead ? ' read' : ''}`}
+                                      role="button"
+                                      tabIndex={0}
+                                      title={hover}
+                                      onClick={() => onOpenSource(m.sourceId)}
+                                      onKeyDown={(e) => { if (e.key === 'Enter') onOpenSource(m.sourceId); }}
+                                    >
+                                      Mail {mi + 1}
+                                    </span>
+                                    {mi < gMails.length - 1 && <span className="orm-cat-sep">·</span>}
+                                  </span>
+                                );
+                              })}
+                              {/* Per-point mark-as-read: marks every mail in this point. */}
+                              {gIds.length > 0 && (
+                                <button
+                                  type="button"
+                                  className="orm-cat-groupread"
+                                  title={gAllRead ? 'Mark as unread' : 'Mark as read'}
+                                  aria-label={gAllRead ? 'Mark as unread' : 'Mark as read'}
+                                  onClick={() => markGroupRead(gIds, label, !gAllRead)}
+                                >
+                                  {gAllRead ? <MailOpen className="h-3.5 w-3.5" /> : <MailCheck className="h-3.5 w-3.5" />}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <PopoverArrow width={16} height={8} style={{ fill: chip.soft }} className="drop-shadow-sm" />
-                </PopoverContent>
-              </Popover>
+                )}
+
+                {mails.length > 0 && (
+                  <div className="orm-cat-foot">{count} source{count === 1 ? '' : 's'}</div>
+                )}
+              </div>
             );
           })}
         </div>
