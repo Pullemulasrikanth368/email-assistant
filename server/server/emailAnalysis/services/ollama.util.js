@@ -13,7 +13,7 @@ import axios from "axios";
 import config from "../../config/config";
 
 const BASE = String(config.ollamaUrl || "http://127.0.0.1:11434").replace(/\/+$/, "");
-const MODEL = config.ollamaModel || "gpt-oss:120b-cloud";
+const MODEL =  "gpt-oss:120b-cloud" || config.ollamaModel;
 const TIMEOUT_MS = 300000;
 
 const JSON_SYSTEM =
@@ -52,8 +52,11 @@ async function chat(messages, { json = false, temperature = json ? 0 : 0.4 } = {
 
   const endpoint = `${BASE}/api/chat`;
   console.log(`[Ollama] POST ${endpoint} (model=${MODEL}, json=${json})`);
+  const startedAt = Date.now();
   const { data } = await axios.post(endpoint, body, { timeout: TIMEOUT_MS });
-  return data?.message?.content || "";
+  const content = data?.message?.content || "";
+  console.log(`[Ollama] response received in ${Date.now() - startedAt}ms (${content.length} chars)`);
+  return content;
 }
 
 /** Log full transport detail so 4xx/5xx from the model endpoint are diagnosable. */

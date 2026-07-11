@@ -1,6 +1,6 @@
 /**@Engine - single AI call that turns an inbox into a structured brief */
 import aiClient from "./aiClient";
-import { buildBriefPrompt } from "./prompt";
+import { buildBriefPrompt, buildCategoryGroupPrompt } from "./prompt";
 import sampleBrief from "./sampleBrief";
 
 // Keys every brief must expose so the UI never breaks on a partial response.
@@ -35,7 +35,159 @@ export function normalizeBrief(brief) {
     const riskScore = Number(r.riskScore) || likelihood * impact;
     return { ...r, likelihood, impact, riskScore };
   });
+  out.categorySummaries = out.categorySummaries.map((c) => ({
+    ...c,
+    groups: normalizeCategoryGroups(c),
+  }));
   return out;
+}
+
+/**
+ * Validate the AI's per-category topic groups so the card never breaks.
+ *
+ * Contract enforced (independent of what the model returned):
+ *   - a group only references mails that actually belong to the category;
+ *   - every mail appears in EXACTLY ONE group (dedup across groups);
+ *   - when the model DID return groups but missed some mails, each missed mail
+ *     becomes its own single-mail group;
+ *   - when the model returned NO usable groups (absent / malformed, or the
+ *     AI-disconnected fallback brief), return [] so the client renders the flat
+ *     keyPoints list — i.e. groups are never synthesised from nothing.
+ *
+ * Returns a normalized array of { group_title, summary, mails:[{sourceId,subject,from}] }.
+ * The mail objects are copied from the category's own `mails` so sourceIds are
+ * always real and link-navigable.
+ */
+export function normalizeCategoryGroups(category = {}) {
+  const mails = Array.isArray(category.mails) ? category.mails : [];
+  if (!mails.length) return [];
+
+  const rawGroups = Array.isArray(category.groups) ? category.groups : [];
+  // No groups from the model → flat-list fallback on the client.
+  if (!rawGroups.length) return [];
+
+  // Index the category's real mails by sourceId — the single source of truth.
+  const byId = new Map();
+  mails.forEach((m) => { if (m && m.sourceId != null) byId.set(String(m.sourceId), m); });
+
+  const used = new Set();
+  const groups = [];
+
+  for (const g of rawGroups) {
+    if (!g || typeof g !== "object") continue;
+    const ids = Array.isArray(g.email_ids) ? g.email_ids : [];
+    // Keep only ids that map to a real, not-yet-claimed mail in this category.
+    const groupMails = [];
+    for (const id of ids) {
+      const key = String(id);
+      if (byId.has(key) && !used.has(key)) {
+        used.add(key);
+        groupMails.push(byId.get(key));
+      }
+    }
+    if (!groupMails.length) continue;
+    groups.push({
+      group_title: String(g.group_title || g.title || "").trim(),
+      summary: String(g.summary || "").trim(),
+      mails: groupMails,
+    });
+  }
+
+  // The model returned groups but none survived validation → flat-list fallback.
+  if (!groups.length) return [];
+
+  // Any mail the model didn't place → its own single-mail group.
+  for (const m of mails) {
+    const key = String(m.sourceId);
+    if (m.sourceId == null || used.has(key)) continue;
+    used.add(key);
+    groups.push({
+      group_title: (m.subject || "").trim(),
+      summary: "",
+      mails: [m],
+    });
+  }
+
+  return groups;
+}
+
+/**
+ * Ensure every multi-mail category has complete, body-read topic groups.
+ *
+ * The AI's own `categorySummaries.mails` list is frequently INCOMPLETE (it
+ * drops emails), which is why some mails / amounts go missing. So we ignore that
+ * list and rebuild each category's mail set from the ACTUAL emails (by their
+ * real `category` field), guaranteeing every mail — including newly synced ones
+ * — is present. We then (re)group the complete set with a focused, body-reading
+ * AI call whenever the brief's own groups don't already cover all of them.
+ * Mutates brief in place; best-effort per category so it never breaks the brief.
+ */
+export async function fillCategoryGroups(brief, emails = []) {
+  const cats = Array.isArray(brief?.categorySummaries) ? brief.categorySummaries : [];
+  if (!cats.length) return brief;
+
+  // Source of truth: the real emails, bucketed by their stored category.
+  const byId = new Map();
+  const emailsByCat = new Map();
+  emails.forEach((e) => {
+    if (e && e.id != null) byId.set(String(e.id), e);
+    const cat = e.category || "Other";
+    if (!emailsByCat.has(cat)) emailsByCat.set(cat, []);
+    emailsByCat.get(cat).push(e);
+  });
+
+  console.log(`[EmailAnalysis] fillCategoryGroups: checking ${cats.length} categor${cats.length === 1 ? "y" : "ies"}`);
+
+  for (const c of cats) {
+    // Resolve this summary's real emails. Prefer the category bucket; if the AI
+    // echoed a prettified/mismatched category label, fall back to the emails it
+    // actually listed, then widen to their real stored category so nothing is
+    // lost to a label mismatch.
+    let catEmails = emailsByCat.get(c.category);
+    if (!catEmails || !catEmails.length) {
+      const listed = (c.mails || []).map((m) => byId.get(String(m.sourceId))).filter(Boolean);
+      const realCat = listed.length ? (listed[0].category || "Other") : null;
+      catEmails = (realCat && emailsByCat.get(realCat)) || listed;
+    }
+    if (!catEmails || catEmails.length < 2) continue;
+
+    // Rebuild the category's mails from the real emails so every mail is linked
+    // and the count is accurate (the AI often lists only a subset).
+    const fullMails = catEmails.map((e) => ({
+      sourceId: e.id,
+      subject: e.subject || "(no subject)",
+      from: e.from || "",
+      threadId: e.threadId || "",
+    }));
+
+    // Keep the brief's own groups only if they already cover EVERY real mail.
+    const existing = Array.isArray(c.groups) ? c.groups : [];
+    const covered = new Set(existing.flatMap((g) => (g.mails || []).map((m) => String(m.sourceId))));
+    const allCovered = fullMails.length > 0 && fullMails.every((m) => covered.has(String(m.sourceId)));
+    if (existing.length && allCovered) {
+      c.mails = fullMails;
+      c.count = fullMails.length;
+      continue;
+    }
+
+    try {
+      const res = await aiClient.createChat(buildCategoryGroupPrompt(c.category, catEmails));
+      const rawGroups = Array.isArray(res?.groups) ? res.groups : [];
+      // Validate against the COMPLETE mail set (dedup, fill any missed mail).
+      const groups = normalizeCategoryGroups({ mails: fullMails, groups: rawGroups });
+      if (groups.length) {
+        c.groups = groups;
+        c.mails = fullMails;
+        c.count = fullMails.length;
+        console.log(`[EmailAnalysis] Grouped "${c.category}": ${fullMails.length} mails -> ${groups.length} group(s)`);
+      } else {
+        console.warn(`[EmailAnalysis] Grouping "${c.category}": AI returned no usable groups (rawGroups=${rawGroups.length})`);
+      }
+    } catch (err) {
+      console.warn(`[EmailAnalysis] Category grouping failed for "${c.category}":`, err.message);
+    }
+  }
+  return brief;
 }
 
 export function isUsableBrief(brief) {
@@ -254,7 +406,7 @@ export function fallbackBriefFromEmails(emails = [], kb) {
         `${senders.length ? ` from ${senders.slice(0, 4).join(", ")}` : ""}. ` +
         `Reconnect AI for a written digest of this category.`,
       keyPoints,
-      mails: items.map((e) => ({ sourceId: e.id, subject: e.subject || "(no subject)", from: e.from || "" })),
+      mails: items.map((e) => ({ sourceId: e.id, subject: e.subject || "(no subject)", from: e.from || "", threadId: e.threadId || "" })),
     };
   });
 
@@ -375,6 +527,15 @@ export async function generateBrief(emails = [], yesterdayRisks = [], meta = {})
       periodLabel: meta.periodLabel || "",
       emailCount: filteredEmails.length,
     });
+    // The mega-prompt often drops the nested per-category "groups"; fill any
+    // gaps with focused, body-reading grouping calls so every multi-mail
+    // category gets Gmail-style topic groups with merged summaries. Never let a
+    // grouping hiccup discard an otherwise-good live brief.
+    try {
+      await fillCategoryGroups(brief, filteredEmails);
+    } catch (groupErr) {
+      console.warn("[EmailAnalysis] fillCategoryGroups skipped:", groupErr.message);
+    }
     return { brief, source, matchedKeywordsSummary };
   } catch (err) {
     console.error("[EmailAnalysis] Brief engine fell back (AI unavailable):", err.message);
@@ -389,4 +550,4 @@ export async function generateBrief(emails = [], yesterdayRisks = [], meta = {})
   }
 }
 
-export default { generateBrief, generateBriefFromPrompt, normalizeBrief, fallbackBriefFromEmails };
+export default { generateBrief, generateBriefFromPrompt, normalizeBrief, normalizeCategoryGroups, fillCategoryGroups, fallbackBriefFromEmails };

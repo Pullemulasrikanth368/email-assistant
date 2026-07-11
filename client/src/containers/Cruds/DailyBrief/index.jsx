@@ -314,12 +314,12 @@ const DailyBrief = () => {
               inputClassName="orm-cal-input"
             />
           </span>
-          {/* {report && (
+          {report && (
             <span className={`orm-badge ${report.source === 'live' ? 'live' : 'sample'}`}>
               {report.source === 'live' ? 'LIVE AI' : 'SAMPLE'}
             </span>
           )}
-          {report && (
+          {/* {report && (
             <Button variant="ghost" size="icon" title="Open .md" onClick={downloadMd}><FileText size={15} /></Button>
           )} */}
           <button type="button" className="orm-runbrief-btn" onClick={runBrief} disabled={generating}>
