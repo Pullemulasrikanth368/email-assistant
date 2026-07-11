@@ -350,7 +350,7 @@ const DailyBrief = () => {
       <div className="orm-single-body">{renderBody()}</div>
 
       <Sheet open={emailDrawer.visible} onOpenChange={(o) => !o && setEmailDrawer((p) => ({ ...p, visible: false }))}>
-        <SheetContent side="right" className="min-w-[50vw] max-w-[98vw] overflow-y-auto bg-white">
+        <SheetContent side="right" className="orm-email-sheet min-w-[50vw] max-w-[98vw] overflow-y-auto bg-white">
           {renderEmailDrawer()}
         </SheetContent>
       </Sheet>
