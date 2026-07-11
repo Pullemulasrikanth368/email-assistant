@@ -25,7 +25,7 @@ const VALID_CATEGORIES = [
 
 function dayBounds(date) {
   const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
+  start.setUTCHours(0, 0, 0, 0);
   return { start, end: new Date(start.getTime() + DAY_MS) };
 }
 
