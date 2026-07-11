@@ -48,6 +48,9 @@ router.post("/mail/mark-read", asyncHandler(emailAnalysisCtrl.markMailReadState)
 
 // AI-generated draft reply for a single email.
 router.post("/mails/:id/generate-reply", asyncHandler(emailAnalysisCtrl.generateAiReply));
+// Reply Studio variants: quick yes/no/maybe trio, detailed per-type reply,
+// or a custom-prompt reply with tone/length/language controls.
+router.post("/mails/:id/reply-variants", asyncHandler(emailAnalysisCtrl.generateReplyVariants));
 // Rewrite a selected snippet of draft text in a tone (professional | friendly).
 router.post("/rewrite-text", asyncHandler(emailAnalysisCtrl.rewriteDraftText));
 

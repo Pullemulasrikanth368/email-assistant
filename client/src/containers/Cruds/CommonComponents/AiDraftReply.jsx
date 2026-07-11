@@ -39,8 +39,11 @@ const AUTOSAVE_DELAY_MS = 1200;
  *   reportId     - report the to-do belongs to (completion is persisted there)
  *   onSent       - optional callback fired after the reply is sent
  *   onCompleted  - optional callback fired after the to-do is marked complete
+ *   insertSignal - optional { html, nonce }; when nonce changes the html is
+ *                  placed into the composer (Reply Studio "Insert into Reply")
+ *                  and persisted to the draft.
  */
-const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, onSent, onCompleted }) => {
+const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, onSent, onCompleted, insertSignal }) => {
   // The editor works on the draft's HTML directly — `reply` is an HTML string.
   const initialHtml = initialDraft?.body && !isEmptyHtml(initialDraft.body) ? initialDraft.body : '';
   const hasInitialDraft = !!(initialDraft?._id && initialHtml);
@@ -51,6 +54,8 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
   const [error, setError] = useState('');
   const [draftId, setDraftId] = useState(hasInitialDraft ? initialDraft._id : null);
   const [saveState, setSaveState] = useState(hasInitialDraft ? 'saved' : ''); // '' | saving | saved | failed
+  const [completing, setCompleting] = useState(false);
+  const [todoDone, setTodoDone] = useState(false);
 
   // Refs mirror the latest values so the unmount flush never sees stale state.
   const draftIdRef = useRef(hasInitialDraft ? initialDraft._id : null);
@@ -139,6 +144,21 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
     }
   }, [mail, replySubject, sourceId]);
 
+  // Reply Studio "Insert into Reply": place the chosen content into this
+  // composer (opening it if idle) and persist it as the real draft.
+  useEffect(() => {
+    if (!insertSignal?.nonce || isEmptyHtml(insertSignal.html)) return;
+    const html = insertSignal.html;
+    setReply(html);
+    replyRef.current = html;
+    setError('');
+    setPhase((p) => (p === 'sending' ? p : 'draft'));
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    dirtyRef.current = true;
+    persistDraft(html);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertSignal?.nonce]);
+
   // The server caches the generated reply on the mail, so the first click after
   // opening a read mail returns instantly; force=true (Regenerate) makes a fresh one.
   const generate = useCallback(async (force = false) => {
@@ -169,6 +189,32 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
     }
   }, [mailId, persistDraft]);
 
+  // Mark the to-do complete without sending anything — the user may have
+  // handled it outside the app (call, meeting, reply from another client).
+  const handleCompleteOnly = async () => {
+    if (!todo || completing || todoDone) return;
+    setCompleting(true);
+    try {
+      const done = await fetchMethodRequest('POST', 'email-analysis/actions/complete', {
+        sourceId,
+        task: todo.task,
+        reportId,
+        skipSend: true,
+      });
+      if (done?.respCode) {
+        setTodoDone(true);
+        showToasterMessage('To-do marked as completed', 'success');
+        if (onCompleted) onCompleted(todo);
+      } else {
+        showToasterMessage(done?.errorMessage || 'Could not mark the to-do as complete', 'error');
+      }
+    } catch {
+      showToasterMessage('Could not reach server.', 'error');
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const handleSend = async (markComplete = false) => {
     if (isEmptyHtml(reply)) return;
     setPhase('sending');
@@ -192,7 +238,7 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
           dirtyRef.current = false;
         }
         // The reply itself already went out — skipSend only records completion.
-        if (markComplete && todo) {
+        if (markComplete && todo && !todoDone) {
           try {
             const done = await fetchMethodRequest('POST', 'email-analysis/actions/complete', {
               sourceId,
@@ -201,6 +247,7 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
               skipSend: true,
             });
             if (done?.respCode) {
+              setTodoDone(true);
               showToasterMessage('To-do marked as completed', 'success');
               if (onCompleted) onCompleted(todo);
             } else {
@@ -253,6 +300,19 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
           AI draft reply
           <span className="aidr-trigger-arrow">↑</span>
         </button>
+        {todo && !todoDone && (
+          <button
+            type="button"
+            className="aidr-trigger-btn aidr-trigger-btn--complete"
+            onClick={handleCompleteOnly}
+            disabled={completing}
+            title="Mark the to-do as completed without sending a reply"
+          >
+            {completing
+              ? <><i className="pi pi-spin pi-spinner" /> Marking…</>
+              : <><i className="pi pi-check-circle" /> Mark as complete</>}
+          </button>
+        )}
       </div>
     );
   }
@@ -311,10 +371,11 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
         contextMailId={mailId}
       />
 
-      {/* Action buttons — a to-do email gets "Mark as complete & send" and
-          "Send only"; everything else keeps the single "Send reply". */}
+      {/* Action buttons — a to-do email gets "Mark as complete & send",
+          "Send only" and a standalone "Mark as complete" (no send required);
+          everything else keeps the single "Send reply". */}
       <div className="aidr-actions">
-        {todo ? (
+        {todo && !todoDone ? (
           <>
             <button
               type="button"
@@ -335,6 +396,17 @@ const AiDraftReply = ({ mailId, sourceId, mail, initialDraft, todo, reportId, on
               title="Send this reply without completing the to-do"
             >
               <i className="pi pi-send" /> Send only
+            </button>
+            <button
+              type="button"
+              className="aidr-btn aidr-btn--complete"
+              onClick={handleCompleteOnly}
+              disabled={phase === 'sending' || completing}
+              title="Mark the to-do as completed without sending this reply"
+            >
+              {completing
+                ? <><i className="pi pi-spin pi-spinner" /> Marking…</>
+                : <><i className="pi pi-check-circle" /> Mark as complete</>}
             </button>
           </>
         ) : (

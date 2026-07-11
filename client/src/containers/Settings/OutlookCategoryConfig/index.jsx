@@ -4,7 +4,7 @@ import { InputText } from 'primereact/inputtext';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dropdown } from 'primereact/dropdown';
 import { Tag } from 'primereact/tag';
-import { Divider } from 'primereact/divider';
+import { Accordion, AccordionTab } from 'primereact/accordion';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
@@ -28,8 +28,17 @@ const COLOUR_OPTIONS = [
 
 const colourHex = (value) => COLOUR_OPTIONS.find((c) => c.value === value)?.hex || '#9ca3af';
 
+/* ─── Accordion tab header: icon + title + label count ─── */
+const accHeader = (icon, title, count) => (
+  <span className="occ-acc-header">
+    <i className={`pi ${icon}`} />
+    <span className="occ-acc-header-title">{title}</span>
+    {count !== undefined && <span className="occ-acc-count">{count}</span>}
+  </span>
+);
+
 /* ─── Section: renders a group of category entries (priority/category/intent) ─── */
-function CategoryMapSection({ title, icon, entries = [], onChange }) {
+function CategoryMapSection({ entries = [], onChange }) {
   const handleField = (idx, field, value) => {
     const next = entries.map((e, i) => (i === idx ? { ...e, [field]: value } : e));
     onChange(next);
@@ -43,12 +52,8 @@ function CategoryMapSection({ title, icon, entries = [], onChange }) {
   );
 
   return (
-    <div className="occ-section">
-      <h3 className="occ-section-title">
-        <i className={`pi ${icon}`} /> {title}
-      </h3>
-      <div className="occ-entries">
-        {entries.map((entry, idx) => (
+    <div className="occ-entries">
+      {entries.map((entry, idx) => (
           <div key={entry.dbValue} className={`occ-entry ${!entry.enabled ? 'occ-entry--disabled' : ''}`}>
             {/* Enable toggle */}
             <InputSwitch
@@ -99,15 +104,14 @@ function CategoryMapSection({ title, icon, entries = [], onChange }) {
               style={{
                 background: entry.enabled !== false ? colourHex(entry.colour || 'none') : '#e5e7eb',
                 color: '#fff',
-                fontSize: '11px',
-                minWidth: 80,
+                fontSize: '10px',
+                minWidth: 64,
                 textAlign: 'center',
                 opacity: entry.enabled !== false ? 1 : 0.4,
               }}
             />
           </div>
         ))}
-      </div>
     </div>
   );
 }
@@ -189,7 +193,7 @@ export default function OutlookCategoryConfig() {
   if (loading) {
     return (
       <div className="occ-loading">
-        <i className="pi pi-spin pi-spinner" style={{ fontSize: '1.5rem', color: '#1a73e8' }} />
+        <i className="pi pi-spin pi-spinner" style={{ fontSize: '1.25rem', color: '#111827' }} />
         <span>Loading category config…</span>
       </div>
     );
@@ -238,42 +242,35 @@ export default function OutlookCategoryConfig() {
         <span className="occ-legend-item"><i className="pi pi-tag" style={{color:'#3b82f6'}}/> Preview shows how it appears in Outlook</span>
       </div>
 
-      <Divider />
+      {/* Sections — accordion, open panel highlighted */}
+      <Accordion multiple activeIndex={[0]} className="occ-accordion">
+        {/* Priority Map */}
+        <AccordionTab header={accHeader('pi-flag', 'Priority Labels', (config.priorityMap || []).length)}>
+          <CategoryMapSection
+            entries={config.priorityMap || []}
+            onChange={setMap('priorityMap')}
+          />
+        </AccordionTab>
 
-      {/* Priority Map */}
-      <CategoryMapSection
-        title="Priority Labels"
-        icon="pi-flag"
-        entries={config.priorityMap || []}
-        onChange={setMap('priorityMap')}
-      />
+        {/* Category Map */}
+        <AccordionTab header={accHeader('pi-th-large', 'Category Labels', (config.categoryMap || []).length)}>
+          <CategoryMapSection
+            entries={config.categoryMap || []}
+            onChange={setMap('categoryMap')}
+          />
+        </AccordionTab>
 
-      <Divider />
+        {/* Intent Map */}
+        <AccordionTab header={accHeader('pi-bolt', 'Intent Labels', (config.intentMap || []).length)}>
+          <CategoryMapSection
+            entries={config.intentMap || []}
+            onChange={setMap('intentMap')}
+          />
+        </AccordionTab>
 
-      {/* Category Map */}
-      <CategoryMapSection
-        title="Category Labels"
-        icon="pi-th-large"
-        entries={config.categoryMap || []}
-        onChange={setMap('categoryMap')}
-      />
-
-      <Divider />
-
-      {/* Intent Map */}
-      <CategoryMapSection
-        title="Intent Labels"
-        icon="pi-bolt"
-        entries={config.intentMap || []}
-        onChange={setMap('intentMap')}
-      />
-
-      <Divider />
-
-      {/* Reply Needed */}
-      <div className="occ-section">
-        <h3 className="occ-section-title"><i className="pi pi-reply" /> Reply Needed Label</h3>
-        <div className="occ-reply-row">
+        {/* Reply Needed */}
+        <AccordionTab header={accHeader('pi-reply', 'Reply Needed Label')}>
+          <div className="occ-reply-row">
           <InputSwitch
             checked={config.replyNeededEnabled !== false}
             onChange={(e) => setConfig((c) => ({ ...c, replyNeededEnabled: e.value }))}
@@ -313,14 +310,15 @@ export default function OutlookCategoryConfig() {
             style={{
               background: config.replyNeededEnabled !== false ? colourHex(config.replyNeededColour || 'none') : '#e5e7eb',
               color: '#fff',
-              fontSize: '11px',
-              minWidth: 80,
+              fontSize: '10px',
+              minWidth: 64,
               textAlign: 'center',
               opacity: config.replyNeededEnabled !== false ? 1 : 0.4,
             }}
           />
-        </div>
-      </div>
+          </div>
+        </AccordionTab>
+      </Accordion>
 
       {/* Footer save */}
       <div className="occ-footer">

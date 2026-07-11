@@ -41,6 +41,17 @@
     font-size: 11px;
     color: #a0aec0;
   }
+
+  &--complete {
+    background: transparent;
+    color: #188038;
+    border: 1px solid #81c995;
+
+    &:hover:not(:disabled) {
+      background: #e6f4ea;
+      transform: translateY(-1px);
+    }
+  }
 }
 
 // ── AI Draft Reply panel ────────────────────────────────────────────────────
@@ -48,7 +59,9 @@
   margin-top: 14px;
   border: 1px solid #e8eaed;
   border-radius: 10px;
-  overflow: hidden;
+  /* No overflow: hidden here — it clips CKEditor dropdown panels (heading,
+     font color…) that open past the panel edge. Corners are rounded on the
+     first/last children instead. */
   background: #fff;
 
   &--loading {
@@ -86,6 +99,8 @@
   letter-spacing: 0.05em;
   color: #5f6368;
   text-transform: uppercase;
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
 }
 
 .aidr-dot {
@@ -190,6 +205,8 @@
   padding: 10px 14px;
   border-top: 1px solid #e8eaed;
   background: #f8f9fa;
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
 }
 
 .aidr-btn {
@@ -210,6 +227,13 @@
     background: #1a1f2e;
     color: #fff;
     &:hover:not(:disabled) { background: #2d3748; }
+  }
+
+  &--complete {
+    background: transparent;
+    color: #188038;
+    border: 1px solid #81c995;
+    &:hover:not(:disabled) { background: #e6f4ea; }
   }
 
   &--regen {

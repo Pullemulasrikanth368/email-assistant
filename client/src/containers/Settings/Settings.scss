@@ -1,26 +1,33 @@
+// General Settings — slate theme matching the app sidebar
+$set-accent: #111827;
+$set-accent-hover: #1F2937;
+$set-border: #E5E7EB;
+$set-text: #1F2937;
+$set-text-soft: #4B5563;
+$set-muted: #9CA3AF;
+$set-bg: #F9FAFB;
+$set-ring: rgba(17, 24, 39, 0.1);
+
 .ea-settings-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 60vh;
-  gap: 1rem;
-  color: #5f6368;
+  gap: 0.75rem;
+  color: $set-muted;
+  font-size: 0.8rem;
 }
 
 .ea-settings-page {
   min-height: 100vh;
-  background: #f8f9fa;
-  padding: 2rem 1rem;
+  background: $set-bg;
+  padding: 0.7rem;
 }
 
+// Container is a plain wrapper — sections carry their own card chrome
 .ea-settings-container {
-  max-width: 860px;
   margin: 0 auto;
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  padding: 2rem;
 }
 
 .ea-settings-header {
@@ -29,81 +36,124 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .ea-settings-header-left {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .ea-settings-header-icon {
-  font-size: 1.75rem;
-  color: #1a73e8;
+  font-size: 1rem;
+  color: $set-accent;
+  background: #F3F4F6;
+  border: 1px solid $set-border;
+  border-radius: 10px;
+  padding: 0.6rem;
 }
 
 .ea-settings-title {
-  font-size: 1.5rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  color: #202124;
+  letter-spacing: -0.01em;
+  color: $set-text;
   margin: 0;
 }
 
 .ea-settings-subtitle {
-  font-size: 0.875rem;
-  color: #5f6368;
+  font-size: 0.78rem;
+  color: $set-muted;
   margin: 0.125rem 0 0 0;
 }
 
 .ea-settings-save-btn {
-  background: #1a73e8 !important;
-  border-color: #1a73e8 !important;
+  background: $set-accent !important;
+  border-color: $set-accent !important;
   border-radius: 8px !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  padding: 0.5rem 1rem !important;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.2) !important;
+  transition: background 0.15s ease, transform 0.1s ease !important;
 
   &:hover:not(:disabled) {
-    background: #1557b0 !important;
-    border-color: #1557b0 !important;
+    background: $set-accent-hover !important;
+    border-color: $set-accent-hover !important;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
   }
 }
 
 .ea-settings-refresh-btn {
   border-radius: 8px !important;
-  font-weight: 500 !important;
-  color: #1a73e8 !important;
-  border-color: #1a73e8 !important;
-}
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  padding: 0.5rem 1rem !important;
+  color: $set-text-soft !important;
+  border-color: $set-border !important;
+  background: #ffffff !important;
 
-.ea-settings-section {
-  margin: 1.25rem 0;
-}
-
-.ea-section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #3c4043;
-  margin: 0 0 1.25rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  .pi {
-    color: #1a73e8;
-    font-size: 1rem;
+  &:hover:not(:disabled) {
+    background: $set-bg !important;
+    color: $set-accent !important;
   }
 }
 
+// Section cards fill the width side by side — no dead space
+.ea-settings-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0.7rem;
+  align-items: start;
+}
+
+.ea-settings-section {
+  margin: 0;
+  background: #ffffff;
+  border: 1px solid $set-border;
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
+}
+
+.ea-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: $set-text-soft;
+  margin: 0 0 0.6rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #F3F4F6;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  .pi {
+    color: $set-accent;
+    font-size: 0.66rem;
+    background: #F3F4F6;
+    border: 1px solid $set-border;
+    border-radius: 6px;
+    padding: 0.28rem;
+  }
+}
+
+// Fields stack inside their card
 .ea-settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
 }
 
 .ea-field {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.3rem;
 
   &.ea-field-switch {
     flex-direction: row;
@@ -111,54 +161,112 @@
     flex-wrap: wrap;
     gap: 0.5rem;
 
-    label { flex: 1 1 100%; }
+    label {
+      flex: 1 1 100%;
+    }
 
-    .p-inputswitch { margin-top: 0.125rem; }
+    .p-inputswitch {
+      margin-top: 0.125rem;
+    }
 
-    .ea-field-hint { flex: 1 1 100%; margin-top: 0.25rem; }
+    .ea-field-hint {
+      flex: 1 1 100%;
+      margin-top: 0.25rem;
+    }
   }
 }
 
 .ea-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #3c4043;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $set-text-soft;
 }
 
 .ea-input {
   width: 100% !important;
   border-radius: 8px !important;
+  font-size: 0.82rem !important;
 
-  .p-inputtext, &.p-inputtext {
+  .p-inputtext,
+  &.p-inputtext {
     border-radius: 8px !important;
-    border-color: #dadce0 !important;
+    border-color: $set-border !important;
+    font-size: 0.82rem !important;
+    padding: 0.5rem 0.75rem !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+
+    &:hover {
+      border-color: #D1D5DB !important;
+    }
 
     &:focus {
-      border-color: #1a73e8 !important;
-      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15) !important;
+      border-color: $set-accent !important;
+      box-shadow: 0 0 0 3px $set-ring !important;
     }
   }
 
   &.p-dropdown {
     border-radius: 8px !important;
-    border-color: #dadce0 !important;
+    border-color: $set-border !important;
 
-    &.p-focus, &:focus {
-      border-color: #1a73e8 !important;
-      box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15) !important;
+    .p-dropdown-label {
+      font-size: 0.82rem !important;
+      padding: 0.5rem 0.75rem !important;
+    }
+
+    &:hover {
+      border-color: #D1D5DB !important;
+    }
+
+    &.p-focus,
+    &:focus {
+      border-color: $set-accent !important;
+      box-shadow: 0 0 0 3px $set-ring !important;
     }
   }
 }
 
 .ea-field-hint {
-  font-size: 0.75rem;
-  color: #80868b;
+  font-size: 0.7rem;
+  color: $set-muted;
   line-height: 1.4;
 }
 
-.ea-settings-footer {
-  margin-top: 2rem;
+.ea-sync-frequency {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.5rem;
+
+  .ea-sync-value {
+    width: 90px !important;
+    flex-shrink: 0;
+  }
+
+  .ea-sync-unit {
+    flex: 1;
+  }
+}
+
+.ea-settings-footer {
+  margin-top: 0.9rem;
+  display: flex;
+  gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+// ── Responsive ──────────────────────────────────────────────────────────────
+@media (max-width: 640px) {
+  .ea-settings-page {
+    padding: 0.6rem 0.5rem;
+  }
+
+  .ea-settings-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .ea-settings-header {
+    .ea-settings-save-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
 }

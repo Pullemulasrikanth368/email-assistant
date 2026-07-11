@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils';
 import moment from 'moment';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
-import QuickReplies from '../CommonComponents/QuickReplies';
 import AiDraftReply from '../CommonComponents/AiDraftReply';
+import ReplyStudio from '../CommonComponents/ReplyStudio/ReplyStudio';
+import useCategoryLabels from '../CommonComponents/useCategoryLabels';
 import MailThread from '../CommonComponents/MailThread';
 import { BriefDashboard } from './BriefDashboard';
 import KnowledgeBaseSettings from './KnowledgeBaseSettings';
@@ -40,6 +41,8 @@ const BRIEF_TIMES = [
 /* ------------------------------------------------------------------ */
 const OperationsReport = () => {
   const navigate = useNavigate();
+  // Category display names — the Outlook labels from the category config.
+  const catLabel = useCategoryLabels();
 
   const [tab, setTab] = useState('day'); // 'day' | 'week'
   const [reports, setReports] = useState([]);
@@ -63,6 +66,8 @@ const OperationsReport = () => {
   const [briefTime, setBriefTime] = useState('06:00');
   const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
   const [readState, setReadState] = useState({ busy: false, isRead: false });
+  // Reply Studio -> main composer bridge: bumping the nonce inserts the html.
+  const [insertSignal, setInsertSignal] = useState(null);
   // Signal that pushes a live read/unread toggle down to the dashboard so the
   // mails popover highlight updates immediately (no page refresh needed).
   const [readOverride, setReadOverride] = useState(null);
@@ -173,6 +178,7 @@ const OperationsReport = () => {
   const onOpenSource = useCallback(async (sourceId) => {
     if (!sourceId) return;
     setReadState({ busy: false, isRead: false });
+    setInsertSignal(null);
     setEmailDrawer({ visible: true, loading: true, mail: null, sourceId });
     try {
       const res = await fetchMethodRequest('GET', `email-analysis/mails/by-source/${encodeURIComponent(sourceId)}`);
@@ -490,7 +496,20 @@ const OperationsReport = () => {
               <div className="orm-email-head-main">
                 <div className="orm-email-from">{mail.from}</div>
                 <h3 className="orm-email-subject">{mail.subject || '(no subject)'}</h3>
+                {mail.to && <div className="orm-email-to" title={mail.to}>To: {mail.to}</div>}
                 <div className="orm-email-meta">{mail.receivedAt ? moment(mail.receivedAt).format('ddd, MMM D, YYYY h:mm A') : ''}</div>
+                <div className="orm-email-chips">
+                  {mail.priority && (
+                    <span className={`orm-echip prio-${String(mail.priority).toLowerCase()}`}>
+                      {mail.priority} priority
+                    </span>
+                  )}
+                  {mail.category && <span className="orm-echip cat">{catLabel(mail.category)}</span>}
+                  <span className={`orm-echip ${readState.isRead ? 'read' : 'unread'}`}>
+                    {readState.isRead ? 'Read' : 'Unread'}
+                  </span>
+                  {mail.needsReply && <span className="orm-echip reply">Reply expected</span>}
+                </div>
               </div>
               <div className="orm-email-actions">
                 <button
@@ -539,7 +558,14 @@ const OperationsReport = () => {
             )}
 
             <div className="orm-reply-section">
-              <QuickReplies sourceId={mail.providerMessageId || sourceId} preloaded={mail.quickReplies} />
+              {/* Quick Replies / Detailed Reply / Custom AI Reply Generator.
+                  "Insert into Reply" pushes content into the composer below. */}
+              <ReplyStudio
+                mail={mail}
+                sourceId={mail.providerMessageId || sourceId}
+                onInsert={(html) => setInsertSignal((p) => ({ html, nonce: (p?.nonce || 0) + 1 }))}
+              />
+              <div className="orm-composer-label">Reply composer</div>
               <AiDraftReply
                 key={mail._id}
                 mailId={mail._id}
@@ -549,6 +575,7 @@ const OperationsReport = () => {
                 todo={todoForSource}
                 reportId={activeReport?._id}
                 onCompleted={refreshActiveReport}
+                insertSignal={insertSignal}
               />
             </div>
           </>
@@ -608,7 +635,7 @@ const OperationsReport = () => {
       </div>
 
       <Sheet open={emailDrawer.visible} onOpenChange={(o) => !o && setEmailDrawer((p) => ({ ...p, visible: false }))}>
-        <SheetContent side="right" className="min-w-[30vw] w-[70vw] !max-w-[96vw] sm:!max-w-[720px] overflow-y-auto bg-white">
+        <SheetContent side="right" className="min-w-[50vw] w-[70vw] !max-w-[96vw] sm:!max-w-[720px] overflow-y-auto bg-white">
           {renderEmailDrawer()}
         </SheetContent>
       </Sheet>

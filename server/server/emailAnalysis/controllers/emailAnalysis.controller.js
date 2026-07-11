@@ -1446,12 +1446,17 @@ async function getReportByDate(req, res) {
 
   const base = req.query.date ? new Date(req.query.date) : new Date();
   if (isNaN(base.getTime())) return res.json({ errorCode: 9004, errorMessage: "Invalid date." });
+  // Reports are stored with periodStart at UTC midnight (report.service
+  // dayBounds), so match the same UTC day — a range query instead of exact
+  // equality so lookups survive any legacy/local-midnight timestamps too.
   const start = new Date(base);
-  start.setHours(0, 0, 0, 0);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
   const report = await EmailAnalysisReport.findOne({
-    email, reportType: "day", periodStart: start, active: true,
-  }).lean();
+    email, reportType: "day", active: true,
+    periodStart: { $gte: start, $lt: end },
+  }).sort({ periodStart: -1 }).lean();
 
   return res.json({ report: report || null });
 }
@@ -1770,6 +1775,7 @@ export default {
   setDefaultReportConfigCtrl,
   deleteReportConfigCtrl,
   generateAiReply,
+  generateReplyVariants,
   rewriteDraftText,
   getConversationSummary,
   getAutoSync,
@@ -1846,6 +1852,203 @@ async function generateAiReply(req, res) {
   } catch (err) {
     console.error("[EmailAnalysis] AI reply generation failed:", err.message);
     return res.json({ errorCode: 9400, errorMessage: `AI reply failed: ${err.message}` });
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reply Studio — quick / detailed / custom reply variants             */
+/* ------------------------------------------------------------------ */
+
+const REPLY_VARIANT_TYPES = ["yes", "no", "maybe"];
+
+// What each variant type means, reused by the quick trio and detailed prompts.
+const VARIANT_INTENT = {
+  yes: "a POSITIVE reply — accept, agree, or confirm what the sender is asking",
+  no: "a NEGATIVE reply — politely decline or reject what the sender is asking",
+  maybe: "a CONDITIONAL reply — neither accept nor decline; say it will be reviewed, ask for time or more information",
+};
+
+const LENGTH_INSTRUCTION = {
+  short: "Keep it very short: 2-3 sentences.",
+  medium: "Keep it a single focused paragraph (4-6 sentences).",
+  detailed: "Write a thorough, multi-paragraph reply covering all relevant points.",
+};
+
+// In-flight de-dupe so double-clicks don't fire duplicate AI calls.
+const pendingReplyVariants = new Map();
+
+// Fallback button labels when the AI returns none.
+const VARIANT_DEFAULT_LABEL = { yes: "Yes", no: "No", maybe: "Maybe" };
+
+/**
+ * Generate the positive/negative/conditional quick trio for a mail in ONE AI
+ * call. Each variant carries a contextual button LABEL matched to what the
+ * mail is asking (Accept/Reject, Will attend/Unable to attend, …) alongside
+ * the reply text; yes/no/maybe stay the internal keys.
+ */
+async function generateQuickVariantTrio(mail) {
+  const plain = toPlain(mail.body || mail.snippet || "").slice(0, 3000);
+  const prompt =
+    `You write SHORT email replies. For the email below produce three alternative replies:\n` +
+    `- "yes": ${VARIANT_INTENT.yes}\n` +
+    `- "no": ${VARIANT_INTENT.no}\n` +
+    `- "maybe": ${VARIANT_INTENT.maybe}\n\n` +
+    `RULES:\n` +
+    `- "reply": 1-2 sentences of natural, professional, ready-to-send text. ` +
+    `No subject line, no greeting name placeholders, no sign-off.\n` +
+    `- "label": a SHORT formal button label (1-3 words) that matches what THIS email is asking. Examples:\n` +
+    `  an approval/acceptance request -> "Accept" / "Reject" / "Under review"\n` +
+    `  a meeting or event invitation  -> "Will attend" / "Unable to attend" / "Tentative"\n` +
+    `  a "please confirm" check       -> "Confirmed" / "Not correct" / "Will verify"\n` +
+    `  a proposal or offer            -> "Approve" / "Decline" / "Need more details"\n` +
+    `  a plain yes/no question        -> "Yes" / "No" / "Maybe"\n` +
+    `  Pick labels that fit the email — do not blindly copy these examples.\n` +
+    `- Return ONLY JSON: {"yes": {"label": string, "reply": string}, "no": {"label": string, "reply": string}, "maybe": {"label": string, "reply": string}}\n\n` +
+    `EMAIL\nFrom: ${mail.from || ""}\nSubject: ${mail.subject || ""}\n\n${plain}`;
+
+  const out = await aiClient.createChat(prompt);
+  const now = new Date();
+  const trio = {};
+  REPLY_VARIANT_TYPES.forEach((t) => {
+    const raw = out?.[t];
+    // Tolerate both shapes: {label, reply} and a bare reply string.
+    const text = String((raw && typeof raw === "object" ? raw.reply : raw) || "").trim();
+    const label = String((raw && typeof raw === "object" ? raw.label : "") || "").trim();
+    if (text) {
+      trio[t] = {
+        text: text.slice(0, 1000),
+        label: (label || VARIANT_DEFAULT_LABEL[t]).slice(0, 28),
+        generatedAt: now,
+      };
+    }
+  });
+  if (!Object.keys(trio).length) throw new Error("AI returned no quick replies");
+  return trio;
+}
+
+/**
+ * Generate reply variants for the Reply Studio (Reports email detail view).
+ * POST /mails/:id/reply-variants
+ * Body: { kind: 'quick' | 'detailed' | 'custom', replyType?, prompt?, tone?,
+ *         length?, language?, force? }
+ *
+ * kind=quick    -> { variants: { yes, no, maybe } } (one AI call, cached on the
+ *                  mail; force + replyType regenerates a single variant)
+ * kind=detailed -> { reply, provider } — full thread-aware reply for replyType,
+ *                  cached per type; force regenerates.
+ * kind=custom   -> { reply, provider } — from the user's prompt + tone/length/
+ *                  language controls. Never cached.
+ */
+async function generateReplyVariants(req, res) {
+  const mail = await EmailAnalysisMail.findOne({ _id: req.params.id, active: true }).lean();
+  if (!mail) return res.json({ errorCode: 9002, errorMessage: "Email not found." });
+
+  const kind = String(req.body?.kind || "quick").trim();
+  const replyType = String(req.body?.replyType || "").trim().toLowerCase();
+  const force = req.body?.force === true;
+  const stored = mail.replyVariants || {};
+
+  try {
+    /* ---- quick: yes/no/maybe one-liners ---- */
+    if (kind === "quick") {
+      const cached = stored.quick || {};
+      // Labels were added later — a cache without them regenerates once.
+      const haveAll = REPLY_VARIANT_TYPES.every((t) => cached[t]?.text && cached[t]?.label);
+
+      // Regenerate a single variant (Regenerate button on one card).
+      if (force && REPLY_VARIANT_TYPES.includes(replyType)) {
+        const instruction =
+          `Write ${VARIANT_INTENT[replyType]}. 1-2 sentences of ready-to-send text, ` +
+          `no greeting-name placeholders, no sign-off. Offer different wording than: ` +
+          `"${cached[replyType]?.text || ""}"`;
+        const gen = await aiReplyService.generateReply(mail, { tone: "professional", instruction });
+        const next = {
+          ...cached,
+          [replyType]: {
+            text: String(gen.reply || "").trim().slice(0, 1000),
+            // Regenerating rewords the reply — the contextual label stays.
+            label: cached[replyType]?.label || VARIANT_DEFAULT_LABEL[replyType],
+            generatedAt: new Date(),
+          },
+        };
+        // replyVariants defaults to null, so always $set the whole object —
+        // dotted paths can't create fields inside a null parent.
+        await EmailAnalysisMail.updateOne({ _id: mail._id }, { $set: { replyVariants: { ...stored, quick: next } } });
+        return res.json({ respCode: 200, variants: next, cached: false });
+      }
+
+      if (haveAll && !force) return res.json({ respCode: 200, variants: cached, cached: true });
+
+      const key = `quick:${mail._id}`;
+      let job = pendingReplyVariants.get(key);
+      if (!job) {
+        job = generateQuickVariantTrio(mail)
+          .then(async (trio) => {
+            await EmailAnalysisMail.updateOne({ _id: mail._id }, { $set: { replyVariants: { ...stored, quick: trio } } });
+            return trio;
+          })
+          .finally(() => pendingReplyVariants.delete(key));
+        pendingReplyVariants.set(key, job);
+      }
+      const trio = await job;
+      return res.json({ respCode: 200, variants: trio, cached: false });
+    }
+
+    /* ---- detailed: full thread-aware reply per type ---- */
+    if (kind === "detailed") {
+      if (!REPLY_VARIANT_TYPES.includes(replyType)) {
+        return res.json({ errorCode: 9401, errorMessage: "replyType must be yes, no, or maybe." });
+      }
+      const cached = stored.detailed?.[replyType];
+      if (cached?.text && !force) {
+        return res.json({ respCode: 200, reply: cached.text, provider: cached.provider || "", cached: true });
+      }
+      const instruction =
+        `Write ${VARIANT_INTENT[replyType]}. Make it a complete, detailed, well-structured reply ` +
+        `that addresses the specific points in the email.`;
+      const key = `detailed:${replyType}:${mail._id}`;
+      let job = pendingReplyVariants.get(key);
+      if (!job) {
+        job = aiReplyService.generateReply(mail, { tone: "professional", instruction })
+          .then(async (gen) => {
+            const entry = { text: gen.reply, provider: gen.provider || "", generatedAt: new Date() };
+            await EmailAnalysisMail.updateOne(
+              { _id: mail._id },
+              { $set: { replyVariants: { ...stored, detailed: { ...(stored.detailed || {}), [replyType]: entry } } } }
+            );
+            return gen;
+          })
+          .finally(() => pendingReplyVariants.delete(key));
+        pendingReplyVariants.set(key, job);
+      }
+      const gen = await job;
+      return res.json({ respCode: 200, reply: gen.reply, provider: gen.provider || "", cached: false });
+    }
+
+    /* ---- custom: free prompt + tone/length/language controls ---- */
+    if (kind === "custom") {
+      const userPrompt = String(req.body?.prompt || "").trim();
+      if (!userPrompt) return res.json({ errorCode: 9402, errorMessage: "Describe the reply you need." });
+
+      const tone = String(req.body?.tone || "professional").trim().toLowerCase();
+      const length = String(req.body?.length || "medium").trim().toLowerCase();
+      const language = String(req.body?.language || "english").trim().toLowerCase();
+
+      const parts = [
+        `Follow this instruction from the user when writing the reply: ${userPrompt.slice(0, 1500)}`,
+        LENGTH_INSTRUCTION[length] || LENGTH_INSTRUCTION.medium,
+        language === "auto"
+          ? "Reply in the same language the email was written in."
+          : "Reply in English.",
+      ];
+      const gen = await aiReplyService.generateReply(mail, { tone, instruction: parts.join(" ") });
+      return res.json({ respCode: 200, reply: gen.reply, provider: gen.provider || "", cached: false });
+    }
+
+    return res.json({ errorCode: 9403, errorMessage: "Unknown kind — use quick, detailed, or custom." });
+  } catch (err) {
+    console.error("[EmailAnalysis] reply-variants generation failed:", err.message);
+    return res.json({ errorCode: 9400, errorMessage: `Reply generation failed: ${err.message}` });
   }
 }
 

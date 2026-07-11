@@ -1,0 +1,417 @@
+/* Reply Studio — Quick Replies / Detailed Reply / Custom AI Reply Generator.
+   Lives inside .operations-report (email drawer), so it inherits the report
+   theme tokens (--ink, --muted, --line, --crit, --high, --low, …). Fallbacks
+   are provided so the studio also renders sanely outside that scope. */
+
+.reply-studio {
+  --rs-ink: var(--ink, #14181f);
+  --rs-muted: var(--muted, #687180);
+  --rs-line: var(--line, #d9dcd6);
+  --rs-yes: var(--low, #4f7a3f);
+  --rs-yes-bg: var(--low-bg, #ecf3e8);
+  --rs-no: var(--crit, #b3261e);
+  --rs-no-bg: var(--crit-bg, #fbe9e7);
+  --rs-maybe: var(--high, #c4631a);
+  --rs-maybe-bg: var(--high-bg, #fbeee2);
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 980px; /* readability cap on very wide screens */
+  margin-top: 16px;
+
+  /* ---------- section cards ---------- */
+  .rs-card {
+    background: #fff;
+    border: 1px solid var(--rs-line);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .rs-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .rs-card-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: #f1f3f0;
+      color: var(--rs-ink);
+      flex: none;
+    }
+    .rs-card-title {
+      margin: 0;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--rs-ink);
+      letter-spacing: .01em;
+    }
+    .rs-card-sub {
+      font-size: 11.5px;
+      color: var(--rs-muted);
+    }
+  }
+
+  /* ---------- quick replies grid ---------- */
+  .rs-qgrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .rs-qcard {
+    border: 1px solid var(--rs-line);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #fff;
+
+    .rs-qcard-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .rs-qcard-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      flex: none;
+    }
+    .rs-qcard-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--rs-ink);
+    }
+
+    &.rs-qcard--yes {
+      border-top: 3px solid var(--rs-yes);
+      .rs-qcard-badge { background: var(--rs-yes-bg); color: var(--rs-yes); }
+    }
+    &.rs-qcard--no {
+      border-top: 3px solid var(--rs-no);
+      .rs-qcard-badge { background: var(--rs-no-bg); color: var(--rs-no); }
+    }
+    &.rs-qcard--maybe {
+      border-top: 3px solid var(--rs-maybe);
+      .rs-qcard-badge { background: var(--rs-maybe-bg); color: var(--rs-maybe); }
+    }
+
+    .rs-qcard-text {
+      width: 100%;
+      resize: vertical;
+      min-height: 64px;
+      border: 1px solid var(--rs-line);
+      border-radius: 6px;
+      padding: 8px;
+      font: inherit;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: var(--rs-ink);
+      background: #fafbfa;
+      &:focus { outline: 2px solid rgba(31, 111, 107, .35); outline-offset: 1px; background: #fff; }
+      &:disabled { opacity: .6; }
+    }
+  }
+
+  /* ---------- action rows ---------- */
+  .rs-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .rs-actions--compact {
+    gap: 6px;
+    margin-top: auto; /* pin to the card bottom so the three cards align */
+  }
+
+  .rs-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--rs-line);
+    background: #fff;
+    color: var(--rs-ink);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+
+    &:hover:not(:disabled) { background: #f4f5f3; border-color: #c4c8c1; }
+    &:disabled { opacity: .5; cursor: default; }
+    &:focus-visible { outline: 2px solid rgba(31, 111, 107, .5); outline-offset: 1px; }
+
+    .pi { font-size: 12px; }
+  }
+
+  .rs-btn--insert {
+    border-color: var(--rs-ink);
+  }
+
+  .rs-btn--send {
+    background: var(--rs-ink);
+    border-color: var(--rs-ink);
+    color: #fff;
+    margin-left: auto; /* primary action sits at the row's end */
+    &:hover:not(:disabled) { background: #2a3140; border-color: #2a3140; }
+  }
+
+  /* ---------- detailed reply ---------- */
+  .rs-type-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .rs-field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--rs-muted);
+    margin: 0;
+  }
+  .rs-select {
+    min-width: 160px;
+    height: 32px;
+    font-size: 12.5px;
+    background: #fff;
+  }
+  .rs-type-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    &.rs-type--yes { color: var(--rs-yes); }
+    &.rs-type--no { color: var(--rs-no); }
+    &.rs-type--maybe { color: var(--rs-maybe); }
+  }
+
+  .rs-placeholder {
+    border: 1px dashed var(--rs-line);
+    border-radius: 8px;
+    padding: 18px 14px;
+    font-size: 12.5px;
+    color: var(--rs-muted);
+    text-align: center;
+  }
+
+  /* ---------- custom reply generator ---------- */
+  .rs-prompt {
+    width: 100%;
+    resize: vertical;
+    min-height: 70px;
+    border: 1px solid var(--rs-line);
+    border-radius: 8px;
+    padding: 10px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--rs-ink);
+    background: #fafbfa;
+    &::placeholder { color: #9aa1ab; }
+    &:focus { outline: 2px solid rgba(31, 111, 107, .35); outline-offset: 1px; background: #fff; }
+    &:disabled { opacity: .6; }
+  }
+
+  .rs-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .rs-chip {
+    border: 1px solid var(--rs-line);
+    background: #fff;
+    color: var(--rs-ink);
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    &:hover:not(:disabled) { background: #f4f5f3; }
+    &.active { background: var(--rs-ink); border-color: var(--rs-ink); color: #fff; }
+    &:disabled { opacity: .5; cursor: default; }
+  }
+
+  .rs-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .rs-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .rs-generate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--rs-ink);
+    border: 1px solid var(--rs-ink);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-left: auto;
+    transition: background .15s;
+    &:hover:not(:disabled) { background: #2a3140; }
+    &:disabled { opacity: .5; cursor: default; }
+    &:focus-visible { outline: 2px solid rgba(31, 111, 107, .5); outline-offset: 1px; }
+  }
+
+  /* ---------- loading / error states ---------- */
+  .rs-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0;
+
+    span {
+      display: block;
+      height: 10px;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #eef0ee 25%, #f7f8f6 50%, #eef0ee 75%);
+      background-size: 200% 100%;
+      animation: rs-shimmer 1.2s ease-in-out infinite;
+      &.short { width: 55%; }
+    }
+    &.rs-skeleton--tall { padding: 10px 0; span { height: 12px; } }
+  }
+  @keyframes rs-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+
+  .rs-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--rs-no);
+    background: var(--rs-no-bg);
+    border: 1px solid rgba(179, 38, 30, .25);
+    border-radius: 8px;
+    padding: 8px 10px;
+
+    .pi-exclamation-triangle { font-size: 13px; }
+    .rs-btn { margin-left: auto; }
+  }
+
+  /* CKEditor inside the studio: keep the editing area a comfortable size and
+     let the toolbar scroll horizontally instead of overflowing on phones. */
+  .draft-ck .ck-editor__editable_inline {
+    min-height: 140px;
+    max-height: 320px;
+    font-size: 13px;
+  }
+  /* Don't turn the toolbar into a scroll container (overflow-x: auto) — that
+     clips CKEditor's dropdown panels (heading, font size/color) so they render
+     detached or hidden. CKEditor's built-in item grouping (the "⋮" button)
+     already handles narrow widths. */
+
+  /* ---------- responsive ---------- */
+  /* Tablet / narrow drawer: 2 + 1 quick-reply cards */
+  @media (max-width: 1100px) {
+    .rs-qgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  /* Mobile: stack everything, full-width primary actions */
+  @media (max-width: 640px) {
+    .rs-qgrid { grid-template-columns: 1fr; }
+
+    .rs-card-head { align-items: flex-start; }
+    .rs-type-pick {
+      margin-left: 0;
+      width: 100%;
+      .rs-select { flex: 1; }
+    }
+
+    .rs-controls {
+      flex-direction: column;
+      align-items: stretch;
+      .rs-control .rs-select { width: 100%; }
+    }
+    .rs-generate-btn,
+    .rs-btn--send {
+      margin-left: 0;
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+/* Send-confirmation dialog (portaled outside .reply-studio) */
+.rs-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .rs-confirm-note {
+    margin: 0;
+    font-size: 13px;
+    color: #3a4150;
+    b { word-break: break-word; }
+  }
+
+  .rs-confirm-preview {
+    border: 1px solid #d9dcd6;
+    border-radius: 8px;
+    background: #fafbfa;
+    padding: 12px;
+    max-height: 260px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #14181f;
+    p { margin: 0 0 8px; &:last-child { margin-bottom: 0; } }
+  }
+
+  .rs-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+
+    .rs-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #d9dcd6;
+      background: #fff;
+      color: #14181f;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      &:hover { background: #f4f5f3; }
+    }
+    .rs-btn--send {
+      background: #14181f;
+      border-color: #14181f;
+      color: #fff;
+      &:hover { background: #2a3140; }
+    }
+  }
+}

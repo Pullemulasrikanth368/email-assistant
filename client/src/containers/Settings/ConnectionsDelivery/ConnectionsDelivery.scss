@@ -1,7 +1,6 @@
 /* Connections & Delivery — executive light theme */
 
 .conn-delivery {
-  max-width: 1100px;
   margin: 0 auto;
   padding: 28px 20px 48px;
 }
@@ -228,7 +227,7 @@
   }
 }
 
-.cd-field + .cd-conn {
+.cd-field+.cd-conn {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #F3F4F6;

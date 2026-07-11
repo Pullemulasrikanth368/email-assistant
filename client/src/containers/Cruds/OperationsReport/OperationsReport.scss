@@ -2211,6 +2211,54 @@
     margin-bottom: 8px;
   }
 
+  .orm-email-to {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Priority / category / read-state / reply-expected chips under the meta row */
+  .orm-email-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .orm-echip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--muted);
+
+    &.prio-critical { color: var(--crit); background: var(--crit-bg); border-color: rgba(179, 38, 30, .3); }
+    &.prio-high { color: var(--high); background: var(--high-bg); border-color: rgba(196, 99, 26, .3); }
+    &.prio-medium { color: #7a6410; background: var(--med-bg); border-color: rgba(201, 162, 39, .4); }
+    &.prio-low { color: var(--low); background: var(--low-bg); border-color: rgba(79, 122, 63, .3); }
+    &.cat { color: var(--accent); background: var(--accent-soft); border-color: rgba(31, 111, 107, .3); }
+    &.unread { color: var(--ink); border-color: var(--ink); }
+    &.reply { color: var(--high); border-color: rgba(196, 99, 26, .4); }
+  }
+
+  /* Label separating the Reply Studio cards from the main composer */
+  .orm-composer-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin: 16px 0 6px;
+  }
+
   .orm-mail-frame {
     width: 100%;
     min-height: 200px;

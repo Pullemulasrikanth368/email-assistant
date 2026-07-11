@@ -8,13 +8,14 @@ import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import DOMPurify from 'dompurify';
 import {
-  Info, Mail, MailCheck, MailOpen, CalendarClock, ListChecks, History, ClipboardList, ClipboardCheck,
+  Info, Mail, MailCheck, MailMinus, MailOpen, CalendarClock, ListChecks, History, ClipboardList, ClipboardCheck,
   AlertTriangle, HelpCircle, CheckCircle2, Users, FileText,
 } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import { url } from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import { normalizeRows } from './reportLayout';
+import useCategoryLabels from '../CommonComponents/useCategoryLabels';
 
 const todoKey = (t) => `${t.sourceId || ''}::${t.task || ''}`;
 
@@ -207,7 +208,7 @@ const SECTION_INFO = {
   },
   todoList: {
     title: 'Your to-do',
-    description: 'Tasks extracted from emails that appear to be yours to do, with deadlines when mentioned. Ticking the checkbox marks the task complete and sends an AI-written reply on the original email thread telling the sender it’s done.',
+    description: 'Tasks extracted from emails that appear to be yours to do, with deadlines when mentioned. Ticking the checkbox marks the task complete; replying is optional — click the task to open the email and send a reply.',
   },
   events: {
     title: 'Events mentioned',
@@ -343,6 +344,9 @@ export const RiskMatrix = ({ risks = [], onPick }) => {
  */
 export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { }, onOpenRisk, readOverride = null }) => {
   const brief = report?.brief || {};
+  // Display names for categories — the Outlook labels from the category
+  // config, so the app and Outlook show the same tags (dbValue stays the key).
+  const catLabel = useCategoryLabels();
 
   // Layout/visibility (sections, fields, order, columns) is a display concern, so the
   // live report-config always wins; the report's own snapshot is only a fallback for
@@ -414,9 +418,10 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
   };
 
   /* -------- to-do checkbox --------
-     Replyable mail (needs a reply / has a draft) -> open the email detail view,
-     where the draft editor offers "Mark as complete & send" / "Send only".
-     Not replyable -> mark the mail as read and check the item off directly. */
+     Ticking the box marks the mail read and completes the item directly —
+     no reply is required. Replying stays optional: clicking the row (or the
+     "Draft ready" / "Reply needed" tag) opens the email detail view, where
+     the draft editor offers "Mark as complete & send" / "Send only". */
   const [doneKeys, setDoneKeys] = useState(() => new Set());
   // Items the user un-checked this session (overrides a stored "Completed").
   const [undoneKeys, setUndoneKeys] = useState(() => new Set());
@@ -444,26 +449,14 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
       showToasterMessage('This item has no linked email.', 'warning');
       return;
     }
-    // Status already known from the batch check — open the email straight away.
-    const known = replyStatus[todo.sourceId];
-    if (known && (known.hasDraft || known.needsReply)) {
-      onOpenSource(todo.sourceId);
-      return;
-    }
     const key = todoKey(todo);
     setBusyKeys((prev) => new Set(prev).add(key));
     try {
       const res = await fetchMethodRequest('GET', `email-analysis/mails/by-source/${encodeURIComponent(todo.sourceId)}`);
       const mail = res?.mail || null;
 
-      if (mail && (mail.draft || mail.needsReply)) {
-        // Replyable — take the user to the email detail view to review the
-        // draft and choose "Mark as complete & send" or "Send only".
-        onOpenSource(todo.sourceId);
-        return;
-      }
-
-      // Not replyable — mark the mail as read and complete the item directly.
+      // Mark the mail as read (best effort) and complete the item directly —
+      // replying is optional and stays available from the email detail view.
       if (mail) {
         fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
           sourceId: mail.providerMessageId || todo.sourceId,
@@ -588,22 +581,27 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readOverride?.nonce]);
 
-  const markGroupRead = async (sourceIds, label) => {
-    const ids = [...new Set((sourceIds || []).filter(Boolean))].filter((id) => !readSourceIds.has(id));
+  const markGroupRead = async (sourceIds, label, isRead = true) => {
+    const ids = [...new Set((sourceIds || []).filter(Boolean))]
+      .filter((id) => (isRead ? !readSourceIds.has(id) : readSourceIds.has(id)));
     if (!ids.length) return;
     try {
       const res = await fetchMethodRequest('POST', 'email-analysis/mail/mark-read', {
         messageIds: ids,
-        isRead: true,
+        isRead,
       });
       if (res?.respCode) {
-        setReadSourceIds((prev) => { const next = new Set(prev); ids.forEach((id) => next.add(id)); return next; });
-        showToasterMessage(`Marked ${ids.length} mail${ids.length > 1 ? 's' : ''} as read${label ? ` for ${label}` : ''}`, 'success');
+        setReadSourceIds((prev) => {
+          const next = new Set(prev);
+          ids.forEach((id) => { if (isRead) next.add(id); else next.delete(id); });
+          return next;
+        });
+        showToasterMessage(`Marked ${ids.length} mail${ids.length > 1 ? 's' : ''} as ${isRead ? 'read' : 'unread'}${label ? ` for ${label}` : ''}`, 'success');
       } else {
-        showToasterMessage(res?.errorMessage || 'Could not mark as read', 'error');
+        showToasterMessage(res?.errorMessage || `Could not mark as ${isRead ? 'read' : 'unread'}`, 'error');
       }
     } catch {
-      showToasterMessage('Could not mark as read', 'error');
+      showToasterMessage(`Could not mark as ${isRead ? 'read' : 'unread'}`, 'error');
     }
   };
 
@@ -830,7 +828,7 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
             const card = (
               <div className="orm-cat-summary" style={cardStyle}>
                 <div className="orm-cat-head">
-                  <span className="orm-chip cat">{c.category || 'Other'}</span>
+                  <span className="orm-chip cat">{catLabel(c.category) || 'Other'}</span>
                   {(c.count != null || mails.length > 0) && (
                     <span className="cnt">{c.count != null ? c.count : mails.length}</span>
                   )}
@@ -862,9 +860,20 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                     style={{ borderTop: `3px solid ${chip.accent}` }}
                   >
                     <div className="flex items-center justify-between gap-2 px-3.5 py-2.5" style={{ background: chip.soft }}>
-                      <span className="text-[13px] font-semibold" style={{ color: chip.color }}>{c.category || 'Other'}</span>
-                      <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10.5px] font-medium" style={{ color: chip.color }}>
-                        {mails.length}
+                      <span className="text-[13px] font-semibold" style={{ color: chip.color }}>{catLabel(c.category) || 'Other'}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="rounded-full bg-white/70 px-2 py-0.5 font-mono text-[10.5px] font-medium" style={{ color: chip.color }}>
+                          {mails.length}
+                        </span>
+                        <button
+                          type="button"
+                          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-colors hover:bg-black/10"
+                          title="Mark all as read"
+                          aria-label="Mark all as read"
+                          onClick={() => markGroupRead(mails.map((m) => m.sourceId), catLabel(c.category) || 'Other')}
+                        >
+                          <MailCheck className="h-3.5 w-3.5" style={{ color: chip.color }} />
+                        </button>
                       </span>
                     </div>
                     <div className="max-h-72 divide-y divide-border/60 overflow-y-auto bg-popover">
@@ -873,11 +882,13 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                         const RowIcon = isRead ? MailOpen : Mail;
                         const fromName = (m.from || '').replace(/<[^>]*>/g, '').trim();
                         return (
-                          <button
-                            type="button"
+                          <div
+                            role="button"
+                            tabIndex={0}
                             key={j}
                             onClick={() => onOpenSource(m.sourceId)}
-                            className={`flex w-full items-start gap-2.5 border-0 px-3.5 py-2.5 text-left transition-colors hover:bg-accent/50${isRead ? ' bg-transparent' : ''}`}
+                            onKeyDown={(e) => { if (e.key === 'Enter') onOpenSource(m.sourceId); }}
+                            className={`flex w-full cursor-pointer items-start gap-2.5 border-0 px-3.5 py-2.5 text-left transition-colors hover:bg-accent/50${isRead ? ' bg-transparent' : ''}`}
                             style={isRead ? undefined : { background: chip.background, boxShadow: `inset 3px 0 0 ${chip.accent}` }}
                           >
                             <span
@@ -896,7 +907,18 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                                 </span>
                               )}
                             </span>
-                          </button>
+                            <button
+                              type="button"
+                              className="mt-0.5 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-colors hover:bg-black/10"
+                              title={isRead ? 'Mark as unread' : 'Mark as read'}
+                              aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
+                              onClick={(e) => { e.stopPropagation(); markGroupRead([m.sourceId], catLabel(c.category) || 'Other', !isRead); }}
+                            >
+                              {isRead
+                                ? <MailMinus className="h-3.5 w-3.5 text-muted-foreground" />
+                                : <MailCheck className="h-3.5 w-3.5" style={{ color: chip.color }} />}
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -1002,13 +1024,13 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                           onKeyDown={(e) => { if (e.key === 'Enter') toggleSection(catKey); }}
                         >
                           <i className={`pi ${catCollapsed ? 'pi-chevron-right' : 'pi-chevron-down'}`} />
-                          {cat} <span className="n">{items.length}</span>
+                          {catLabel(cat)} <span className="n">{items.length}</span>
                           <button
                             type="button"
                             className="orm-mark-read-icon"
                             title="Mark all as read"
                             aria-label="Mark all as read"
-                            onClick={(e) => { e.stopPropagation(); markGroupRead(items.map((t) => t.sourceId), `${g.name} · ${cat}`); }}
+                            onClick={(e) => { e.stopPropagation(); markGroupRead(items.map((t) => t.sourceId), `${g.name} · ${catLabel(cat)}`); }}
                           >
                             <MailCheck className="orm-mark-read-glyph" />
                           </button>
@@ -1094,12 +1116,11 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
           const done = isTodoDone(t);
           const busy = isTodoBusy(t);
           const rs = t.sourceId ? replyStatus[t.sourceId] : null;
-          // Completed items with no draft toggle back to open on re-click.
-          const canUncheck = done && !rs?.hasDraft;
+          // Completed items toggle back to open on re-click.
           const onCheckClick = () => {
             if (busy) return;
             if (!done) onTodoCheck(t);
-            else if (canUncheck) onTodoUncheck(t);
+            else onTodoUncheck(t);
           };
           return (
             <div className={`orm-todo${done ? ' done' : ''}`} key={i} onClick={() => onOpenSource(t.sourceId)} role="button" tabIndex={0}>
@@ -1109,8 +1130,8 @@ export const BriefDashboard = ({ report, reportConfig, onOpenSource = () => { },
                 aria-checked={done}
                 tabIndex={0}
                 title={done
-                  ? (canUncheck ? 'Completed — click to mark as not completed' : 'Completed')
-                  : 'Reply needed? Opens the email — otherwise marks read & completed'}
+                  ? 'Completed — click to mark as not completed'
+                  : 'Mark as read & completed (click the row to open the email and reply)'}
                 onClick={(e) => { e.stopPropagation(); onCheckClick(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onCheckClick(); } }}
               >

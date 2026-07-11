@@ -3,7 +3,6 @@ import { InputText } from 'primereact/inputtext';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Dropdown } from 'primereact/dropdown';
 import { Button } from 'primereact/button';
-import { Divider } from 'primereact/divider';
 import fetchMethodRequest from '../../config/service';
 import showToasterMessage from '../UI/ToasterMessage/toasterMessage';
 import './Settings.scss';
@@ -23,10 +22,13 @@ const BRIEF_TIME_OPTIONS = [
   { label: '09:00 AM', value: '09:00' },
 ];
 
-const AI_TYPE_OPTIONS = [
-  { label: 'OpenAI', value: 'openai' },
-  { label: 'Ollama', value: 'ollama' },
+const SYNC_UNIT_OPTIONS = [
+  { label: 'Minutes', value: 'minutes' },
+  { label: 'Hours', value: 'hours' },
+  { label: 'Days', value: 'days' },
 ];
+
+const SYNC_UNIT_MAX = { minutes: 60, hours: 23, days: 31 };
 
 const Settings = () => {
   const [loading, setLoading] = useState(true);
@@ -37,10 +39,14 @@ const Settings = () => {
     adminEmail: '',
     sendGridApiKey: '',
     sendGridEmail: '',
-    aiType: 'openai',
     emailAnalysisBriefTime: '06:00',
     emailAnalysisModel: 'openai',
   });
+
+  // Sync preferences (moved here from the sidebar profile modal)
+  const [autoSync, setAutoSync] = useState(true);
+  const [syncValue, setSyncValue] = useState(15);
+  const [syncUnit, setSyncUnit] = useState('minutes');
 
   useEffect(() => {
     fetchSettings();
@@ -49,7 +55,11 @@ const Settings = () => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetchMethodRequest('GET', 'settings');
+      const [res, syncRes, intervalRes] = await Promise.all([
+        fetchMethodRequest('GET', 'settings'),
+        fetchMethodRequest('GET', 'email-analysis/auto-sync').catch(() => null),
+        fetchMethodRequest('GET', 'email-analysis/sync-interval').catch(() => null),
+      ]);
       if (res && res.respCode === 200 && res.settings && res.settings[0]) {
         const s = res.settings[0];
         setForm({
@@ -57,10 +67,19 @@ const Settings = () => {
           adminEmail: s.adminEmail || '',
           sendGridApiKey: s.sendGridApiKey || '',
           sendGridEmail: s.sendGridEmail || '',
-          aiType: s.aiType || 'openai',
           emailAnalysisBriefTime: s.emailAnalysisBriefTime || '06:00',
           emailAnalysisModel: s.emailAnalysisModel || 'openai',
         });
+      }
+      if (syncRes?.autoSync !== undefined) {
+        setAutoSync(syncRes.autoSync !== false);
+      }
+      if (intervalRes?.syncIntervalValue !== undefined) {
+        setSyncValue(Number(intervalRes.syncIntervalValue) || 15);
+        setSyncUnit(intervalRes.syncIntervalUnit || 'minutes');
+      } else if (intervalRes?.syncIntervalMinutes !== undefined) {
+        setSyncValue(Number(intervalRes.syncIntervalMinutes) || 15);
+        setSyncUnit('minutes');
       }
     } catch {
       showToasterMessage('Failed to load settings', 'error');
@@ -74,11 +93,30 @@ const Settings = () => {
   };
 
   const handleSave = async () => {
+    // Validate sync interval before saving anything
+    const val = Number(syncValue);
+    if (autoSync && (isNaN(val) || val < 1 || val > SYNC_UNIT_MAX[syncUnit])) {
+      showToasterMessage(`Sync frequency must be between 1 and ${SYNC_UNIT_MAX[syncUnit]} ${syncUnit}`, 'warning');
+      return;
+    }
+
     setSaving(true);
     try {
-      const res = await fetchMethodRequest('PUT', 'settings', form);
+      const [res, syncRes, intervalRes] = await Promise.all([
+        fetchMethodRequest('PUT', 'settings', form),
+        fetchMethodRequest('POST', 'email-analysis/auto-sync', { autoSync }).catch(() => null),
+        autoSync
+          ? fetchMethodRequest('POST', 'email-analysis/sync-interval', {
+              syncIntervalValue: val,
+              syncIntervalUnit: syncUnit,
+            }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
       if (res && (res.respCode === 205 || res.respCode === 200)) {
         showToasterMessage('Settings saved successfully', 'success');
+        if (syncRes?.respCode || intervalRes?.respCode) {
+          window.dispatchEvent(new CustomEvent('syncSettingsUpdated'));
+        }
       } else {
         showToasterMessage(res?.errorMessage || 'Failed to save settings', 'error');
       }
@@ -92,7 +130,7 @@ const Settings = () => {
   if (loading) {
     return (
       <div className="ea-settings-loading">
-        <i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem', color: '#1a73e8' }} />
+        <i className="pi pi-spin pi-spinner" style={{ fontSize: '1.5rem', color: '#111827' }} />
         <p>Loading settings…</p>
       </div>
     );
@@ -120,7 +158,8 @@ const Settings = () => {
           />
         </div>
 
-        <Divider />
+        {/* Section cards — fill the width, no wasted space */}
+        <div className="ea-settings-sections">
 
         {/* Section: General */}
         <section className="ea-settings-section">
@@ -149,8 +188,6 @@ const Settings = () => {
             </div>
           </div>
         </section>
-
-        <Divider />
 
         {/* Section: Email Analysis */}
         <section className="ea-settings-section">
@@ -183,8 +220,6 @@ const Settings = () => {
           </div>
         </section>
 
-        <Divider />
-
         {/* Section: SendGrid */}
         <section className="ea-settings-section">
           <h2 className="ea-section-title">
@@ -214,27 +249,49 @@ const Settings = () => {
           </div>
         </section>
 
-        <Divider />
-
-        {/* Section: AI */}
+        {/* Section: Sync Preferences (moved from profile modal) */}
         <section className="ea-settings-section">
           <h2 className="ea-section-title">
-            <i className="pi pi-microchip-ai" /> AI Provider
+            <i className="pi pi-sync" /> Sync Preferences
           </h2>
           <div className="ea-settings-grid">
-            <div className="ea-field">
-              <label className="ea-label">Default AI Type</label>
-              <Dropdown
-                value={form.aiType}
-                options={AI_TYPE_OPTIONS}
-                onChange={(e) => handleChange('aiType', e.value)}
-                className="ea-input"
-                placeholder="Select AI type"
+            <div className="ea-field ea-field-switch">
+              <label className="ea-label">Auto-sync mailboxes</label>
+              <InputSwitch
+                checked={autoSync}
+                onChange={(e) => setAutoSync(e.value)}
               />
-              <span className="ea-field-hint">Global AI provider used across all features</span>
+              <span className="ea-field-hint">Automatically sync connected mailboxes in the background</span>
             </div>
+            {autoSync && (
+              <div className="ea-field">
+                <label className="ea-label">Sync Frequency</label>
+                <div className="ea-sync-frequency">
+                  <InputText
+                    type="number"
+                    min={1}
+                    max={SYNC_UNIT_MAX[syncUnit]}
+                    value={syncValue}
+                    onChange={(e) => setSyncValue(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="ea-input ea-sync-value"
+                  />
+                  <Dropdown
+                    value={syncUnit}
+                    options={SYNC_UNIT_OPTIONS}
+                    onChange={(e) => {
+                      setSyncUnit(e.value);
+                      if (syncValue > SYNC_UNIT_MAX[e.value]) setSyncValue(1);
+                    }}
+                    className="ea-input ea-sync-unit"
+                  />
+                </div>
+                <span className="ea-field-hint">How often the automated background sync runs</span>
+              </div>
+            )}
           </div>
         </section>
+
+        </div>
 
         {/* Bottom Save */}
         <div className="ea-settings-footer">

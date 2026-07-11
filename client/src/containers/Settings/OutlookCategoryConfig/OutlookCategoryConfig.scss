@@ -1,6 +1,16 @@
+// Outlook Category Labels — slate theme, dense side-by-side grid
+$occ-accent: #111827;
+$occ-accent-hover: #1F2937;
+$occ-border: #E5E7EB;
+$occ-text: #1F2937;
+$occ-text-soft: #4B5563;
+$occ-muted: #9CA3AF;
+$occ-bg: #F9FAFB;
+$occ-ring: rgba(17, 24, 39, 0.1);
+
 .occ-root {
-  padding: 1.5rem;
-  max-width: 1100px;
+  padding: 1rem 1.25rem;
+  margin: 0 auto;
 }
 
 /* ── Header ── */
@@ -8,193 +18,432 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
 }
 
 .occ-header-left {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 0.65rem;
 }
 
 .occ-header-icon {
-  font-size: 2rem;
-  color: #0078d4;
+  font-size: 0.9rem;
+  color: $occ-accent;
+  background: #F3F4F6;
+  border: 1px solid $occ-border;
+  border-radius: 8px;
+  padding: 0.5rem;
   margin-top: 2px;
 }
 
 .occ-title {
-  font-size: 1.25rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+  color: $occ-text;
+  margin: 0 0 2px;
 }
 
 .occ-subtitle {
-  font-size: 0.85rem;
-  color: #6b7280;
+  font-size: 0.72rem;
+  color: $occ-muted;
   margin: 0;
   max-width: 560px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .occ-header-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.5rem;
   align-items: center;
   flex-shrink: 0;
+
+  .p-button {
+    font-size: 0.74rem !important;
+    padding: 0.4rem 0.8rem !important;
+    border-radius: 8px !important;
+  }
 }
 
 .occ-save-btn {
-  background: #0078d4 !important;
-  border-color: #0078d4 !important;
-  font-weight: 600;
+  background: $occ-accent !important;
+  border-color: $occ-accent !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.2) !important;
+  transition: background 0.15s ease, transform 0.1s ease !important;
+
+  &:hover:not(:disabled) {
+    background: $occ-accent-hover !important;
+    border-color: $occ-accent-hover !important;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
 }
 
 .occ-reset-btn {
-  color: #6b7280 !important;
-  border-color: #d1d5db !important;
+  color: $occ-text-soft !important;
+  border-color: $occ-border !important;
+  background: #ffffff !important;
+  font-weight: 600 !important;
+
+  &:hover:not(:disabled) {
+    background: $occ-bg !important;
+    color: $occ-accent !important;
+  }
 }
 
 /* ── Legend ── */
 .occ-legend {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.9rem;
   flex-wrap: wrap;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem 0.65rem;
+  background: $occ-bg;
+  border: 1px solid #F3F4F6;
+  border-radius: 8px;
+  width: fit-content;
 }
 
 .occ-legend-item {
-  font-size: 0.8rem;
-  color: #6b7280;
+  font-size: 0.66rem;
+  color: $occ-muted;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
+
+  .pi {
+    font-size: 0.66rem;
+    color: $occ-text-soft;
+  }
 }
 
-/* ── Section ── */
-.occ-section {
-  margin-bottom: 0.5rem;
-}
-
-.occ-section-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #374151;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.75rem;
-}
-
-/* ── Entries ── */
-.occ-entries {
+/* ── Accordion of section panels — open panel is highlighted ── */
+.occ-accordion {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+
+  .p-accordion-tab {
+    margin: 0;
+    background: #ffffff;
+    border: 1px solid $occ-border;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .p-accordion-header {
+    .p-accordion-header-link {
+      background: #ffffff;
+      border: none;
+      border-radius: 0;
+      padding: 0.55rem 0.85rem;
+      gap: 0.45rem;
+      transition: background 0.15s ease, color 0.15s ease;
+
+      &:focus {
+        box-shadow: none;
+      }
+
+      .p-accordion-toggle-icon {
+        font-size: 0.65rem;
+        color: $occ-muted;
+        order: 2;
+        margin-left: auto;
+      }
+    }
+
+    &:not(.p-disabled):hover .p-accordion-header-link {
+      background: $occ-bg;
+    }
+  }
+
+  .p-accordion-content {
+    border: none;
+    border-top: 1px solid #F3F4F6;
+    border-radius: 0;
+    padding: 0.35rem 0.85rem 0.6rem;
+  }
+
+  // ── Open panel highlight ──
+  .p-accordion-tab-active {
+    border-color: $occ-accent;
+    box-shadow: 0 3px 12px rgba(17, 24, 39, 0.1);
+
+    .p-accordion-header .p-accordion-header-link {
+      background: $occ-accent !important;
+
+      .occ-acc-header-title {
+        color: #ffffff;
+      }
+
+      .occ-acc-header .pi {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .occ-acc-count {
+        background: rgba(255, 255, 255, 0.16);
+        color: #ffffff;
+        border-color: transparent;
+      }
+
+      .p-accordion-toggle-icon {
+        color: #ffffff;
+      }
+    }
+
+    .p-accordion-header:not(.p-disabled):hover .p-accordion-header-link {
+      background: $occ-accent-hover;
+    }
+  }
+}
+
+/* Accordion header content */
+.occ-acc-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+
+  .pi {
+    color: $occ-accent;
+    font-size: 0.66rem;
+    background: #F3F4F6;
+    border: 1px solid $occ-border;
+    border-radius: 6px;
+    padding: 0.28rem;
+    transition: all 0.15s ease;
+  }
+}
+
+.occ-acc-header-title {
+  color: $occ-text-soft;
+  transition: color 0.15s ease;
+}
+
+.occ-acc-count {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: $occ-text-soft;
+  background: #F3F4F6;
+  border: 1px solid $occ-border;
+  border-radius: 20px;
+  padding: 0 7px;
+  line-height: 1.4;
+  transition: all 0.15s ease;
+}
+
+/* ── Entries — hairline-divided rows inside the card ── */
+.occ-entries {
+  display: flex;
+  flex-direction: column;
 }
 
 .occ-entry {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 0.6rem 1rem;
-  transition: background 0.15s, border-color 0.15s;
-}
+  gap: 0.5rem;
+  padding: 0.32rem 0;
+  border-top: 1px solid #F3F4F6;
+  transition: background 0.12s ease;
 
-.occ-entry:hover {
-  background: #f0f4ff;
-  border-color: #bfdbfe;
+  &:first-child {
+    border-top: none;
+  }
+
+  &:hover {
+    background: $occ-bg;
+  }
 }
 
 .occ-entry--disabled {
-  opacity: 0.55;
-  background: #f3f4f6;
+  opacity: 0.45;
 }
 
 .occ-toggle {
   flex-shrink: 0;
+
+  // Compact switch, slate when on
+  &.p-inputswitch {
+    width: 2.1rem;
+    height: 1.15rem;
+
+    .p-inputswitch-slider::before {
+      width: 0.85rem;
+      height: 0.85rem;
+      margin-top: -0.43rem;
+    }
+
+    &.p-inputswitch-checked .p-inputswitch-slider {
+      background: $occ-accent !important;
+    }
+
+    &.p-inputswitch-checked:not(.p-disabled):hover .p-inputswitch-slider {
+      background: $occ-accent-hover !important;
+    }
+  }
 }
 
 .occ-db-value {
   flex-shrink: 0;
-  min-width: 170px;
+  width: 118px;
+  overflow: hidden;
 }
 
 .occ-db-badge {
   display: inline-block;
-  background: #e0e7ff;
-  color: #3730a3;
-  font-size: 0.78rem;
+  background: #F3F4F6;
+  color: $occ-text-soft;
+  border: 1px solid $occ-border;
+  font-size: 0.64rem;
   font-weight: 600;
-  padding: 2px 10px;
+  padding: 1px 8px;
   border-radius: 20px;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .occ-arrow {
-  color: #9ca3af;
-  font-size: 0.75rem;
-  flex-shrink: 0;
+  display: none; // saves space — the row order already reads left→right
 }
 
 .occ-label-input {
   flex: 1;
-  min-width: 140px;
-  font-size: 0.875rem !important;
-  border-radius: 6px !important;
+  min-width: 90px;
+  font-size: 0.74rem !important;
+  padding: 0.3rem 0.55rem !important;
+  border-radius: 7px !important;
+  border-color: $occ-border !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+
+  &:hover {
+    border-color: #D1D5DB !important;
+  }
+
+  &:focus {
+    border-color: $occ-accent !important;
+    box-shadow: 0 0 0 3px $occ-ring !important;
+  }
 }
 
 .occ-colour-dropdown {
-  width: 140px !important;
-  font-size: 0.875rem !important;
+  width: 126px !important;
   flex-shrink: 0;
+  border-radius: 7px !important;
+  border-color: $occ-border !important;
+
+  .p-dropdown-label {
+    font-size: 0.74rem !important;
+    padding: 0.3rem 0.55rem !important;
+  }
+
+  .p-dropdown-trigger {
+    width: 1.8rem;
+  }
+
+  &:hover {
+    border-color: #D1D5DB !important;
+  }
+
+  &.p-focus {
+    border-color: $occ-accent !important;
+    box-shadow: 0 0 0 3px $occ-ring !important;
+  }
 }
 
 .occ-colour-option {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  font-size: 0.74rem;
 }
 
 .occ-colour-dot {
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
-/* ── Reply Needed row ── */
+/* ── Reply Needed row (inside its section card) ── */
 .occ-reply-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 0.6rem 1rem;
+  gap: 0.5rem;
+  padding: 0.32rem 0;
   flex-wrap: wrap;
 }
 
 /* ── Footer ── */
 .occ-footer {
-  margin-top: 1.5rem;
+  margin-top: 0.9rem;
   display: flex;
   justify-content: flex-end;
+
+  .p-button {
+    font-size: 0.74rem !important;
+    padding: 0.4rem 0.8rem !important;
+    border-radius: 8px !important;
+  }
 }
 
 /* ── Loading ── */
 .occ-loading {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  color: #6b7280;
+  gap: 0.6rem;
+  color: $occ-muted;
   padding: 2rem;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .occ-root {
+    padding: 0.75rem 0.6rem;
+  }
+
+  .occ-header-actions {
+    width: 100%;
+
+    .p-button {
+      flex: 1;
+      justify-content: center;
+    }
+  }
+
+  .occ-entry,
+  .occ-reply-row {
+    flex-wrap: wrap;
+    row-gap: 0.4rem;
+  }
+
+  .occ-db-value {
+    width: auto;
+  }
+
+  .occ-label-input {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .occ-colour-dropdown {
+    flex: 1;
+    width: auto !important;
+  }
 }

@@ -7,6 +7,7 @@ import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
 import AiDraftReply from '../CommonComponents/AiDraftReply';
+import useCategoryLabels from '../CommonComponents/useCategoryLabels';
 import DraftEditor, { isEmptyHtml, textToHtml } from '../CommonComponents/DraftEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -175,10 +176,6 @@ const MAIL_CATEGORIES = [
 // value) when an option's value is falsy, which would break the API payload.
 // The sentinel maps back to an empty `category` (omitted from the request).
 const ALL_CATEGORIES = 'all';
-const CATEGORY_OPTIONS = [
-  { label: 'All categories', value: ALL_CATEGORIES },
-  ...MAIL_CATEGORIES.map((c) => ({ label: c, value: c })),
-];
 
 // Rank used to sort highest -> lowest priority within a day.
 const sortValue = (m) =>
@@ -452,6 +449,13 @@ const DraftThreadEditor = ({ msg, onSave, onSaved, onSend, onDiscard }) => {
 /* ------------------------------------------------------------------ */
 const EmailAnalysisMails = () => {
   const navigate = useNavigate();
+  // Category display names — the Outlook labels from the category config, so
+  // the list, detail view and filter show the same tags as Outlook.
+  const catLabel = useCategoryLabels();
+  const categoryOptions = [
+    { label: 'All categories', value: ALL_CATEGORIES },
+    ...MAIL_CATEGORIES.map((c) => ({ label: catLabel(c), value: c })),
+  ];
 
   const [mails, setMails] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -1076,7 +1080,7 @@ const EmailAnalysisMails = () => {
               {mail.subject || '(no subject)'}
               {mail.snippet && <span className="ea-snippet"> — {mail.snippet}</span>}
             </span>
-            {mail.category && <span className="ea-cat-chip" title={`Category: ${mail.category}`}>{mail.category}</span>}
+            {mail.category && <span className="ea-cat-chip" title={`Category: ${catLabel(mail.category)}`}>{catLabel(mail.category)}</span>}
             {mail.hasAttachments && <i className="pi pi-paperclip ea-clip" />}
           </div>
         </div>
@@ -1148,7 +1152,7 @@ const EmailAnalysisMails = () => {
                   </span>
                 )}
                 {msg.category && (
-                  <span className="ea-cat-chip" title={`Category: ${msg.category}`}>{msg.category}</span>
+                  <span className="ea-cat-chip" title={`Category: ${catLabel(msg.category)}`}>{catLabel(msg.category)}</span>
                 )}
               </div>
             </div>
@@ -1605,7 +1609,7 @@ const EmailAnalysisMails = () => {
           {folder === 'inbox' && (
             <Dropdown
               value={category || ALL_CATEGORIES}
-              options={CATEGORY_OPTIONS}
+              options={categoryOptions}
               onChange={(e) => selectCategory(e.value === ALL_CATEGORIES ? '' : e.value)}
               className={cn('ea-cat-dd', { active: !!category })}
               panelClassName="ea-cat-dd-panel"

@@ -12,15 +12,11 @@ const Users = React.lazy(() => import('../Admin/Users/index.jsx'));
 const Roles = React.lazy(() => import('../Admin/Roles/index.jsx'));
 const EmailAnalysisMails = React.lazy(() => import('../Cruds/EmailAnalysisMails/index.jsx'));
 const OperationsReport = React.lazy(() => import('../Cruds/OperationsReport/index.jsx'));
-const ReportConfig = React.lazy(() => import('../Cruds/ReportConfig/index.jsx'));
 const DailyBrief = React.lazy(() => import('../Cruds/DailyBrief/index.jsx'));
 const BulkEmailSend = React.lazy(() => import('../Cruds/BulkEmailSend/index.jsx'));
 const OperationsCommandCenter = React.lazy(() => import('../Cruds/OperationsCommandCenter/index.jsx'));
-const KnowledgeBase = React.lazy(() => import('../Cruds/KnowledgeBase/index.jsx'));
 const Drafts = React.lazy(() => import('../Cruds/Drafts/index.jsx'));
-const ConnectionsDelivery = React.lazy(() => import('../Settings/ConnectionsDelivery/index.jsx'));
-const Settings = React.lazy(() => import('../Settings/index.jsx'));
-const OutlookCategoryConfig = React.lazy(() => import('../Settings/OutlookCategoryConfig/index.jsx'));
+const SettingsTabs = React.lazy(() => import('../Settings/SettingsTabs/index.jsx'));
 
 const Loading = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -54,15 +50,15 @@ const router = createBrowserRouter([
       { index: true, Component: () => <Navigate to="/emailAnalysisMails" replace /> },
       { path: '/emailAnalysisMails', Component: () => P(EmailAnalysisMails) },
       { path: '/operationsReport', Component: () => P(OperationsReport) },
-      { path: '/reportConfig', Component: () => P(ReportConfig) },
+      { path: '/reportConfig', Component: () => <Navigate to="/settings?tab=reportConfig" replace /> },
       { path: '/dailyBrief', Component: () => P(DailyBrief) },
       // { path: '/bulkEmailSend',            Component: () => P(BulkEmailSend) },
       { path: '/operationsCommandCenter', Component: () => P(OperationsCommandCenter) },
-      { path: '/knowledgeBase', Component: () => P(KnowledgeBase) },
+      { path: '/knowledgeBase', Component: () => <Navigate to="/settings?tab=knowledgeBase" replace /> },
       // { path: '/drafts',                   Component: () => P(Drafts) },
-      { path: '/connectionsDelivery', Component: () => P(ConnectionsDelivery) },
-      { path: '/settings', Component: () => P(Settings) },
-      { path: '/outlookCategoryConfig', Component: () => P(OutlookCategoryConfig) },
+      { path: '/connectionsDelivery', Component: () => <Navigate to="/settings?tab=connections" replace /> },
+      { path: '/settings', Component: () => P(SettingsTabs) },
+      { path: '/outlookCategoryConfig', Component: () => <Navigate to="/settings?tab=outlookLabels" replace /> },
       { path: '/users', Component: () => P(Users) },
       { path: '/roles', Component: () => P(Roles) },
       { path: '*', Component: () => <Navigate to="/emailAnalysisMails" replace /> },

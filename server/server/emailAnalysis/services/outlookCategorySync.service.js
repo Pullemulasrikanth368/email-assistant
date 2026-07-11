@@ -21,29 +21,28 @@ import OutlookCategoryConfig from "../models/outlookCategoryConfig.model";
 
 /**
  * Maps our DB `priority` values to Outlook category names.
- * We use colour-coded prefixes so they sort nicely in Outlook.
  */
 export const PRIORITY_CATEGORY = {
-  Critical: "🔴 Critical",
-  High:     "🟠 High Priority",
-  Medium:   "🟡 Medium Priority",
-  Low:      "⚪ Low Priority",
+  Critical: "Critical",
+  High:     "High Priority",
+  Medium:   "Medium Priority",
+  Low:      "Low Priority",
 };
 
 /**
  * Maps our DB `category` values to Outlook category names.
  */
 export const CATEGORY_MAP = {
-  "Action Required":         "✅ Action Required",
-  "Meetings & Scheduling":   "📅 Meetings",
-  "Finance & Invoices":      "💰 Finance",
-  "Sales & Leads":           "📈 Sales",
-  "Support & Complaints":    "🛠️ Support",
-  "Notifications & Updates": "🔔 Updates",
-  "Newsletters":             "📰 Newsletter",
-  "Promotions & Marketing":  "🏷️ Marketing",
-  "Personal":                "👤 Personal",
-  "Junk":                    "🗑️ Junk",
+  "Action Required":         "Action Required",
+  "Meetings & Scheduling":   "Meetings & Scheduling",
+  "Finance & Invoices":      "Finance & Invoices",
+  "Sales & Leads":           "Sales & Leads",
+  "Support & Complaints":    "Support & Complaints",
+  "Notifications & Updates": "Notifications & Updates",
+  "Newsletters":             "Newsletters",
+  "Promotions & Marketing":  "Promotions & Marketing",
+  "Personal":                "Personal",
+  "Junk":                    "Junk",
 };
 
 /**
@@ -51,11 +50,11 @@ export const CATEGORY_MAP = {
  * Only intents that add clear value are mapped; generic ones are skipped.
  */
 export const INTENT_CATEGORY = {
-  "approval-request": "⏳ Awaiting Approval",
-  "deadline":         "⏰ Deadline",
-  "invoice":          "📄 Invoice",
-  "escalation":       "🚨 Escalation",
-  "complaint":        "😠 Complaint",
+  "approval-request": "Awaiting Approval",
+  "deadline":         "Deadline",
+  "invoice":          "Invoice",
+  "escalation":       "Escalation",
+  "complaint":        "Complaint",
 };
 
 /**
@@ -65,33 +64,33 @@ export const ALL_CATEGORY_LABELS = [
   ...Object.values(PRIORITY_CATEGORY),
   ...Object.values(CATEGORY_MAP),
   ...Object.values(INTENT_CATEGORY),
-  "💬 Reply Needed",
+  "Reply Needed",
 ];
 
 /* ─── Colour map for master-category registration ─── */
 
 // Graph-supported preset colours (use "none" when unspecified)
 const CATEGORY_COLOUR = {
-  "🔴 Critical":          "preset0",  // Red
-  "🟠 High Priority":     "preset1",  // Orange
-  "🟡 Medium Priority":   "preset3",  // Yellow
-  "⚪ Low Priority":       "preset9",  // Gray
-  "✅ Action Required":   "preset2",  // Green
-  "📅 Meetings":          "preset6",  // Teal
-  "💰 Finance":           "preset4",  // Blue
-  "📈 Sales":             "preset5",  // Purple
-  "🛠️ Support":           "preset1",  // Orange
-  "🔔 Updates":           "preset7",  // Light Blue
-  "📰 Newsletter":        "preset9",  // Gray
-  "🏷️ Marketing":         "preset8",  // Pink
-  "👤 Personal":          "preset10", // Light Green
-  "🗑️ Junk":              "preset9",  // Gray
-  "⏳ Awaiting Approval": "preset3",  // Yellow
-  "⏰ Deadline":          "preset0",  // Red
-  "📄 Invoice":           "preset4",  // Blue
-  "🚨 Escalation":        "preset0",  // Red
-  "😠 Complaint":         "preset1",  // Orange
-  "💬 Reply Needed":      "preset6",  // Teal
+  "Critical":          "preset0",  // Red
+  "High Priority":     "preset1",  // Orange
+  "Medium Priority":   "preset3",  // Yellow
+  "Low Priority":      "preset9",  // Gray
+  "Action Required":         "preset2",  // Green
+  "Meetings & Scheduling":   "preset6",  // Teal
+  "Finance & Invoices":      "preset4",  // Blue
+  "Sales & Leads":           "preset5",  // Purple
+  "Support & Complaints":    "preset1",  // Orange
+  "Notifications & Updates": "preset7",  // Light Blue
+  "Newsletters":             "preset9",  // Gray
+  "Promotions & Marketing":  "preset8",  // Pink
+  "Personal":                "preset10", // Light Green
+  "Junk":                    "preset9",  // Gray
+  "Awaiting Approval": "preset3",  // Yellow
+  "Deadline":          "preset0",  // Red
+  "Invoice":           "preset4",  // Blue
+  "Escalation":        "preset0",  // Red
+  "Complaint":         "preset1",  // Orange
+  "Reply Needed":      "preset6",  // Teal
 };
 
 /* ─── helpers ─── */
@@ -116,7 +115,7 @@ export function buildOutlookCategories(fields, lookup = null) {
   const cMap = lookup?.categoryMap || null;
   const iMap = lookup?.intentMap   || null;
   const rnEnabled = lookup ? lookup.replyNeededEnabled !== false : true;
-  const rnLabel   = lookup?.replyNeededLabel || '💬 Reply Needed';
+  const rnLabel   = lookup?.replyNeededLabel || 'Reply Needed';
 
   // Priority
   if (priority) {

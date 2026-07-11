@@ -1,0 +1,143 @@
+// Unified Settings page — PrimeReact TabView, compact & matched to the app theme
+$st-border: #E5E7EB;
+$st-accent: #111827;
+$st-text: #4B5563;
+$st-muted: #9CA3AF;
+$st-hover: rgba(0, 0, 0, 0.04);
+$st-bg: #F9FAFB;
+
+.ea-settings-tabs {
+  max-height: 100vh;
+
+  &__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 40vh;
+    gap: 0.5rem;
+    color: $st-muted;
+    font-size: 0.8rem;
+
+    .pi-spinner {
+      font-size: 1.4rem;
+      color: $st-accent;
+    }
+  }
+
+  &__tabview {
+
+    // Sticky compact tab bar
+    .p-tabview-nav-container {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #ffffff;
+      border-bottom: 1px solid $st-border;
+    }
+
+    .p-tabview-nav {
+      background: transparent;
+      border: none;
+      padding: 0.35rem 0.75rem;
+      gap: 0.25rem;
+      align-items: center;
+
+      li .p-tabview-nav-link {
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        padding: 0.45rem 0.8rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: $st-text;
+        white-space: nowrap;
+        transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+
+        .p-tabview-left-icon {
+          font-size: 0.75rem;
+        }
+
+        &:not(.p-disabled):focus {
+          box-shadow: none;
+        }
+
+        &:hover {
+          color: $st-accent;
+          background: $st-hover;
+        }
+      }
+
+      // ── Selected tab highlight — solid dark pill, matches accordion headers ──
+      li.p-highlight .p-tabview-nav-link {
+        color: #ffffff !important;
+        background: $st-accent !important;
+        box-shadow: 0 2px 8px rgba(17, 24, 39, 0.25);
+
+        .p-tabview-left-icon {
+          color: #ffffff;
+        }
+
+        &:hover {
+          color: #ffffff;
+          background: #1F2937 !important;
+        }
+      }
+    }
+
+    // Scroll buttons when tabs overflow (scrollable mode)
+    .p-tabview-nav-btn.p-link {
+      background: #ffffff;
+      color: $st-text;
+      width: 2rem;
+      box-shadow: none;
+      border-bottom: 1px solid $st-border;
+
+      &:focus {
+        box-shadow: none;
+      }
+    }
+
+    // Pill highlight replaces the underline indicator
+    .p-tabview-ink-bar {
+      display: none;
+    }
+
+    .p-tabview-panels {
+      background: transparent;
+      padding: 0;
+      max-height: calc(100vh - 100px) !important;
+      overflow-y: auto;
+
+      // Nested pages already carry their own page padding/backgrounds;
+      // neutralize double full-viewport backgrounds inside tabs
+      .ea-settings-page {
+        min-height: auto;
+      }
+    }
+  }
+
+  // ── Responsive ────────────────────────────────────────────────────────────
+  @media (max-width: 768px) {
+    .p-tabview-nav {
+      padding: 0.3rem 0.25rem;
+
+      li .p-tabview-nav-link {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.72rem;
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    .p-tabview-nav li .p-tabview-nav-link {
+      padding: 0.45rem 0.5rem;
+      font-size: 0.68rem;
+
+      // Icons only get cramped on tiny screens — hide them, keep labels
+      .p-tabview-left-icon {
+        display: none;
+      }
+    }
+  }
+}

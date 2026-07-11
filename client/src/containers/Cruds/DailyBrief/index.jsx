@@ -8,7 +8,7 @@ import fetchMethodRequest from '../../../config/service';
 import config from '../../../config/config';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import { BriefDashboard, scoreColor } from '../OperationsReport/BriefDashboard';
-import QuickReplies from '../CommonComponents/QuickReplies';
+import ReplyStudio from '../CommonComponents/ReplyStudio/ReplyStudio';
 import AiDraftReply from '../CommonComponents/AiDraftReply';
 import MailThread from '../CommonComponents/MailThread';
 import '../OperationsReport/OperationsReport.scss';
@@ -22,6 +22,8 @@ const DailyBrief = () => {
 
   // Email-detail drawer (screen 04)
   const [emailDrawer, setEmailDrawer] = useState({ visible: false, loading: false, mail: null, sourceId: null });
+  // Reply Studio "Insert into Reply" -> pushes content into the composer below.
+  const [insertSignal, setInsertSignal] = useState(null);
   const [readState, setReadState] = useState({ busy: false, isRead: false });
   // Signal that pushes a live read/unread toggle down to the dashboard so the
   // mails popover highlight updates immediately (no page refresh needed).
@@ -221,11 +223,17 @@ const DailyBrief = () => {
             {/* Complete conversation thread (older messages collapse) */}
             <MailThread mail={mail} />
 
-            {/* One-click quick replies + the draft thread for this email —
-                needs-reply mails arrive with an auto-created draft, shown
-                pre-loaded instead of an empty "AI draft reply" button. */}
+            {/* Quick Replies / Detailed Reply / Custom AI Reply Generator +
+                the draft composer — needs-reply mails arrive with an
+                auto-created draft, shown pre-loaded. "Insert into Reply"
+                pushes content into the composer below. */}
             <div className="orm-reply-section">
-              <QuickReplies sourceId={mail.providerMessageId || sourceId} preloaded={mail.quickReplies} />
+              <ReplyStudio
+                mail={mail}
+                sourceId={mail.providerMessageId || sourceId}
+                onInsert={(html) => setInsertSignal((p) => ({ html, nonce: (p?.nonce || 0) + 1 }))}
+              />
+              <div className="orm-composer-label">Reply composer</div>
               <AiDraftReply
                 key={mail._id}
                 mailId={mail._id}
@@ -235,6 +243,7 @@ const DailyBrief = () => {
                 todo={todoForSource}
                 reportId={report?._id}
                 onCompleted={() => fetchReport(date)}
+                insertSignal={insertSignal}
               />
             </div>
 

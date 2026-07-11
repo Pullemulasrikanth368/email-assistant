@@ -86,6 +86,12 @@ const EmailAnalysisMailSchema = new mongoose.Schema({
     generatedAt: { type: Date, default: null },
   },
 
+  // Cached reply variants for the Reply Studio (Reports email detail view).
+  // quick: { yes|no|maybe: { text, generatedAt } } — short one-liners.
+  // detailed: { yes|no|maybe: { text, provider, generatedAt } } — full replies.
+  // Custom-prompt replies are never cached here.
+  replyVariants: { type: mongoose.Schema.Types.Mixed, default: null },
+
   // AI-generated summary of the entire thread/conversation.
   threadSummary: { type: String, default: null },
 

@@ -36,10 +36,64 @@ const sheetVariants = cva(
   }
 );
 
+/**
+ * Guard against the Radix "Select inside Dialog" bug: a Select/Popover menu,
+ * CKEditor balloon or the draft right-click menu renders in a body portal, so
+ * Radix treats clicks on/dismissing it as "outside" the sheet and closes the
+ * sheet along with the dropdown.
+ *
+ * The dropdown dismisses itself and unmounts synchronously BEFORE the sheet's
+ * outside-interaction handler runs, so checking the DOM inside that handler is
+ * too late. Instead, capture-phase listeners (which fire before any Radix
+ * layer sees the event) record whether a floating layer was open when the
+ * pointerdown/Escape happened; the sheet's handlers consult that flag.
+ */
+const FLOATING_LAYER_SELECTOR =
+  '[data-radix-popper-content-wrapper], [data-radix-select-viewport], .ck-body-wrapper, .draft-ctx-menu';
+
+let floatingLayerWasOpenAt = 0;
+const floatingLayerIsOpen = () => !!document.querySelector(FLOATING_LAYER_SELECTOR);
+const markIfFloatingLayerOpen = () => {
+  if (floatingLayerIsOpen()) floatingLayerWasOpenAt = Date.now();
+};
+if (typeof document !== 'undefined') {
+  document.addEventListener('pointerdown', markIfFloatingLayerOpen, true);
+  document.addEventListener(
+    'keydown',
+    (e) => { if (e.key === 'Escape') markIfFloatingLayerOpen(); },
+    true
+  );
+}
+
+const isFloatingLayerInteraction = (event) => {
+  const target = event.target;
+  if (target?.closest?.(FLOATING_LAYER_SELECTOR)) return true;
+  // A dropdown was open when this interaction started (it may already have
+  // unmounted by now) — the interaction was meant for it, not the sheet.
+  return floatingLayerIsOpen() || Date.now() - floatingLayerWasOpenAt < 500;
+};
+
 const SheetContent = React.forwardRef(({ side = 'right', className, children, ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+    <SheetPrimitive.Content
+      ref={ref}
+      className={cn(sheetVariants({ side }), className)}
+      {...props}
+      onPointerDownOutside={(e) => {
+        if (isFloatingLayerInteraction(e)) e.preventDefault();
+        props.onPointerDownOutside?.(e);
+      }}
+      onInteractOutside={(e) => {
+        if (isFloatingLayerInteraction(e)) e.preventDefault();
+        props.onInteractOutside?.(e);
+      }}
+      onEscapeKeyDown={(e) => {
+        // Escape with an open dropdown should close only the dropdown.
+        if (floatingLayerIsOpen() || Date.now() - floatingLayerWasOpenAt < 500) e.preventDefault();
+        props.onEscapeKeyDown?.(e);
+      }}
+    >
       <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>

@@ -4,15 +4,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import fetchMethodRequest from '../../../config/service';
 import './OperationsCommandCenter.scss';
 
-/* Palette (light theme) */
+/* Palette — validated (CVD ΔE 24.2, lightness band + chroma floor pass).
+   Severity colors carry status meaning; blue is the neutral accent. */
 const C = {
-  crit: '#e24b4a',
-  imp: '#ef9f27',
-  low: '#639922',
-  junk: '#a371f7',
-  blue: '#378add',
-  muted: '#5f6368',          // axis ticks + "last week" line
-  grid: 'rgba(16,24,40,0.08)', // subtle grid on white
+  crit: '#d03b3b',
+  imp: '#eda100',
+  low: '#008300',
+  junk: '#8a63d2',
+  blue: '#2a78d6',
+  blueWash: 'rgba(42,120,214,0.10)',
+  muted: '#8a8f98',           // axis ticks + "last week" line
+  grid: 'rgba(16,24,40,0.06)', // hairline grid on white
+  surface: '#ffffff',
+  ink: '#111827',
+  goodText: '#006300',
+};
+
+const rgba = (hex, a) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 };
 
 const GRAN_OPTIONS = [
@@ -21,18 +31,70 @@ const GRAN_OPTIONS = [
   { label: 'Month', value: 'month' },
 ];
 
+const TOOLTIP = {
+  backgroundColor: '#111827',
+  titleFont: { size: 12, weight: '600' },
+  bodyFont: { size: 12 },
+  padding: 10,
+  cornerRadius: 8,
+  boxPadding: 4,
+  displayColors: true,
+  usePointStyle: true,
+};
+
 const baseScales = (stacked = false) => ({
-  x: { stacked, grid: { display: false }, ticks: { color: C.muted } },
-  y: { stacked, beginAtZero: true, grid: { color: C.grid }, ticks: { color: C.muted } },
+  x: { stacked, grid: { display: false }, border: { color: 'rgba(16,24,40,0.12)' }, ticks: { color: C.muted, font: { size: 11 } } },
+  y: { stacked, beginAtZero: true, grid: { color: C.grid }, border: { display: false }, ticks: { color: C.muted, font: { size: 11 }, precision: 0 } },
 });
 
-const noLegend = { plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false };
+const baseOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: TOOLTIP },
+  interaction: { mode: 'index', intersect: false },
+};
 
 /* Risk tier colouring by score (likelihood × impact, 1–25) */
 const riskTier = (score) => {
-  if (score >= 15) return { bg: 'rgba(226,75,74,0.18)', dot: '#e24b4a' };
-  if (score >= 7) return { bg: 'rgba(239,159,39,0.16)', dot: '#ef9f27' };
-  return { bg: 'rgba(99,153,34,0.14)', dot: '#639922' };
+  if (score >= 15) return { bg: 'rgba(208,59,59,0.16)', dot: C.crit, label: 'High' };
+  if (score >= 7) return { bg: 'rgba(237,161,0,0.14)', dot: '#b97e00', label: 'Medium' };
+  return { bg: 'rgba(0,131,0,0.10)', dot: C.low, label: 'Low' };
+};
+
+/* Tiny inline sparkline for the stat tiles — de-emphasized line, accent dot on
+   the selected period. */
+const Spark = ({ points, color, selectedIdx }) => {
+  if (!points || points.length < 2) return null;
+  const w = 92;
+  const h = 30;
+  const pad = 4;
+  const max = Math.max(...points, 1);
+  const step = (w - pad * 2) / (points.length - 1);
+  const xy = points.map((v, i) => [pad + i * step, h - pad - (v / max) * (h - pad * 2)]);
+  const sel = xy[selectedIdx];
+  return (
+    <svg className="occ-spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <polyline
+        points={xy.map((p) => p.join(',')).join(' ')}
+        fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.45"
+      />
+      {sel && <circle cx={sel[0]} cy={sel[1]} r="3.5" fill={color} stroke={C.surface} strokeWidth="2" />}
+    </svg>
+  );
+};
+
+/* Signed delta chip vs the previous period. `upIsGood` flips the color logic
+   (more critical mail is bad; more time saved is good). */
+const Delta = ({ value, upIsGood }) => {
+  if (value == null) return null;
+  const up = value >= 0;
+  const good = upIsGood ? up : !up;
+  const cls = value === 0 ? 'flat' : good ? 'good' : 'bad';
+  return (
+    <span className={`occ-delta ${cls}`}>
+      {value === 0 ? '—' : up ? '▲' : '▼'} {Math.abs(value)} vs prev
+    </span>
+  );
 };
 
 const OperationsCommandCenter = () => {
@@ -97,20 +159,54 @@ const OperationsCommandCenter = () => {
     if (series?.metrics && selectedIdx >= 0 && series.metrics[selectedIdx]) return series.metrics[selectedIdx];
     return null;
   }, [series, selectedIdx]);
+  const prevMetric = (series?.metrics && selectedIdx > 0 && series.metrics[selectedIdx - 1]) || null;
 
-  /* ---- composition (stacked bar incl. junk) ---- */
+  const totals = useMemo(
+    () => (series ? series.labels.map((_, i) => (series.crit[i] || 0) + (series.imp[i] || 0) + (series.low[i] || 0) + (series.junk[i] || 0)) : []),
+    [series],
+  );
+  const savedPerBucket = useMemo(
+    () => (series?.metrics ? series.metrics.map((m) => (m.analyzed || 0)) : []),
+    [series],
+  );
+
+  /* ---- composition (stacked bar incl. junk, selected period emphasized) ---- */
   const compData = useMemo(() => {
     if (!series) return null;
+    const paint = (hex) => (ctx) => (ctx.dataIndex === selectedIdx ? hex : rgba(hex, 0.4));
+    const seg = (label, arr, hex) => ({
+      label,
+      data: arr,
+      backgroundColor: paint(hex),
+      borderColor: C.surface, // 2px surface gap between stacked segments
+      borderWidth: 2,
+      borderRadius: 3,
+      borderSkipped: false,
+      maxBarThickness: 34,
+      stack: 's',
+    });
     return {
       labels: series.labels,
       datasets: [
-        { label: 'Critical', data: series.crit, backgroundColor: C.crit, borderRadius: 3, stack: 's' },
-        { label: 'Important', data: series.imp, backgroundColor: C.imp, borderRadius: 3, stack: 's' },
-        { label: 'Low', data: series.low, backgroundColor: C.low, borderRadius: 3, stack: 's' },
-        { label: 'Junk / Spam', data: series.junk, backgroundColor: C.junk, borderRadius: 3, stack: 's' },
+        seg('Critical', series.crit, C.crit),
+        seg('Important', series.imp, C.imp),
+        seg('Low', series.low, C.low),
+        seg('Junk / Spam', series.junk, C.junk),
       ],
     };
-  }, [series]);
+  }, [series, selectedIdx]);
+
+  // Clicking a bar selects that period — KPIs, pills and matrix follow.
+  const compOptions = useMemo(() => ({
+    ...baseOpts,
+    scales: baseScales(true),
+    onHover: (evt, els) => { evt.native.target.style.cursor = els?.length ? 'pointer' : 'default'; },
+    onClick: (evt, els) => {
+      if (!els?.length || !series) return;
+      const p = series.periods[series.labels.length - 1 - els[0].index];
+      if (p) setPeriod(p);
+    },
+  }), [series]);
 
   const weekCompareData = useMemo(() => {
     const w = data?.weekCompare;
@@ -118,7 +214,17 @@ const OperationsCommandCenter = () => {
     return {
       labels: w.labels,
       datasets: [
-        { label: 'This week', data: w.thisWeek, borderColor: C.blue, backgroundColor: C.blue, tension: 0.3, pointRadius: 3, borderWidth: 2 },
+        {
+          label: 'This week',
+          data: w.thisWeek,
+          borderColor: C.blue,
+          backgroundColor: C.blue,
+          tension: 0.3,
+          pointRadius: 3.5,
+          pointBorderColor: C.surface, // surface ring where points cross lines
+          pointBorderWidth: 2,
+          borderWidth: 2,
+        },
         { label: 'Last week', data: w.lastWeek, borderColor: C.muted, borderDash: [6, 5], tension: 0.3, pointRadius: 0, borderWidth: 2 },
       ],
     };
@@ -127,7 +233,7 @@ const OperationsCommandCenter = () => {
   const critCatData = useMemo(() => {
     const cc = data?.critCat;
     if (!cc) return null;
-    return { labels: cc.labels, datasets: [{ data: cc.data, backgroundColor: C.crit, borderRadius: 4, maxBarThickness: 22 }] };
+    return { labels: cc.labels, datasets: [{ label: 'Critical', data: cc.data, backgroundColor: C.crit, borderRadius: 4, maxBarThickness: 18 }] };
   }, [data]);
 
   const savedData = useMemo(() => {
@@ -135,9 +241,46 @@ const OperationsCommandCenter = () => {
     if (!s) return null;
     return {
       labels: s.labels,
-      datasets: [{ data: s.cumulative, borderColor: C.blue, backgroundColor: 'rgba(55,138,221,0.18)', fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2 }],
+      datasets: [
+        {
+          type: 'line',
+          label: 'Cumulative',
+          data: s.cumulative,
+          borderColor: C.blue,
+          backgroundColor: C.blueWash, // ~10% wash, never a saturated block
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2.5,
+          pointBorderColor: C.surface,
+          pointBorderWidth: 2,
+          borderWidth: 2,
+        },
+        {
+          type: 'bar',
+          label: 'Per day',
+          data: s.daily,
+          backgroundColor: rgba(C.blue, 0.35),
+          borderRadius: 3,
+          maxBarThickness: 16,
+        },
+      ],
     };
   }, [data]);
+
+  /* ---- inbox cleanup (removed mail per bucket — previously unused data) ---- */
+  const cleanupData = useMemo(() => {
+    if (!series?.removed) return null;
+    return {
+      labels: series.labels,
+      datasets: [{
+        label: 'Removed',
+        data: series.removed,
+        backgroundColor: (ctx) => (ctx.dataIndex === selectedIdx ? C.junk : rgba(C.junk, 0.4)),
+        borderRadius: 4,
+        maxBarThickness: 24,
+      }],
+    };
+  }, [series, selectedIdx]);
 
   const risks = useMemo(() => series?.risks || [], [series]);
 
@@ -159,27 +302,33 @@ const OperationsCommandCenter = () => {
   // KPI values for the selected period (metric) with the series default as fallback.
   const kpiDefault = series?.kpi || {};
   const kpi = {
-    received: metric ? String(metric.received) : (kpiDefault.received ?? '0'),
+    received: metric ? metric.received : Number(kpiDefault.received || 0),
     saved: metric ? metric.saved : (kpiDefault.saved ?? '0m'),
-    crit: metric ? String(metric.crit) : (kpiDefault.crit ?? '0'),
-    removed: metric ? String(metric.removed ?? 0) : (kpiDefault.removed ?? '0'),
-    delta: metric ? metric.delta : (kpiDefault.delta ?? ''),
+    crit: metric ? metric.crit : Number(kpiDefault.crit || 0),
+    removed: metric ? (metric.removed ?? 0) : Number(kpiDefault.removed || 0),
     analyzedPct: metric ? metric.analyzedPct : (kpiDefault.analyzedPct ?? 0),
   };
+  const deltas = prevMetric && metric ? {
+    received: metric.received - prevMetric.received,
+    crit: metric.crit - prevMetric.crit,
+    removed: (metric.removed ?? 0) - (prevMetric.removed ?? 0),
+    analyzed: metric.analyzed - prevMetric.analyzed,
+  } : {};
+
   const pills = useMemo(() => {
     if (!series) return [];
     const i = selectedIdx >= 0 ? selectedIdx : (Number.isInteger(series.activeIdx) ? series.activeIdx : series.labels.length - 1);
-    const tc = series.crit[i] || 0;
-    const ti = series.imp[i] || 0;
-    const tl = series.low[i] || 0;
-    const tj = series.junk[i] || 0;
     return [
-      { label: 'Critical', n: tc, color: '#b3261e', bg: 'rgba(226,75,74,0.16)' },
-      { label: 'Important', n: ti, color: '#9a5b08', bg: 'rgba(239,159,39,0.16)' },
-      { label: 'Low', n: tl, color: '#3f6212', bg: 'rgba(99,153,34,0.18)' },
-      { label: 'Junk / Spam', n: tj, color: '#5b21b6', bg: 'rgba(163,113,247,0.18)' },
+      { label: 'Critical', n: series.crit[i] || 0, color: '#a32424', bg: 'rgba(208,59,59,0.12)', dot: C.crit },
+      { label: 'Important', n: series.imp[i] || 0, color: '#8a5d00', bg: 'rgba(237,161,0,0.14)', dot: C.imp },
+      { label: 'Low', n: series.low[i] || 0, color: '#1c5e1c', bg: 'rgba(0,131,0,0.10)', dot: C.low },
+      { label: 'Junk / Spam', n: series.junk[i] || 0, color: '#5b3fa8', bg: 'rgba(138,99,210,0.14)', dot: C.junk },
     ];
   }, [series, selectedIdx]);
+
+  const updatedAt = data?.generatedAt
+    ? new Date(data.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   return (
     <div className="ops-cc">
@@ -187,9 +336,12 @@ const OperationsCommandCenter = () => {
         <div>
           <div className="occ-title"><span className="dot" /> Operations command center</div>
           <div className="occ-sub">
-            Analytics · {data?.account || 'no account connected'}
+            {data?.account ? <span className="occ-account">{data.account}</span> : 'no account connected'}
+            {updatedAt && ` · updated ${updatedAt}`}
             {loading && ' · loading…'}
-            {!loading && generating && ' · syncing & generating brief…'}
+            {!loading && generating && (
+              <span className="occ-generating"> · syncing &amp; generating brief…</span>
+            )}
           </div>
         </div>
         <div className="occ-controls">
@@ -217,43 +369,69 @@ const OperationsCommandCenter = () => {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPI stat tiles — value + delta vs previous period + trend sparkline */}
       <div className="occ-kpis">
-        <div className="occ-kpi"><div className="label">Emails received</div><div className="val">{kpi.received ?? '0'}</div></div>
-        <div className="occ-kpi"><div className="label">Analyzed</div><div className="val green">{kpi.analyzedPct ?? 0}%</div></div>
-        <div className="occ-kpi"><div className="label">Time saved</div><div className="val blue">{kpi.saved ?? '0m'}</div></div>
         <div className="occ-kpi">
-          <div className="label">Critical</div>
-          <div className="val red">
-            {kpi.crit ?? '0'}
-            <span className="delta" style={{ color: (kpi.delta || '').indexOf('▼') > -1 ? '#7fd99f' : '#e24b4a' }}>
-              {kpi.delta || ''}
-            </span>
+          <div className="occ-kpi-top">
+            <div className="label">Emails received</div>
+            <Spark points={totals} color={C.blue} selectedIdx={selectedIdx} />
+          </div>
+          <div className="val">{kpi.received}</div>
+          <Delta value={deltas.received} upIsGood={false} />
+        </div>
+
+        <div className="occ-kpi">
+          <div className="occ-kpi-top"><div className="label">Analyzed</div></div>
+          <div className="val">{kpi.analyzedPct}<span className="unit">%</span></div>
+          <div className="occ-meter" role="img" aria-label={`${kpi.analyzedPct}% of mail analyzed`}>
+            <div className="occ-meter-fill" style={{ width: `${Math.min(100, kpi.analyzedPct)}%` }} />
           </div>
         </div>
-        <div className="occ-kpi"><div className="label">Removed</div><div className="val purple">{kpi.removed ?? '0'}</div></div>
-      </div>
 
-      {/* Status pills */}
-      <div className="occ-pills">
-        {pills.map((p) => (
-          <span key={p.label} className="occ-pill" style={{ background: p.bg, color: p.color }}>
-            <span className="pd" style={{ background: p.color }} />{p.label} {p.n}
-          </span>
-        ))}
+        <div className="occ-kpi">
+          <div className="occ-kpi-top">
+            <div className="label">Time saved</div>
+            <Spark points={savedPerBucket} color={C.blue} selectedIdx={selectedIdx} />
+          </div>
+          <div className="val">{kpi.saved}</div>
+          <Delta value={deltas.analyzed} upIsGood />
+        </div>
+
+        <div className="occ-kpi">
+          <div className="occ-kpi-top">
+            <div className="label">Critical</div>
+            <Spark points={series?.crit || []} color={C.crit} selectedIdx={selectedIdx} />
+          </div>
+          <div className="val crit">{kpi.crit}</div>
+          <Delta value={deltas.crit} upIsGood={false} />
+        </div>
+
+        <div className="occ-kpi">
+          <div className="occ-kpi-top">
+            <div className="label">Cleaned up</div>
+            <Spark points={series?.removed || []} color={C.junk} selectedIdx={selectedIdx} />
+          </div>
+          <div className="val">{kpi.removed}</div>
+          <Delta value={deltas.removed} upIsGood />
+        </div>
       </div>
 
       {/* Composition over time */}
       <div className="occ-panel">
-        <h3>Status composition over time</h3>
-        <div className="occ-legend">
-          <span><span className="sw" style={{ background: C.crit }} />Critical</span>
-          <span><span className="sw" style={{ background: C.imp }} />Important</span>
-          <span><span className="sw" style={{ background: C.low }} />Low</span>
-          <span><span className="sw" style={{ background: C.junk }} />Junk / Spam</span>
+        <div className="occ-panel-head">
+          <h3>Status composition over time</h3>
+          <span className="occ-hint">click a bar to inspect that period</span>
         </div>
-        <div className="occ-chart" style={{ height: 260 }}>
-          {compData && <Chart type="bar" data={compData} options={{ ...noLegend, scales: baseScales(true) }} />}
+        <div className="occ-pills">
+          {pills.map((p) => (
+            <span key={p.label} className="occ-pill" style={{ background: p.bg, color: p.color }}>
+              <span className="pd" style={{ background: p.dot }} />{p.label}
+              <b>{p.n}</b>
+            </span>
+          ))}
+        </div>
+        <div className="occ-chart occ-chart--lg">
+          {compData && <Chart type="bar" data={compData} options={compOptions} />}
         </div>
       </div>
 
@@ -268,7 +446,7 @@ const OperationsCommandCenter = () => {
         ) : (
           <div className="occ-matrix-wrap">
             <div className="occ-matrix-col">
-              <div className="occ-axis-v"><span>likelihood →</span></div>
+              <div className="occ-axis-v"><span>Likelihood →</span></div>
               <div>
                 <div className="occ-matrix-grid">
                   {matrixCells.map((c) => (
@@ -278,7 +456,7 @@ const OperationsCommandCenter = () => {
                           key={r.n}
                           className="occ-mdot"
                           style={{ background: riskTier(r.score).dot }}
-                          title={`${r.name} · L${r.like}×I${r.impact} = ${r.score}`}
+                          title={`${r.name}${r.summary ? ` — ${r.summary}` : ''} · L${r.like}×I${r.impact} = ${r.score}`}
                         >
                           {r.n}
                         </div>
@@ -286,17 +464,21 @@ const OperationsCommandCenter = () => {
                     </div>
                   ))}
                 </div>
-                <div className="occ-axis-h">impact →</div>
+                <div className="occ-axis-h">Impact →</div>
               </div>
             </div>
             <div className="occ-rlegend">
-              {risks.map((r) => (
-                <div key={r.n} className="occ-rrow">
-                  <span className="occ-rnum" style={{ background: riskTier(r.score).dot }}>{r.n}</span>
-                  <span className="occ-rname">{r.name}</span>
-                  <span className="occ-rscore">{r.score}</span>
-                </div>
-              ))}
+              {risks.map((r) => {
+                const tier = riskTier(r.score);
+                return (
+                  <div key={r.n} className="occ-rrow" title={r.summary || r.name}>
+                    <span className="occ-rnum" style={{ background: tier.dot }}>{r.n}</span>
+                    <span className="occ-rname">{r.name}</span>
+                    {r.category && <span className="occ-rcat">{r.category}</span>}
+                    <span className="occ-rscore" style={{ color: tier.dot }}>{tier.label} · {r.score}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -307,36 +489,68 @@ const OperationsCommandCenter = () => {
           <div className="occ-panel-head"><h3>This week vs last week</h3></div>
           <div className="occ-legend">
             <span><span className="ln" style={{ borderColor: C.blue }} />This week</span>
-            <span><span className="ln" style={{ borderColor: C.muted, borderTopStyle: 'dashed' }} />Last week</span>
+            <span><span className="ln dashed" style={{ borderColor: C.muted }} />Last week</span>
           </div>
-          <div className="occ-chart" style={{ height: 210 }}>
-            {weekCompareData && <Chart type="line" data={weekCompareData} options={{ ...noLegend, scales: baseScales(false) }} />}
+          <div className="occ-chart occ-chart--md">
+            {weekCompareData && <Chart type="line" data={weekCompareData} options={{ ...baseOpts, scales: baseScales(false) }} />}
           </div>
         </div>
         <div className="occ-panel">
           <div className="occ-panel-head"><h3>Critical emails by category</h3><span className="occ-tag">this week</span></div>
-          <div className="occ-chart" style={{ height: 210 }}>
+          <div className="occ-chart occ-chart--md">
             {critCatData && (
               <Chart
                 type="bar"
                 data={critCatData}
-                options={{ ...noLegend, indexAxis: 'y', scales: { x: { beginAtZero: true, grid: { color: C.grid }, ticks: { color: C.muted } }, y: { grid: { display: false }, ticks: { color: C.muted } } } }}
+                options={{
+                  ...baseOpts,
+                  indexAxis: 'y',
+                  interaction: { mode: 'nearest', intersect: false },
+                  scales: {
+                    x: { beginAtZero: true, grid: { color: C.grid }, border: { display: false }, ticks: { color: C.muted, font: { size: 11 }, precision: 0 } },
+                    y: { grid: { display: false }, border: { color: 'rgba(16,24,40,0.12)' }, ticks: { color: C.muted, font: { size: 11 } } },
+                  },
+                }}
               />
             )}
           </div>
         </div>
       </div>
 
-      <div className="occ-panel">
-        <div className="occ-panel-head"><h3>Cumulative time saved</h3><span className="occ-tag">this week · minutes</span></div>
-        <div className="occ-chart" style={{ height: 190 }}>
-          {savedData && (
-            <Chart
-              type="line"
-              data={savedData}
-              options={{ ...noLegend, scales: { x: { grid: { display: false }, ticks: { color: C.muted } }, y: { beginAtZero: true, grid: { color: C.grid }, ticks: { color: C.muted, callback: (v) => `${v}m` } } } }}
-            />
-          )}
+      <div className="occ-grid2">
+        <div className="occ-panel">
+          <div className="occ-panel-head"><h3>Time saved</h3><span className="occ-tag">this week · minutes</span></div>
+          <div className="occ-legend">
+            <span><span className="ln" style={{ borderColor: C.blue }} />Cumulative</span>
+            <span><span className="sw" style={{ background: rgba(C.blue, 0.35) }} />Per day</span>
+          </div>
+          <div className="occ-chart occ-chart--sm">
+            {savedData && (
+              <Chart
+                type="bar"
+                data={savedData}
+                options={{
+                  ...baseOpts,
+                  scales: {
+                    x: { grid: { display: false }, border: { color: 'rgba(16,24,40,0.12)' }, ticks: { color: C.muted, font: { size: 11 } } },
+                    y: { beginAtZero: true, grid: { color: C.grid }, border: { display: false }, ticks: { color: C.muted, font: { size: 11 }, callback: (v) => `${v}m` } },
+                  },
+                }}
+              />
+            )}
+          </div>
+        </div>
+        <div className="occ-panel">
+          <div className="occ-panel-head"><h3>Inbox cleanup</h3><span className="occ-tag">removed per {gran}</span></div>
+          <div className="occ-chart occ-chart--sm">
+            {cleanupData && (
+              <Chart
+                type="bar"
+                data={cleanupData}
+                options={{ ...baseOpts, interaction: { mode: 'nearest', intersect: false }, scales: baseScales(false) }}
+              />
+            )}
+          </div>
         </div>
       </div>
 

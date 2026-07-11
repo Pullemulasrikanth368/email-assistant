@@ -19,7 +19,7 @@ import APIError from '../../helpers/APIError';
 const CategoryEntrySchema = new mongoose.Schema({
   // The value as stored in our DB (e.g. "Finance & Invoices", "Critical", "invoice")
   dbValue:      { type: String, required: true },
-  // The label pushed to Outlook (e.g. "💰 Finance")
+  // The label pushed to Outlook (e.g. "Finance & Invoices")
   outlookLabel: { type: String, required: true },
   // Graph preset colour name (e.g. "preset4"); "none" = no colour
   colour:       { type: String, default: 'none' },
@@ -40,9 +40,9 @@ const OutlookCategoryConfigSchema = new mongoose.Schema({
   // AI intent map (approval-request, deadline, invoice, …)
   intentMap:    { type: [CategoryEntrySchema], default: [] },
 
-  // Whether to push the "💬 Reply Needed" label for needsReply emails
+  // Whether to push the "Reply Needed" label for needsReply emails
   replyNeededEnabled: { type: Boolean, default: true },
-  replyNeededLabel:   { type: String,  default: '💬 Reply Needed' },
+  replyNeededLabel:   { type: String,  default: 'Reply Needed' },
   replyNeededColour:  { type: String,  default: 'preset6' },
 
   active: { type: Boolean, default: true },

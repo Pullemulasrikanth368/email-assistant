@@ -1,16 +1,13 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sun, Mail, LayoutDashboard, FileText, Send, Settings,
-  Menu, Users, Shield, LogOut, BookOpen, PenLine, SlidersHorizontal, User,
+  Menu, Users, Shield, LogOut, PenLine, User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import configImages from '@/config/configImages';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { InputSwitch } from 'primereact/inputswitch';
-import fetchMethodRequest from '../../config/service';
-import showToasterMessage from '../UI/ToasterMessage/toasterMessage';
 import './Sidebar.scss';
 
 const NAV_ITEMS = [
@@ -18,12 +15,9 @@ const NAV_ITEMS = [
   { label: 'Inbox Triage', path: '/emailAnalysisMails', icon: Mail },
   { label: 'Command Center', path: '/operationsCommandCenter', icon: LayoutDashboard },
   { label: 'Reports', path: '/operationsReport', icon: FileText },
-  { label: 'Report Config', path: '/reportConfig', icon: SlidersHorizontal },
-  { label: 'Knowledge Base', path: '/knowledgeBase', icon: BookOpen },
   // { label: 'Drafts', path: '/drafts', icon: PenLine },
   // { label: 'Bulk Email', path: '/bulkEmailSend', icon: Send },
-  { label: 'Connections', path: '/connectionsDelivery', icon: Settings },
-  { label: 'Outlook Labels', path: '/outlookCategoryConfig', icon: SlidersHorizontal },
+  { label: 'Settings', path: '/settings', icon: Settings },
 ];
 
 const ADMIN_ITEMS = [
@@ -149,90 +143,7 @@ const Sidebar = () => {
 /* Profile Modal Component                                            */
 /* ------------------------------------------------------------------ */
 const ProfileModal = ({ isOpen, onClose, user }) => {
-  const [autoSync, setAutoSync] = useState(true);
-  const [syncValue, setSyncValue] = useState(15);
-  const [syncUnit, setSyncUnit] = useState('minutes'); // 'minutes' | 'days'
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setLoading(true);
-    Promise.all([
-      fetchMethodRequest('GET', 'email-analysis/auto-sync'),
-      fetchMethodRequest('GET', 'email-analysis/sync-interval'),
-    ])
-      .then(([syncRes, intervalRes]) => {
-        if (syncRes?.autoSync !== undefined) {
-          setAutoSync(syncRes.autoSync !== false);
-        }
-        if (intervalRes?.syncIntervalValue !== undefined) {
-          setSyncValue(Number(intervalRes.syncIntervalValue) || 15);
-          setSyncUnit(intervalRes.syncIntervalUnit || 'minutes');
-        } else if (intervalRes?.syncIntervalMinutes !== undefined) {
-          setSyncValue(Number(intervalRes.syncIntervalMinutes) || 15);
-          setSyncUnit('minutes');
-        }
-      })
-      .catch(() => {
-        showToasterMessage('Could not load sync preferences', 'error');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [isOpen]);
-
-  const handleToggleAutoSync = async (checked) => {
-    const next = typeof checked === 'boolean' ? checked : !autoSync;
-    setAutoSync(next);
-    try {
-      const res = await fetchMethodRequest('POST', 'email-analysis/auto-sync', { autoSync: next });
-      if (res?.respCode) {
-        showToasterMessage(next ? 'Auto-sync enabled' : 'Auto-sync disabled', 'success');
-        window.dispatchEvent(new CustomEvent('syncSettingsUpdated'));
-      } else {
-        setAutoSync(!next);
-        showToasterMessage(res?.errorMessage || 'Failed to update auto-sync', 'error');
-      }
-    } catch {
-      setAutoSync(!next);
-      showToasterMessage('Failed to update auto-sync', 'error');
-    }
-  };
-
-  const handleSaveInterval = async (value, unit) => {
-    const val = Number(value);
-    if (isNaN(val) || val < 1) {
-      showToasterMessage('Please enter a valid positive number', 'warning');
-      return;
-    }
-    if (unit === 'minutes' && val > 60) {
-      showToasterMessage('Minutes must be 60 or less', 'warning');
-      return;
-    }
-    if (unit === 'hours' && val > 23) {
-      showToasterMessage('Hours must be 23 or less', 'warning');
-      return;
-    }
-    if (unit === 'days' && val > 31) {
-      showToasterMessage('Days must be 31 or less', 'warning');
-      return;
-    }
-
-    try {
-      const res = await fetchMethodRequest('POST', 'email-analysis/sync-interval', {
-        syncIntervalValue: val,
-        syncIntervalUnit: unit,
-      });
-      if (res?.respCode) {
-        showToasterMessage(`Sync interval updated to every ${val} ${unit}`, 'success');
-        window.dispatchEvent(new CustomEvent('syncSettingsUpdated'));
-      } else {
-        showToasterMessage(res?.errorMessage || 'Failed to update interval', 'error');
-      }
-    } catch {
-      showToasterMessage('Failed to update interval', 'error');
-    }
-  };
+  const navigate = useNavigate();
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -256,97 +167,18 @@ const ProfileModal = ({ isOpen, onClose, user }) => {
           </div>
         </div>
 
+        {/* Sync preferences now live in Settings → General */}
         <div className="py-4">
-          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Sync Preferences</h4>
-
-          {loading ? (
-            <div className="flex justify-center py-6">
-              <i className="pi pi-spin pi-spinner text-slate-400 text-xl" />
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {/* Auto Sync Toggle */}
-              <div className="flex items-center justify-between">
-                <div className="pr-4">
-                  <h5 className="text-sm font-semibold text-slate-900">Auto-sync mailboxes</h5>
-                  <p className="text-xs text-slate-500 mt-0.5">Automatically sync connected mailboxes in the background</p>
-                </div>
-                <InputSwitch
-                  checked={autoSync}
-                  onChange={(e) => handleToggleAutoSync(e.value)}
-                />
-              </div>
-
-              {/* Interval selection */}
-              {autoSync && (
-                <div className="space-y-3 pt-1 border-t border-slate-100">
-                  <div>
-                    <h5 className="text-sm font-semibold text-slate-900">Sync frequency</h5>
-                    <p className="text-xs text-slate-500 mt-0.5">Configure how often the automated background sync runs</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className={`px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all ${syncUnit === 'minutes'
-                        ? 'bg-blue-50 border-blue-500 text-blue-600'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                      onClick={() => {
-                        setSyncUnit('minutes');
-                        if (syncValue > 60) setSyncValue(15);
-                      }}
-                    >
-                      Minutes
-                    </button>
-                    <button
-                      type="button"
-                      className={`px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all ${syncUnit === 'hours'
-                        ? 'bg-blue-50 border-blue-500 text-blue-600'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                      onClick={() => {
-                        setSyncUnit('hours');
-                        if (syncValue > 23) setSyncValue(1);
-                      }}
-                    >
-                      Hours
-                    </button>
-                    <button
-                      type="button"
-                      className={`px-4 py-1.5 text-xs font-semibold rounded-lg border transition-all ${syncUnit === 'days'
-                        ? 'bg-blue-50 border-blue-500 text-blue-600'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                      onClick={() => {
-                        setSyncUnit('days');
-                        if (syncValue > 31) setSyncValue(1);
-                      }}
-                    >
-                      Days
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <input
-                      type="number"
-                      min={1}
-                      max={syncUnit === 'minutes' ? 60 : (syncUnit === 'hours' ? 23 : 31)}
-                      value={syncValue}
-                      onChange={(e) => setSyncValue(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-24 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-slate-800 bg-white"
-                    />
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{syncUnit}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveInterval(syncValue, syncUnit)}
-                      className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors ml-auto"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => { onClose(); navigate('/settings'); }}
+            className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Settings size={14} /> Sync preferences &amp; settings
+            </span>
+            <span className="text-xs text-slate-400">Settings → General</span>
+          </button>
         </div>
       </DialogContent>
     </Dialog>

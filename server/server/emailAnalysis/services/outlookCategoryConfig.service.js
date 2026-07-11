@@ -74,7 +74,7 @@ export function buildDefaultConfig(email) {
     categoryMap:        defaultCategoryMap(),
     intentMap:          defaultIntentMap(),
     replyNeededEnabled: true,
-    replyNeededLabel:   '💬 Reply Needed',
+    replyNeededLabel:   'Reply Needed',
     replyNeededColour:  'preset6',
   };
 }
@@ -139,7 +139,7 @@ export function buildLookupMaps(config) {
     categoryMap:        toMap(config.categoryMap),
     intentMap:          toMap(config.intentMap),
     replyNeededEnabled: config.replyNeededEnabled !== false,
-    replyNeededLabel:   config.replyNeededLabel   || '💬 Reply Needed',
+    replyNeededLabel:   config.replyNeededLabel   || 'Reply Needed',
   };
 }
 
