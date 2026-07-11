@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useCallback } from 'rea
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
-import { RefreshCw, Trash2, Flag, Link, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays, X, Inbox, Send, FileText, Ban, Tag } from 'lucide-react';
+import { RefreshCw, Trash2, Flag, Link, ArrowLeft, ChevronLeft, ChevronRight, CalendarDays, X, Inbox, Send, FileText, Ban, Tag, Mic, Sparkles } from 'lucide-react';
 import fetchMethodRequest from '../../../config/service';
 import showToasterMessage from '../../UI/ToasterMessage/toasterMessage';
 import QuickReplies from '../CommonComponents/QuickReplies';
@@ -632,6 +632,45 @@ const EmailAnalysisMails = () => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     setFirst(0);
     setAppliedSearch('');
+  };
+
+  /* -------------------- AI search -------------------- */
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  const runAiSearch = (rawPrompt) => {
+    const prompt = (rawPrompt ?? search).trim();
+    if (!prompt) return;
+    navigate(`/aiSearch?q=${encodeURIComponent(prompt)}`);
+  };
+
+  const toggleVoiceSearch = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToasterMessage('Voice search is not supported in this browser', 'warning');
+      return;
+    }
+    // Already listening → stop.
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript || '';
+      if (transcript) {
+        setSearch(transcript);
+        runAiSearch(transcript);
+      }
+    };
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognitionRef.current = recognition;
+    setListening(true);
+    recognition.start();
   };
 
   /* -------------------- open a mail -------------------- */
@@ -1487,23 +1526,38 @@ const EmailAnalysisMails = () => {
         </div>
         <div className="ea-search">
           <span className="ea-search-field">
-            <i className="pi pi-search ea-search-icon" aria-hidden="true" />
+            <Sparkles size={15} className="ea-search-icon ea-ai-icon" aria-hidden="true" />
             <Input
               value={search}
-              placeholder="Search mail"
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="ea-search-input"
+              placeholder="Ask AI to search your mail…"
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  runAiSearch();
+                }
+              }}
+              className="ea-search-input ea-ai-search-input"
             />
             {search && (
               <button
                 type="button"
-                className="ea-clear"
+                className="ea-clear ea-clear-ai"
                 onClick={clearSearch}
                 aria-label="Clear search"
               >
                 <i className="pi pi-times" aria-hidden="true" />
               </button>
             )}
+            <button
+              type="button"
+              className={cn('ea-mic', { listening })}
+              onClick={toggleVoiceSearch}
+              aria-label="Voice search"
+              title="Search by voice"
+            >
+              <Mic size={16} />
+            </button>
           </span>
         </div>
         <div className="ea-actions">

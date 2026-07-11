@@ -11,6 +11,7 @@ import Register from '../Auth/Register.jsx';
 const Users = React.lazy(() => import('../Admin/Users/index.jsx'));
 const Roles = React.lazy(() => import('../Admin/Roles/index.jsx'));
 const EmailAnalysisMails = React.lazy(() => import('../Cruds/EmailAnalysisMails/index.jsx'));
+const AiSearchResults = React.lazy(() => import('../Cruds/AiSearchResults/index.jsx'));
 const OperationsReport = React.lazy(() => import('../Cruds/OperationsReport/index.jsx'));
 const DailyBrief = React.lazy(() => import('../Cruds/DailyBrief/index.jsx'));
 const BulkEmailSend = React.lazy(() => import('../Cruds/BulkEmailSend/index.jsx'));
@@ -49,6 +50,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, Component: () => <Navigate to="/emailAnalysisMails" replace /> },
       { path: '/emailAnalysisMails', Component: () => P(EmailAnalysisMails) },
+      { path: '/aiSearch', Component: () => P(AiSearchResults) },
       { path: '/operationsReport', Component: () => P(OperationsReport) },
       { path: '/reportConfig', Component: () => <Navigate to="/settings?tab=reportConfig" replace /> },
       { path: '/dailyBrief', Component: () => P(DailyBrief) },

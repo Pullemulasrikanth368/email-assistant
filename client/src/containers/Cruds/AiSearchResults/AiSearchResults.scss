@@ -1,0 +1,114 @@
+/* AI Search results screen */
+.ai-search-results {
+  display: flex;
+  flex-direction: column;
+  height: 98vh;
+  min-height: 520px;
+  background: #fff;
+  border: 1px solid #e8eaed;
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: Roboto, Arial, Helvetica, sans-serif;
+
+  /* ---------------- Header ---------------- */
+  .asr-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e8eaed;
+
+    .asr-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #202124;
+    }
+
+    .asr-title-icon {
+      color: #7c3aed;
+    }
+  }
+
+  /* ---------------- Prompt chip ---------------- */
+  .asr-prompt {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    margin: 16px 16px 0;
+    max-width: calc(100% - 32px);
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #f5f3ff, #f6f8fb);
+    border: 1px solid #e9e3fb;
+    border-radius: 999px;
+    color: #4c1d95;
+    font-size: 13.5px;
+
+    .asr-prompt-icon {
+      color: #7c3aed;
+      flex: none;
+    }
+
+    .asr-prompt-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+  }
+
+  /* ---------------- Empty state ---------------- */
+  .asr-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .asr-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 420px;
+  }
+
+  .asr-halo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 88px;
+    height: 88px;
+    margin-bottom: 22px;
+    border-radius: 50%;
+    color: #7c3aed;
+    background: radial-gradient(circle at 30% 30%, #ede9fe, #f5f3ff);
+    box-shadow:
+      0 0 0 10px rgba(124, 58, 237, .06),
+      0 0 0 22px rgba(124, 58, 237, .03);
+    animation: asr-float 3.2s ease-in-out infinite;
+  }
+
+  .asr-empty-title {
+    margin: 0 0 8px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #202124;
+  }
+
+  .asr-empty-sub {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #64748b;
+  }
+}
+
+@keyframes asr-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
