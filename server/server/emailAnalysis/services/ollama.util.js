@@ -13,10 +13,8 @@ import axios from "axios";
 import config from "../../config/config";
 
 const BASE = String(config.ollamaUrl || "http://127.0.0.1:11434").replace(/\/+$/, "");
-// const MODEL = config.ollamaModel || "llama3";
-const MODEL = "gpt-oss:120b-cloud";
-// const MODEL = "gemma4:31b-cloud";
-const TIMEOUT_MS = 120000; // local models can be slow
+const MODEL = config.ollamaModel || "gpt-oss:120b-cloud";
+const TIMEOUT_MS = 300000;
 
 const JSON_SYSTEM =
   "You are a precise assistant. Respond with a SINGLE valid JSON object only — " +

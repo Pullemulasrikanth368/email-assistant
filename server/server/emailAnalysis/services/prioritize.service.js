@@ -8,7 +8,7 @@ import { isPromotionalSender } from "./promotionalSender.util";
 import { createMailService } from "./mailProvider.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const CHUNK = 25; // emails per AI call
+const CHUNK = 8;
 const VALID = ["Critical", "High", "Medium", "Low"];
 const VALID_CATEGORIES = [
   "Action Required",
