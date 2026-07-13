@@ -2290,7 +2290,16 @@
 /* Email-detail Sheet panel — tidy the Radix close (X) button so it lines up
    with the "Email detail" header instead of floating in the padding corner. */
 .orm-email-sheet {
+  // The panel itself does not scroll — the header stays fixed and only the
+  // inner `.orm-drawer-scroll` body scrolls, so the close button (positioned
+  // relative to this panel) and the header remain pinned to the top.
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
   > button {
+    // Keep the close button above the fixed header and pinned to the panel.
+    z-index: 2;
     top: 18px;
     right: 18px;
     display: inline-flex;
@@ -2649,6 +2658,33 @@
       color: var(--muted);
       font-size: 12px;
     }
+  }
+}
+
+/* Email detail drawer: fixed header + close button, scrollable body.
+   The Sheet panel (`.orm-email-sheet`) no longer scrolls, so this drawer
+   fills its height and moves the scroll to `.orm-drawer-scroll`. */
+.operations-report.orm-drawer--email {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+
+  .orm-drawer-head {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    // Clear the fixed close button in the panel's top-right corner.
+    padding-right: 48px;
+  }
+
+  .orm-drawer-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 14px;
   }
 }
 

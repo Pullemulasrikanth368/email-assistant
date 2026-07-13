@@ -166,10 +166,11 @@ const DailyBrief = () => {
     const { loading: dl, mail, sourceId } = emailDrawer;
     const { risk, triage } = findAiFlag(sourceId);
     return (
-      <div className="operations-report orm-drawer">
+      <div className="operations-report orm-drawer orm-drawer--email">
         <div className="orm-drawer-head">
           <span className="eyebrow">Email detail</span>
         </div>
+        <div className="orm-drawer-scroll">
         {dl ? (
           <div className="orm-state"><i className="pi pi-spin pi-spinner" /><span>Loading email…</span></div>
         ) : !mail ? (
@@ -243,6 +244,7 @@ const DailyBrief = () => {
             )}
           </>
         )}
+        </div>
       </div>
     );
   };
@@ -332,7 +334,7 @@ const DailyBrief = () => {
       <div className="orm-single-body">{renderBody()}</div>
 
       <Sheet open={emailDrawer.visible} onOpenChange={(o) => !o && setEmailDrawer((p) => ({ ...p, visible: false }))}>
-        <SheetContent side="right" className="orm-email-sheet min-w-[50vw] max-w-[98vw] overflow-y-auto bg-white">
+        <SheetContent side="right" className="orm-email-sheet min-w-[50vw] max-w-[98vw] overflow-hidden flex flex-col bg-white">
           {renderEmailDrawer()}
         </SheetContent>
       </Sheet>

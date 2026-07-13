@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FileText, CheckCircle2, XCircle, HelpCircle, Sparkles } from 'lucide-react';
+import { FileText, CheckCircle2, XCircle, HelpCircle, Sparkles, Mic } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import showToasterMessage from '../../../UI/ToasterMessage/toasterMessage';
 import DraftEditor, { isEmptyHtml, textToHtml } from '../DraftEditor';
@@ -277,15 +277,26 @@ const DetailedReplySection = ({ mailId, typeLabels = {}, initialDraft, onAutosav
 
       {mode === 'custom' && (
         <div className="rs-custom-panel" aria-label="Custom AI reply controls">
-          <textarea
-            className="rs-prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            disabled={busy}
-            rows={3}
-            aria-label="Describe the reply you need"
-            placeholder="Example: Write a professional reply confirming the meeting and request the agenda before the call."
-          />
+          <div className="rs-prompt-wrap">
+            <textarea
+              className="rs-prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              disabled={busy}
+              rows={3}
+              aria-label="Describe the reply you need"
+              placeholder="Example: Write a professional reply confirming the meeting and request the agenda before the call."
+            />
+            <button
+              type="button"
+              className="rs-voice-btn"
+              disabled={busy}
+              aria-label="Use voice input"
+              title="Voice input"
+            >
+              <Mic size={16} />
+            </button>
+          </div>
 
           <div className="rs-chips" role="group" aria-label="Quick prompt suggestions">
             {QUICK_PROMPTS.map((p) => (

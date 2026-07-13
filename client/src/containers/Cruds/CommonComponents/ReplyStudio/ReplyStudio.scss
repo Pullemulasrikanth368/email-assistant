@@ -361,6 +361,37 @@
   }
 
   /* ---------- custom reply generator ---------- */
+  .rs-prompt-wrap {
+    position: relative;
+  }
+
+  .rs-voice-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--rs-line);
+    border-radius: 8px;
+    background: #fff;
+    color: #1f6f6b;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+
+    &:hover:not(:disabled) {
+      background: rgba(31, 111, 107, .1);
+      border-color: rgba(31, 111, 107, .35);
+    }
+
+    &:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+  }
+
   .rs-prompt {
     width: 100%;
     resize: vertical;
@@ -368,6 +399,7 @@
     border: 1px solid var(--rs-line);
     border-radius: 8px;
     padding: 10px;
+    padding-right: 46px;
     font: inherit;
     font-size: 13px;
     line-height: 1.5;
