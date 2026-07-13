@@ -641,7 +641,10 @@ const EmailAnalysisMails = () => {
   const runAiSearch = (rawPrompt) => {
     const prompt = (rawPrompt ?? search).trim();
     if (!prompt) return;
-    navigate(`/aiSearch?q=${encodeURIComponent(prompt)}`);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    setSearch(prompt);
+    setFirst(0);
+    setAppliedSearch(prompt);
   };
 
   const toggleVoiceSearch = () => {
@@ -1530,7 +1533,7 @@ const EmailAnalysisMails = () => {
             <Input
               value={search}
               placeholder="Ask AI to search your mail…"
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
