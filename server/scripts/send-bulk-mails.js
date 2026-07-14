@@ -41,7 +41,8 @@ const mongoose = require('mongoose');
 const MONGO_URI = process.env.LOCAL_MONGO_HOST || 'mongodb://localhost:27017/executive_email_assistant';
 
 // Delay between sends so Outlook doesn't flag the accounts for spam/abuse.
-const SEND_DELAY_MS = 5000;
+// Randomized 2–3s per mail (as requested).
+const sendDelayMs = () => 2000 + Math.floor(Math.random() * 1001); // 2000–3000ms
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -178,7 +179,7 @@ async function main() {
       continue;
     }
     // Pace the sends so Outlook doesn't flag the accounts as spam sources.
-    if (sent + failed > 0) await sleep(SEND_DELAY_MS);
+    if (sent + failed > 0) await sleep(sendDelayMs());
     try {
       await service.sendMail({
         to: mail.to,

@@ -1,0 +1,2239 @@
+[
+  {
+    "category": "bitbucket",
+    "thread": "pr-512",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Pull request #512 opened: Claims batch reconciliation",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Rahul Sharma</strong> opened pull request <strong>#512</strong> in <code>dosystemsinc/rcm-platform</code></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Claims batch reconciliation</strong></p><p>feature/claims-batch-recon &rarr; develop &middot; 14 commits &middot; 32 files changed</p><p>Adds nightly reconciliation of claim batches against payer remittance files. Includes retry queue for partial batches.</p><p>Reviewers: <strong>Deepu Kumar</strong>, <strong>Anita Patel</strong></p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-512",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Rahul Sharma requested your review on pull request #512",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Rahul Sharma</strong> requested your review</p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>You have been added as a reviewer on pull request <strong>#512 — Claims batch reconciliation</strong> in <code>dosystemsinc/rcm-platform</code>.</p><p>Please review before the Thursday release cut.</p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-512",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Anita Patel commented on pull request #512",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Anita Patel</strong> commented on pull request <strong>#512</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><em>services/reconciliation/batchMatcher.js, line 148:</em></p><blockquote style=\"border-left:3px solid #dfe1e6;margin:8px 0;padding:4px 12px;color:#42526e\">The payer ID comparison here is case-sensitive — remit files from Aetna come through uppercase. Can we normalize both sides before matching?</blockquote><p style=\"color:#6b778c;font-size:12px\">Reply in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-512",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Pull request #512 approved by Anita Patel",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Anita Patel</strong> approved pull request <strong>#512</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Claims batch reconciliation</strong> now has 1 of 2 required approvals.</p><p>Waiting on: <strong>Deepu Kumar</strong></p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-509",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/patient-portal] Pull request #509 merged: Fix duplicate statement downloads",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Vinay Mehta</strong> merged pull request <strong>#509</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Fix duplicate statement downloads</strong> was merged into <strong>develop</strong> in <code>dosystemsinc/patient-portal</code>.</p><p>Source branch <code>bugfix/duplicate-statements</code> was deleted.</p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pipeline-portal",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "importance": "high",
+    "subject": "[dosystemsinc/patient-portal] Pipeline #1841 FAILED on develop",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong style=\"color:#de350b\">Pipeline #1841 failed</strong> on branch <strong>develop</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>Commit <code>9f2c1ab</code> by <strong>Vinay Mehta</strong> — Fix duplicate statement downloads (#509)</p><p>Failed step: <strong>integration-tests</strong> &middot; 3 failing specs in <code>statements.download.spec.js</code></p><p style=\"color:#6b778c;font-size:12px\">View logs in Bitbucket Pipelines &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pipeline-portal",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/patient-portal] Pipeline #1842 SUCCESSFUL on develop",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong style=\"color:#00875a\">Pipeline #1842 successful</strong> on branch <strong>develop</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>Commit <code>c47d90e</code> by <strong>Vinay Mehta</strong> — fix flaky download specs</p><p>All 412 tests passed &middot; artifact <code>portal-web-1842.tar.gz</code> published.</p><p style=\"color:#6b778c;font-size:12px\">View logs in Bitbucket Pipelines &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-515",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Pull request #515 opened: Payer eligibility cache",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Priya Nair</strong> opened pull request <strong>#515</strong> in <code>dosystemsinc/rcm-platform</code></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Payer eligibility cache</strong></p><p>feature/eligibility-cache &rarr; develop &middot; 8 commits &middot; 19 files changed</p><p>Caches 270/271 eligibility responses for 24h to cut payer API calls by ~60%.</p><p>Reviewers: <strong>Deepu Kumar</strong>, <strong>Rahul Sharma</strong></p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-515",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Priya Nair mentioned you in a comment on pull request #515",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Priya Nair</strong> mentioned you on pull request <strong>#515</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><blockquote style=\"border-left:3px solid #dfe1e6;margin:8px 0;padding:4px 12px;color:#42526e\">@Deepu Kumar — should the cache TTL come from config service or is a hardcoded 24h fine for the first cut? You set up the config service, so your call.</blockquote><p style=\"color:#6b778c;font-size:12px\">Reply in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "repo-admin",
+    "daysAgo": 4,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc] Sandeep Rao added you to repository denial-analytics",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Sandeep Rao</strong> granted you access</p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>You now have <strong>Write</strong> access to <code>dosystemsinc/denial-analytics</code>.</p><p>Branch protection on <strong>main</strong>: pull request with 1 approval required.</p><p style=\"color:#6b778c;font-size:12px\">Manage repository access in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "infra-maintenance",
+    "daysAgo": 5,
+    "isRead": true,
+    "from": {
+      "name": "Sandeep Rao",
+      "email": "sandeep.rao@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Vinay Mehta",
+        "email": "vinay.mehta@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "cc": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "Staging DB maintenance window — Saturday 10 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Vinay,</p><p>Heads up — I'm taking the staging Mongo cluster down Saturday 10 PM–midnight IST for the storage resize. Jobs scheduled in that window will be paused and replayed after.</p><p>No action needed from anyone, just keeping the team in the loop.</p><p>Thanks,<br>Sandeep Rao<br>DevOps Lead, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "infra-maintenance",
+    "daysAgo": 4,
+    "isRead": true,
+    "from": {
+      "name": "Vinay Mehta",
+      "email": "vinay.mehta@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Sandeep Rao",
+        "email": "sandeep.rao@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "cc": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "RE: Staging DB maintenance window — Saturday 10 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Works for me — nothing critical scheduled that night. I'll re-run the statement generation job Sunday morning to be safe.</p><p>Vinay</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "qa-signoff",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "Anita Patel",
+      "email": "anita.patel@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "QA sign-off: patient-portal v2.14 release candidate",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Karthik,</p><p>QA is done on the v2.14 RC. 3 minors logged (cosmetic, deferred to 2.15), zero blockers. Regression suite green across Chrome, Edge and Safari.</p><p>Sign-off attached in the release ticket PORT-2140. Good to promote whenever release management is ready.</p><p>Regards,<br>Anita Patel<br>QA Lead, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "onboarding-arjun",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Arjun Iyer",
+        "email": "arjun.iyer@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "Welcome aboard — dev environment setup for week 1",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Arjun,</p><p>Welcome to the platform team! For week 1: get the rcm-platform repo running locally (README covers it), then pick up the two <em>good-first-issue</em> tickets I assigned you in Jira.</p><p>Deepu (cc'd) owns the config service if you hit anything there. Daily standup is 10:15 AM IST.</p><p>Rahul Sharma<br>Engineering Manager, RCM Platform</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "vendor-renewal",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Finance Team",
+        "email": "finance@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "cc": [
+      {
+        "name": "Sandeep Rao",
+        "email": "sandeep.rao@dosystemsinc.com"
+      }
+    ],
+    "subject": "FYI: MongoDB Atlas renewal approved for FY27",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Finance team,</p><p>Approving the Atlas renewal at the negotiated $58,400/yr (12% below list). PO request is in the portal, ref <strong>PO-2026-0713</strong>. Engineering leads cc'd for visibility.</p><p>Karthik Reddy<br>Director of Engineering, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "incident-retro",
+    "daysAgo": 2,
+    "isRead": false,
+    "from": {
+      "name": "Sandeep Rao",
+      "email": "sandeep.rao@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Engineering All",
+        "email": "engineering@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "Postmortem published: INC-231 claims API latency spike (Jul 8)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Team,</p><p>The postmortem for INC-231 (claims API p99 latency spike on Jul 8, 41 min) is published on Confluence. Root cause: unindexed query introduced in the denial-analytics ETL. Fix shipped same day; two follow-up actions tracked in OPS-889 and OPS-890.</p><p>No action needed — read at your leisure.</p><p>Sandeep</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "design-handoff",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Sneha Kulkarni",
+      "email": "sneha.kulkarni@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Vinay Mehta",
+        "email": "vinay.mehta@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "Figma handoff: patient statement redesign (v3 final)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Vinay,</p><p>Final v3 designs for the statement redesign are in Figma — link in ticket PORT-2098. All states covered including the zero-balance and payment-plan variants we discussed.</p><p>Deepu cc'd since the config flags gate the rollout.</p><p>Sneha Kulkarni<br>Product Designer, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "security-audit",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Anita Patel",
+        "email": "anita.patel@dosystemsinc.com"
+      },
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "SOC 2 audit window confirmed: Aug 3–14",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Anita, Rahul,</p><p>The SOC 2 Type II audit window is confirmed for Aug 3–14. Auditors will want change-management evidence for Q2 — please make sure PR approval records and release tickets are tidy by end of July.</p><p>Wider team cc'd for awareness; I'll send the evidence checklist next week.</p><p>Karthik</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "sprint-report",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "Sprint 41 report — RCM platform team",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Karthik,</p><p>Sprint 41 summary: 34/38 points completed. Claims reconciliation (PR #512) and eligibility cache (PR #515) are in review; both land this week. Carry-over: the denial dashboard export, blocked on the analytics API contract.</p><p>Full board snapshot attached in Jira. Team cc'd.</p><p>Rahul</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "it-policy",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "IT Helpdesk",
+      "email": "it-helpdesk@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Engineering All",
+        "email": "engineering@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "Reminder: VPN certificate rotation completes {{friday}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>All,</p><p>The VPN certificate rotation completes on {{friday}}. If you installed the new profile sent last week, no action is needed. Old certificates stop working at 6 PM IST that day.</p><p>Contact the helpdesk if your client fails to connect after that.</p><p>IT Helpdesk<br>DO Systems Inc</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "mgr-oneone",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "subject": "Can we move our 1:1 to {{tomorrow}}?",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>I've got a payer escalation call landing on our usual 1:1 slot. Can we shift to {{tomorrow}} 3 PM instead? Same agenda — your promotion packet and the Q3 roadmap items you flagged.</p><p>Let me know and I'll move the invite.</p><p>Rahul</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "mgr-priority",
+    "daysAgo": 1,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "Need your estimate today: BrightCare eligibility integration",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Deepu,</p><p>Sales is closing the BrightCare Medical deal this week and they're asking for a delivery date on the eligibility integration. Based on the PR #515 cache work, can you send me a rough engineering estimate (person-weeks + key risks) <strong>by EOD today</strong>?</p><p>A range is fine — I just can't go into tomorrow's call empty-handed.</p><p>Karthik Reddy<br>Director of Engineering</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "cust-brightcare",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Laura Whitman",
+      "email": "laura.whitman@brightcaremedical.com"
+    },
+    "cc": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "subject": "Questions on the eligibility API sandbox",
+    "html": "<div style=\"font-family:Calibri,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Thanks for the sandbox access last week. Two questions from our integration team:</p><ol><li>Does the 271 response include plan-level copay details, or only coverage status?</li><li>What's the sandbox rate limit? We're seeing 429s above ~50 req/min.</li></ol><p>A short call works too if that's easier — we're free Thursday afternoon ET.</p><p>Best,<br>Laura Whitman<br>VP Integrations, BrightCare Medical</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "cust-novant",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "David Chen",
+      "email": "david.chen@novanthealthgroup.com"
+    },
+    "subject": "URGENT: statement PDFs showing wrong remit address for two facilities",
+    "html": "<div style=\"font-family:Calibri,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Deepu,</p><p>Our billing office flagged that patient statements generated since Monday show the <strong>old remit-to address</strong> for our Huntersville and Matthews facilities. Patients may already be mailing payments to the wrong PO box.</p><p>Can your team confirm the scope and get corrected statements out? Happy to jump on a call anytime today — this one's time-sensitive on our side.</p><p>David Chen<br>Revenue Cycle Director, Novant Health Group</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "mgr-roadmap",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "subject": "Q3 roadmap draft — your comments by {{monday}}?",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Deepu,</p><p>Draft Q3 roadmap is in Confluence (RCM &gt; Planning &gt; Q3-2026). You own two of the proposed epics — eligibility GA and the config service v2 split — so I'd like your comments before I take it to Karthik on {{monday}}.</p><p>Mainly sanity-check the sequencing and whether config v2 really needs a full quarter.</p><p>Rahul</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-sprint-planning",
+    "daysAgo": 1,
+    "isRead": true,
+    "isMeeting": true,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "RCM Platform Team",
+        "email": "rcm-platform-team@dosystemsinc.com"
+      }
+    ],
+    "subject": "Sprint 42 Planning — {{monday}} 11:00 AM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Sprint 42 Planning</strong></p><p>When: {{monday}}, 11:00 AM – 12:30 PM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Agenda: carry-over review, eligibility GA scoping, capacity check (Arjun's first sprint). Groom your backlog items before the call.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 291 442 018 77</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-brightcare-call",
+    "daysAgo": 1,
+    "isRead": false,
+    "isMeeting": true,
+    "importance": "high",
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Laura Whitman",
+        "email": "laura.whitman@brightcaremedical.com"
+      }
+    ],
+    "subject": "Invitation: BrightCare eligibility integration kickoff — {{thursday}} 7:30 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>BrightCare eligibility integration — kickoff</strong></p><p>When: {{thursday}}, 7:30 – 8:15 PM IST (10:00 AM ET)<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Deepu — please walk through the sandbox architecture and the 271 response fields. Laura's integration team will join from BrightCare's side.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 883 105 244 90</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-soc2-prep",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Engineering Leads",
+        "email": "eng-leads@dosystemsinc.com"
+      }
+    ],
+    "subject": "Updated invitation: SOC 2 evidence prep moved to {{wednesday}} 4:00 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>SOC 2 evidence prep (rescheduled)</strong></p><p>When: {{wednesday}}, 4:00 – 5:00 PM IST (was Tuesday)<br>Where: Conference Room B / Teams</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Moved to avoid the payer escalation call. Bring your team's Q2 change-management gaps list.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 662 897 410 22</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-arch-review",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Priya Nair",
+      "email": "priya.nair@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Deepu Kumar",
+        "email": "dosystemsai121@outlook.com"
+      },
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "Invitation: Eligibility cache design review — {{tomorrow}} 2:30 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Eligibility cache design review (PR #515)</strong></p><p>When: {{tomorrow}}, 2:30 – 3:15 PM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Walking through the cache invalidation approach and the config-service TTL question Deepu raised on the PR. Design doc linked in ticket RCM-1583.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 447 291 806 13</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-allhands",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Office of the CEO",
+      "email": "ceo-office@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "All Employees",
+        "email": "all@dosystemsinc.com"
+      }
+    ],
+    "subject": "Invitation: DO Systems Q2 All-Hands — {{friday}} 5:00 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>DO Systems Inc — Q2 All-Hands</strong></p><p>When: {{friday}}, 5:00 – 6:00 PM IST<br>Where: Town Hall + Teams Live</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Agenda: Q2 results, BrightCare and Novant account updates, new-joiner welcomes, and Q&amp;A with leadership. Submit questions in advance via the HR portal.</p><p style=\"color:#616161;font-size:12px\">Join Teams Live Event</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-policy-leave",
+    "daysAgo": 6,
+    "isRead": true,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "All Employees",
+        "email": "all@dosystemsinc.com"
+      }
+    ],
+    "subject": "Updated leave policy effective August 1 — key changes inside",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear all,</p><p>Effective <strong>August 1, 2026</strong>, the leave policy is updated:</p><ul><li>Casual leave increases from 8 to 10 days/year</li><li>Carry-forward cap raised to 15 days</li><li>New: 2 paid volunteering days per year</li></ul><p>Full policy is on the HR portal under Policies &gt; Leave. This is informational — no action required.</p><p>Warm regards,<br>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-insurance",
+    "daysAgo": 5,
+    "isRead": true,
+    "from": {
+      "name": "Meghana Rao",
+      "email": "meghana.rao@dosystemsinc.com"
+    },
+    "replyTo": "hr@dosystemsinc.com",
+    "subject": "ACTION REQUIRED: Confirm your health insurance dependents by {{friday}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>We're finalizing the FY27 group health policy. Please log in to the HR portal and <strong>confirm or update your dependent list by {{friday}}</strong>. Unconfirmed records roll over as-is and can't be changed until the next window.</p><p>Reply to this mail if any dependent details need correcting on our side.</p><p>Thanks,<br>Meghana Rao<br>HR Business Partner, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-timesheet",
+    "daysAgo": 4,
+    "isRead": true,
+    "importance": "high",
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "subject": "Reminder: June timesheet pending submission",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Our records show your <strong>June timesheet</strong> hasn't been submitted. Payroll cutoff for corrections is the 15th — please submit it on the HR portal before then, or reply here if the portal shows an error.</p><p>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-review-cycle",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "Meghana Rao",
+      "email": "meghana.rao@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "Mid-year review: self-assessment due {{+7d}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>The mid-year review cycle is open. Your <strong>self-assessment is due by {{+7d}}</strong> in the performance portal; Rahul completes his manager review the week after.</p><p>Reminder: this cycle feeds the promotion committee in August, so please be thorough on the impact section.</p><p>Best,<br>Meghana Rao<br>HR Business Partner</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-referral",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "All Employees",
+        "email": "all@dosystemsinc.com"
+      }
+    ],
+    "subject": "Referral drive: 2 senior backend openings on the RCM team (₹75k bonus)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear all,</p><p>We're hiring <strong>2 Senior Backend Engineers</strong> for the RCM platform team. Referral bonus for these roles is <strong>₹75,000</strong> per successful hire.</p><p>JDs are on the careers page (REQ-2214, REQ-2215). Submit referrals through the HR portal by July 31.</p><p>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-training",
+    "daysAgo": 2,
+    "isRead": false,
+    "from": {
+      "name": "Learning & Development",
+      "email": "learning@dosystemsinc.com"
+    },
+    "replyTo": "hr@dosystemsinc.com",
+    "subject": "ACTION REQUIRED: HIPAA annual refresher — complete by July 25",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Your annual <strong>HIPAA compliance refresher</strong> is assigned in the LMS and must be completed by <strong>July 25</strong>. It takes ~45 minutes including the quiz (80% to pass).</p><p>This is mandatory for everyone with production data access; incomplete training is flagged in the SOC 2 audit.</p><p>Learning &amp; Development, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-wfh-confirm",
+    "daysAgo": 2,
+    "isRead": false,
+    "from": {
+      "name": "Meghana Rao",
+      "email": "meghana.rao@dosystemsinc.com"
+    },
+    "subject": "Please confirm: your hybrid schedule for August",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>We're locking seat planning for August. Your current pattern is <strong>Tue/Wed/Thu in office</strong>. Can you reply confirming this, or let me know your preferred days? Need your response by {{thursday}} to hold a fixed desk on the 4th floor.</p><p>Thanks!<br>Meghana</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-payroll-info",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Payroll - DO Systems",
+      "email": "payroll@dosystemsinc.com"
+    },
+    "subject": "Your July payslip is available",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Your payslip for <strong>July 2026</strong> is now available on the payroll portal. Note the revised professional tax slab reflected from this month.</p><p>This is an automated notification — for discrepancies, raise a ticket under Payroll &gt; Queries within 7 days.</p><p>Payroll Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-anniversary",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "Happy 3-year work anniversary, Deepu! 🎉",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Deepu,</p><p>Congratulations on completing <strong>3 years</strong> at DO Systems Inc today! Thank you for everything you've built on the RCM platform — the config service especially has become core infrastructure.</p><p>A small gift voucher has been added to your rewards wallet. 🎁</p><p>Warmly,<br>HR Team &amp; Rahul</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-survey",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "All Employees",
+        "email": "all@dosystemsinc.com"
+      }
+    ],
+    "subject": "2 minutes: quarterly engagement pulse survey (closes {{friday}})",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear all,</p><p>The Q2 engagement pulse survey is open — 8 questions, anonymous, about 2 minutes. It closes <strong>{{friday}} 6 PM IST</strong>.</p><p>Survey link is on the HR portal home page. Your feedback directly shaped the new hybrid policy last quarter — keep it coming.</p><p>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-517",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/denial-analytics] Pull request #517 opened: Denial reason code mapping v2",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Arjun Iyer</strong> opened pull request <strong>#517</strong> in <code>dosystemsinc/denial-analytics</code></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Denial reason code mapping v2</strong></p><p>feature/carc-rarc-mapping &rarr; develop &middot; 6 commits &middot; 11 files changed</p><p>Maps CARC/RARC codes to internal denial buckets; adds 214 new code mappings from the payer matrix.</p><p>Reviewers: <strong>Deepu Kumar</strong>, <strong>Sandeep Rao</strong></p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-517",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/denial-analytics] Merge conflict on pull request #517",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong style=\"color:#de350b\">Merge conflict detected</strong> on pull request <strong>#517</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><code>feature/carc-rarc-mapping</code> conflicts with <strong>develop</strong> in <code>mappings/denialBuckets.json</code> after PR #516 merged.</p><p>The author needs to rebase before this can be merged.</p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pipeline-rcm-prod",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Deployment to PRODUCTION completed: v3.22.1",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong style=\"color:#00875a\">Production deployment successful</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><code>rcm-platform v3.22.1</code> deployed to <strong>production</strong> by pipeline #2051 (hotfix: statement remit-address regression).</p><p>Triggered by <strong>Sandeep Rao</strong> &middot; rollout completed in 6m 41s.</p><p style=\"color:#6b778c;font-size:12px\">View deployment in Bitbucket Pipelines &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "pr-513",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Changes requested on pull request #513: Remit address hotfix",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Deepu Kumar</strong> requested changes on pull request <strong>#513</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><blockquote style=\"border-left:3px solid #dfe1e6;margin:8px 0;padding:4px 12px;color:#42526e\">The facility-address join fixes Huntersville but Matthews still resolves to the legacy record — the migration needs to backfill facility_addresses.effective_date for both.</blockquote><p style=\"color:#6b778c;font-size:12px\">Reply in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "repo-tag",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/patient-portal] Tag v2.14.0 created by Anita Patel",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Anita Patel</strong> created tag <strong>v2.14.0</strong> in <code>dosystemsinc/patient-portal</code></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>Release candidate promoted after QA sign-off &middot; commit <code>c47d90e</code>.</p><p style=\"color:#6b778c;font-size:12px\">View source in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "novant-warroom",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Sandeep Rao",
+        "email": "sandeep.rao@dosystemsinc.com"
+      },
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "Novant remit-address incident — hotfix shipped, comms owed by noon",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Sandeep, Rahul,</p><p>v3.22.1 is in production and regenerated statements are queued for the two affected facilities. I owe David Chen a written summary by noon ET — Rahul, please have the impact counts (statements affected, date range) to me by 11.</p><p>Deepu cc'd since his review caught the Matthews gap.</p><p>Karthik</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "data-migration",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Priya Nair",
+      "email": "priya.nair@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Sandeep Rao",
+        "email": "sandeep.rao@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "Eligibility cache table migration — plan for review",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Sandeep,</p><p>Migration plan for the eligibility cache tables is in RCM-1590: two new collections, TTL index on <code>expiresAt</code>, estimated 40MB/day growth at current volume. No downtime needed.</p><p>Deepu cc'd for the config-service flag that gates rollout.</p><p>Priya</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "intern-demo",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Arjun Iyer",
+      "email": "arjun.iyer@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "First-week wrap-up + demo of good-first-issue fixes",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Rahul,</p><p>Both starter tickets are done — the date-format fix is merged and the pagination one is in PR #517's parent branch. Happy to demo at Friday's team sync if there's a slot.</p><p>Thanks Deepu for the config-service walkthrough on Tuesday!</p><p>Arjun</p></div>"
+  },
+  {
+    "category": "cc-readonly",
+    "thread": "license-audit",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "IT Helpdesk",
+      "email": "it-helpdesk@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "ccMe": true,
+    "subject": "JetBrains license audit: 4 unused seats reclaimed",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Karthik,</p><p>Quarterly license audit done. 4 unused JetBrains seats reclaimed (leavers), 2 reassigned to the new joiners. Current utilization: 34/36 seats. No renewal change needed this cycle.</p><p>Team leads cc'd for awareness.</p><p>IT Helpdesk<br>DO Systems Inc</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "mgr-estimate-followup",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "subject": "RE: BrightCare estimate — two follow-ups from the sales call",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Deepu,</p><p>Thanks for the estimate — the range landed well. Two follow-ups from the call:</p><ol><li>Can the 6-week option include the copay fields in the 271 response, or is that only in the 9-week scope?</li><li>BrightCare asked about HIPAA attestation for the cache layer — one paragraph from you on how cached PHI is encrypted would close it.</li></ol><p>Need both before Friday's redline review.</p><p>Karthik</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "cust-novant",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "David Chen",
+      "email": "david.chen@novanthealthgroup.com"
+    },
+    "subject": "RE: URGENT: statement PDFs — confirming fix and asking for impact report",
+    "html": "<div style=\"font-family:Calibri,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Deepu,</p><p>Confirming the corrected statements are rendering properly on our side — thank you for the fast turnaround.</p><p>For our compliance file, can you send a short impact report: number of statements affected, date range, and the root cause? Our internal audit needs it within 5 business days.</p><p>David Chen<br>Revenue Cycle Director, Novant Health Group</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "cust-meridian",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Sofia Ramirez",
+      "email": "sofia.ramirez@meridianclinics.com"
+    },
+    "cc": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "subject": "Interest in the denial analytics module — demo request",
+    "html": "<div style=\"font-family:Calibri,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hello Deepu,</p><p>Karthik suggested I reach out directly. Meridian Clinics is evaluating denial-management tooling for our 12 locations, and your analytics module came up in the BrightCare reference call.</p><p>Could we get a 30-minute demo sometime next week? Tuesday or Wednesday mornings CT work best for our team.</p><p>Best regards,<br>Sofia Ramirez<br>Director of Billing Operations, Meridian Clinics</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "mgr-oneone",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "subject": "1:1 notes + promotion packet next steps",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Deepu,</p><p>Good 1:1 today. Recapping the actions:</p><ul><li><strong>You:</strong> impact section of the promotion packet by {{monday}} — lead with the config service adoption numbers and the Novant save.</li><li><strong>Me:</strong> peer feedback requests to Anita, Priya and Sandeep this week.</li></ul><p>Committee meets mid-August, so we have runway but not slack.</p><p>Rahul</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-meridian-demo",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Sofia Ramirez",
+        "email": "sofia.ramirez@meridianclinics.com"
+      }
+    ],
+    "subject": "Invitation: Meridian Clinics — denial analytics demo, {{wednesday}} 8:00 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Meridian Clinics — denial analytics demo</strong></p><p>When: {{wednesday}}, 8:00 – 8:45 PM IST (9:30 AM CT)<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Deepu — please drive the live demo on the staging dataset; I'll cover pricing and rollout. Sofia's team joins from Meridian.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 519 004 772 61</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-retro",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "RCM Platform Team",
+        "email": "rcm-platform-team@dosystemsinc.com"
+      }
+    ],
+    "subject": "Invitation: Sprint 41 retrospective — {{friday}} 3:00 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Sprint 41 Retrospective</strong></p><p>When: {{friday}}, 3:00 – 4:00 PM IST<br>Where: Conference Room A / Teams</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Board is open in Retrium — add your cards before the session. Special topic: what let the remit-address regression reach production.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 728 331 645 09</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-oncall",
+    "daysAgo": 1,
+    "isRead": true,
+    "isMeeting": true,
+    "from": {
+      "name": "Sandeep Rao",
+      "email": "sandeep.rao@dosystemsinc.com"
+    },
+    "subject": "Invitation: On-call handover — you're primary starting {{monday}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>On-call handover — RCM platform</strong></p><p>When: {{monday}}, 10:00 – 10:20 AM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>You take primary on-call for the week starting {{monday}}. Handover covers the two open OPS follow-ups from INC-231 and the new PagerDuty escalation policy.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 903 218 447 55</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-promo-docs",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Meghana Rao",
+      "email": "meghana.rao@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "Promotion cycle: documents needed from you by July 28",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>For the August promotion committee, HR needs from you by <strong>July 28</strong>:</p><ul><li>Updated role profile acknowledgment (HR portal &gt; My Documents)</li><li>Self-assessment (already in progress per the review cycle)</li></ul><p>Rahul's packet and peer feedback are tracked separately. Reply here if the portal doesn't show the acknowledgment form.</p><p>Meghana</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-holiday-calendar",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "All Employees",
+        "email": "all@dosystemsinc.com"
+      }
+    ],
+    "subject": "H2 2026 holiday calendar published — 2 optional holidays to pick",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear all,</p><p>The H2 2026 holiday calendar is on the HR portal. As before, you get <strong>2 optional holidays</strong> — select yours in the portal by <strong>July 31</strong>; unselected picks default to Diwali eve and New Year's Eve.</p><p>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-it-asset",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "IT Helpdesk",
+      "email": "it-helpdesk@dosystemsinc.com"
+    },
+    "replyTo": "it-helpdesk@dosystemsinc.com",
+    "subject": "ACTION REQUIRED: laptop refresh — pick your model by {{thursday}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Your laptop is due for the 3-year refresh. Pick your model in the IT portal by <strong>{{thursday}}</strong>:</p><ul><li>MacBook Pro 14&quot; M5 / 32GB</li><li>ThinkPad X1 Carbon / 32GB</li></ul><p>No response defaults to a like-for-like replacement. Data migration is scheduled with you after dispatch.</p><p>IT Helpdesk, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-wellness",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "All Employees",
+        "email": "all@dosystemsinc.com"
+      }
+    ],
+    "subject": "New wellness benefit: therapy sessions now covered under group policy",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear all,</p><p>Starting this month, the group health policy covers <strong>8 therapy/counselling sessions per year</strong> per employee, bookable through the Practo corporate portal — no manager approval or disclosure needed.</p><p>Details under Benefits &gt; Mental Wellness on the HR portal. This is informational only.</p><p>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "finance",
+    "thread": "fin-expense",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Finance Team",
+      "email": "finance@dosystemsinc.com"
+    },
+    "subject": "Expense report ER-3341 approved — reimbursement in July payroll",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Your expense report <strong>ER-3341</strong> (client visit — ₹8,420) is approved. Reimbursement will be included in the July payroll run.</p><p>Automated notification — raise a Finance ticket for queries.</p><p>Finance Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "finance",
+    "thread": "fin-invoice",
+    "daysAgo": 1,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Finance Team",
+      "email": "finance@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "subject": "Approval needed: Twilio invoice INV-88214 ($1,940) exceeds your team budget line",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Twilio invoice <strong>INV-88214</strong> ($1,940, SMS notifications) exceeds the monthly budget line for your cost center by $440. As the service owner, please approve or dispute it in the finance portal <strong>within 3 business days</strong>; Karthik is cc'd as budget owner.</p><p>Finance Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "it-alerts",
+    "thread": "alert-pagerduty",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "PagerDuty",
+      "email": "no-reply@pagerduty.com"
+    },
+    "replyTo": "no-reply@pagerduty.com",
+    "subject": "[RESOLVED] #4471: RCM API error rate above 2% (production)",
+    "html": "<div style=\"font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#24292e;line-height:1.6\"><p><strong style=\"color:#00875a\">RESOLVED</strong> — Incident <strong>#4471</strong></p><hr style=\"border:none;border-top:1px solid #e1e4e8\"><p><strong>RCM API error rate above 2%</strong> on service <em>rcm-platform-prod</em>.</p><p>Triggered 09:41 IST &middot; resolved 09:58 IST by <strong>Sandeep Rao</strong>. Cause noted: transient Mongo failover during Atlas maintenance.</p><p style=\"color:#6a737d;font-size:12px\">View incident in PagerDuty</p></div>"
+  },
+  {
+    "category": "it-alerts",
+    "thread": "alert-dependabot",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Snyk",
+      "email": "noreply@snyk.io"
+    },
+    "replyTo": "noreply@snyk.io",
+    "subject": "[HIGH] New vulnerability in jsonwebtoken affects rcm-platform (CVE-2026-31842)",
+    "html": "<div style=\"font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#24292e;line-height:1.6\"><p><strong style=\"color:#de350b\">High severity</strong> — new vulnerability detected</p><hr style=\"border:none;border-top:1px solid #e1e4e8\"><p><code>jsonwebtoken@8.5.1</code> in <strong>dosystemsinc/rcm-platform</strong> is affected by <strong>CVE-2026-31842</strong> (signature bypass under rotated keys).</p><p>Recommended: upgrade to <code>9.1.4</code>. A fix PR can be auto-opened from the Snyk dashboard.</p><p style=\"color:#6a737d;font-size:12px\">View report in Snyk &middot; project rcm-platform</p></div>"
+  },
+  {
+    "category": "newsletter",
+    "thread": "nl-msft",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Microsoft Azure",
+      "email": "azure-noreply@microsoft.com"
+    },
+    "replyTo": "azure-noreply@microsoft.com",
+    "subject": "Azure updates for July: Cosmos DB serverless tier price drop, new India South region",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Azure monthly update</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><ul><li>Cosmos DB serverless pricing reduced 20% in all regions</li><li>New region: India South (Chennai) now generally available</li><li>App Service TLS 1.0/1.1 retirement — final deadline Sep 30</li></ul><p style=\"color:#616161;font-size:12px\">You receive this because of your Azure subscription. Manage preferences.</p></div>"
+  },
+  {
+    "category": "newsletter",
+    "thread": "nl-hfma",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "HFMA Weekly",
+      "email": "newsletter@hfma.org"
+    },
+    "replyTo": "newsletter@hfma.org",
+    "subject": "RCM Weekly: CMS proposes new prior-auth turnaround rules for 2027",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>This week in revenue cycle</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>CMS proposes 72-hour prior-auth turnaround</strong> for urgent requests starting 2027 — payers and clearinghouses would need API-based status sharing.</p><p><strong>Denial rates tick up</strong>: median initial denial rate hit 11.8% in Q2, driven by eligibility and registration errors.</p><p style=\"color:#888;font-size:12px\">HFMA Weekly &middot; unsubscribe anytime</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-fiercepharma",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "FiercePharma",
+      "email": "newsletter@fiercepharma.com"
+    },
+    "replyTo": "newsletter@fiercepharma.com",
+    "subject": "FiercePharma AM: FDA clears first oral GLP-1 generic; Amneal expands injectables line",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>FiercePharma — Morning Briefing</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>FDA clears first oral GLP-1 generic</strong> — analysts expect a 30% price erosion within 12 months as three more ANDAs sit in the queue.</p><p><strong>Amneal expands injectables line</strong> with a new Brookhaven fill-finish suite, adding 40M units/year of capacity.</p><p><strong>EU pharma package</strong> moves to trilogue with data-exclusivity cut still on the table.</p><p style=\"color:#888;font-size:12px\">FiercePharma Daily &middot; unsubscribe &middot; manage preferences</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-endpoints",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Endpoints News",
+      "email": "news@endpts.com"
+    },
+    "replyTo": "news@endpts.com",
+    "subject": "Endpoints: Ph3 readout sends Alzheimer's biotech up 240%; layoffs at two CDMOs",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Endpoints News — Daily Report</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>Surprise Ph3 win in early Alzheimer's</strong>: the anti-tau candidate hit both co-primary endpoints; shares up 240% pre-market.</p><p><strong>CDMO consolidation continues</strong> — two mid-size CDMOs announce workforce cuts citing biotech funding drought.</p><p><strong>FDA adcomm calendar</strong>: three oncology votes scheduled for early August.</p><p style=\"color:#888;font-size:12px\">Endpoints News &middot; you are subscribed as a free reader</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-statnews",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "STAT Pharmalot",
+      "email": "pharmalot@statnews.com"
+    },
+    "replyTo": "pharmalot@statnews.com",
+    "subject": "Pharmalot: PBM reform bill clears committee; 340B dispute escalates",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Pharmalot — your daily dose</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>PBM reform clears Senate committee</strong> 18-4, banning spread pricing in Medicaid managed care — floor vote expected after recess.</p><p><strong>340B escalates</strong>: two more manufacturers restrict contract-pharmacy shipments, hospitals threaten litigation.</p><p><strong>Also</strong>: WHO prequalifies a second mRNA flu vaccine.</p><p style=\"color:#888;font-size:12px\">STAT &middot; Pharmalot newsletter &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-pharmatimes",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Express Pharma",
+      "email": "digest@expresspharma.in"
+    },
+    "replyTo": "digest@expresspharma.in",
+    "subject": "Express Pharma Weekly: India API PLI scheme phase 2; CDSCO tightens stability norms",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Express Pharma — Weekly Digest</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>PLI scheme phase 2</strong>: government notifies incentives for 12 more fermentation-based APIs; applications open August 1.</p><p><strong>CDSCO tightens stability-study norms</strong> for exports to semi-regulated markets, aligning with WHO zone IVb.</p><p><strong>Hyderabad Genome Valley</strong> adds three new sterile manufacturing approvals this quarter.</p><p style=\"color:#888;font-size:12px\">Express Pharma &middot; weekly digest &middot; manage subscription</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-regulatory",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "RAPS Regulatory Focus",
+      "email": "focus@raps.org"
+    },
+    "replyTo": "focus@raps.org",
+    "subject": "Regulatory Focus: FDA draft guidance on AI in drug manufacturing — comments due Sept 15",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>RAPS — Regulatory Focus</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>FDA publishes draft guidance</strong> on AI/ML use in pharmaceutical manufacturing quality systems — covers model lifecycle, change control and human oversight. Comment period closes <strong>September 15</strong>.</p><p><strong>EMA</strong> parallel reflection paper expected in Q4, per CHMP work plan.</p><p style=\"color:#888;font-size:12px\">RAPS Regulatory Focus &middot; member newsletter</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-himss",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "HIMSS 2026",
+      "email": "program@himssconference.org"
+    },
+    "replyTo": "program@himssconference.org",
+    "subject": "Your abstract has been ACCEPTED: 'AI-driven denial prediction in revenue cycle workflows'",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Deepu Kumar,</p><p>Congratulations! Your abstract <strong>&quot;AI-driven denial prediction in revenue cycle workflows&quot;</strong> has been <strong>accepted</strong> for an oral presentation at <strong>HIMSS 2026 Global Conference</strong> (Orlando, Nov 9–12).</p><p>Next steps:</p><ul><li>Confirm your speaker slot by <strong>August 5</strong> via the speaker portal</li><li>Final slides due October 20 (template attached in the portal)</li></ul><p>Best regards,<br>HIMSS Program Committee</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-neurips-cfp",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "ML4H Workshop",
+      "email": "cfp@ml4health.org"
+    },
+    "replyTo": "cfp@ml4health.org",
+    "subject": "CFP reminder: ML4H 2026 (NeurIPS workshop) — submissions close {{+9d}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear author,</p><p>A reminder that submissions for <strong>Machine Learning for Health (ML4H) 2026</strong>, co-located with NeurIPS, close on <strong>{{+9d}}, 11:59 PM AoE</strong>.</p><ul><li>Full papers: 8 pages (proceedings track)</li><li>Findings track: 4 pages, non-archival</li><li>Topics include clinical NLP, administrative/claims ML, and healthcare operations</li></ul><p>Submission via OpenReview. We look forward to your work!</p><p>ML4H Organizing Committee</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-review-request",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "AMIA 2026 Program Committee",
+      "email": "reviews@amia.org"
+    },
+    "replyTo": "reviews@amia.org",
+    "subject": "Invitation to review: 3 papers assigned for AMIA 2026 Annual Symposium",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Reviewer,</p><p>Thank you for agreeing to review for the <strong>AMIA 2026 Annual Symposium</strong>. You have been assigned <strong>3 submissions</strong> in the track <em>Clinical Information Systems &amp; Administrative Data</em>.</p><p>Reviews are due <strong>{{+14d}}</strong> in ScholarOne. Please declare any conflicts within 5 days.</p><p>AMIA Scientific Program Committee</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-becon",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Becker's Healthcare",
+      "email": "events@beckershealthcare.com"
+    },
+    "replyTo": "events@beckershealthcare.com",
+    "subject": "Speaker confirmation: Becker's RCM Virtual Summit — panel on AI in claims, {{+21d}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Confirming your panel seat at the <strong>Becker's RCM Virtual Summit</strong> on <strong>{{+21d}}</strong>: <em>&quot;AI in claims and denial management — beyond the pilot&quot;</em> (45 min, 3 panelists + moderator).</p><p>Tech check is 30 minutes before the session. Please send a headshot and 2-line bio by next Friday.</p><p>Best,<br>Events Team, Becker's Healthcare</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-arxiv-alert",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Google Scholar Alerts",
+      "email": "scholaralerts-noreply@google.com"
+    },
+    "replyTo": "scholaralerts-noreply@google.com",
+    "subject": "New citations to your paper: 'Rule-augmented LLMs for claims adjudication' — 4 new results",
+    "html": "<div style=\"font-family:Arial,sans-serif;font-size:14px;color:#222;line-height:1.6\"><p><strong>Google Scholar Alert</strong> — new citations to your articles</p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>Rule-augmented LLMs for claims adjudication</strong> was cited by 4 new results, including:</p><ul><li><em>Benchmarking administrative-task LLMs in US healthcare</em> — preprint, arXiv:2607.04412</li><li><em>Hybrid symbolic-neural pipelines for payer policy extraction</em> — JAMIA Open</li></ul><p style=\"color:#777;font-size:12px\">Cancel alert &middot; list my alerts</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-atlassian",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Atlassian",
+      "email": "offers@atlassian.com"
+    },
+    "replyTo": "offers@atlassian.com",
+    "subject": "Last chance: 25% off Bitbucket Premium annual plans — offer ends {{friday}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Upgrade your team's workflow</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>Get <strong>25% off</strong> your first year of Bitbucket Premium — merge checks, deployment permissions, and IP allowlisting for your whole workspace.</p><p>Offer valid for existing Standard workspaces until <strong>{{friday}}</strong>.</p><p><a href=\"#\">Claim the offer</a></p><p style=\"color:#6b778c;font-size:12px\">Atlassian Pty Ltd &middot; unsubscribe from promotional emails</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-udemy",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Udemy",
+      "email": "hello@e.udemy.com"
+    },
+    "replyTo": "hello@e.udemy.com",
+    "subject": "₹449 courses end tonight: System Design, LLM Engineering, Kubernetes and more",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Flash sale — ends midnight tonight</strong> 🔥</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Top picks for you, Deepu:</p><ul><li>Grokking System Design for Senior Engineers — <strong>₹449</strong></li><li>LLM Engineering: RAG to Production — <strong>₹449</strong></li><li>Certified Kubernetes Administrator 2026 — <strong>₹449</strong></li></ul><p><a href=\"#\">Browse the sale</a></p><p style=\"color:#888;font-size:12px\">Udemy &middot; you're receiving marketing emails &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-jetbrains",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "JetBrains",
+      "email": "news@jetbrains.com"
+    },
+    "replyTo": "news@jetbrains.com",
+    "subject": "WebStorm 2026.2 is here — AI code review in the IDE, 30-day trial extended",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>WebStorm 2026.2 released</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>What's new: in-IDE AI code review with inline suggestions, 2× faster indexing on monorepos, and built-in Bun support.</p><p>Your organization's license covers this update. Personal users get an extended <strong>30-day trial</strong> this month.</p><p><a href=\"#\">See what's new</a></p><p style=\"color:#888;font-size:12px\">JetBrains s.r.o. &middot; marketing communication &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-airline",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "IndiGo",
+      "email": "offers@goindigo.in"
+    },
+    "replyTo": "offers@goindigo.in",
+    "subject": "Monsoon sale: Hyderabad ⇄ Orlando codeshare fares from ₹52,999 — book by {{sunday}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Monsoon international sale ☔</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Planning conference season? Codeshare fares from <strong>Hyderabad to Orlando</strong> start at <strong>₹52,999</strong> round trip (Nov travel window included).</p><p>Book by <strong>{{sunday}}</strong>. Extra 5% off with code <strong>MONSOON26</strong>.</p><p><a href=\"#\">Book now</a></p><p style=\"color:#888;font-size:12px\">InterGlobe Aviation Ltd &middot; promotional email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-linkedin",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "LinkedIn",
+      "email": "messages-noreply@linkedin.com"
+    },
+    "replyTo": "messages-noreply@linkedin.com",
+    "subject": "Deepu, try LinkedIn Premium free for 1 month — 3 people viewed your profile this week",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Your profile is getting noticed</strong> 👀</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>3 people viewed your profile this week, including a <strong>Director of Engineering at a Fortune 500 healthcare company</strong>.</p><p>See who's viewing you and message them directly with <strong>Premium — free for 1 month</strong>.</p><p><a href=\"#\">Try free</a></p><p style=\"color:#888;font-size:12px\">LinkedIn Corp &middot; marketing email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-pharmavoice",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "PharmaVoice",
+      "email": "newsletter@pharmavoice.com"
+    },
+    "replyTo": "newsletter@pharmavoice.com",
+    "subject": "PharmaVoice Today: Big pharma's AI spend doubles; CMO turnover hits 5-year high",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>PharmaVoice — Today's Briefing</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>AI budgets double</strong>: top-20 pharma AI/ML spend crossed $4.2B this year, led by clinical-trial optimization and manufacturing QC.</p><p><strong>CMO churn</strong>: chief medical officer turnover reached a 5-year high as pipelines reshuffle post-IRA.</p><p style=\"color:#888;font-size:12px\">PharmaVoice &middot; daily newsletter &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-biopharmadive",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "BioPharma Dive",
+      "email": "newsletter@biopharmadive.com"
+    },
+    "replyTo": "newsletter@biopharmadive.com",
+    "subject": "BioPharma Dive: Obesity drug shortage officially ends; biosimilar uptake tops 40%",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>BioPharma Dive — Daily Dive</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>FDA removes semaglutide from the shortage list</strong>, ending compounding-pharmacy exemptions; telehealth sellers face a 60-day wind-down.</p><p><strong>Biosimilars cross 40% share</strong> in US adalimumab scripts for the first time.</p><p style=\"color:#888;font-size:12px\">BioPharma Dive &middot; unsubscribe &middot; view in browser</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-fdanews",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "FDA MedWatch",
+      "email": "fda-medwatch@public.govdelivery.com"
+    },
+    "replyTo": "fda-medwatch@public.govdelivery.com",
+    "subject": "MedWatch Safety Alert: Class I recall — infusion pump software defect (three lots)",
+    "html": "<div style=\"font-family:Arial,sans-serif;font-size:14px;color:#222;line-height:1.6\"><p><strong>FDA MedWatch — Safety Alert</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>Class I recall</strong>: a software defect in three lots of a widely used infusion pump can deliver incorrect dose rates under specific pause-resume sequences. Firmware update required before further use.</p><p>Facilities should quarantine affected serial ranges listed in the notice.</p><p style=\"color:#777;font-size:12px\">You are subscribed to MedWatch safety alerts &middot; manage preferences</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-pharmexec",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Pharmaceutical Executive",
+      "email": "digest@pharmexec.com"
+    },
+    "replyTo": "digest@pharmexec.com",
+    "subject": "PharmExec Weekly: 2026 pipeline report — 61 novel approvals projected; launch excellence special",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Pharmaceutical Executive — Weekly Digest</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>2026 pipeline report</strong>: 61 novel approvals projected for the year, with radioligand therapy and oral biologics the fastest-growing classes.</p><p><strong>Special issue</strong>: launch excellence — why 40% of launches still miss year-2 forecasts, and the commercial models that beat the curve.</p><p style=\"color:#888;font-size:12px\">PharmExec &middot; weekly digest &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-drugchannels",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Drug Channels",
+      "email": "updates@drugchannels.net"
+    },
+    "replyTo": "updates@drugchannels.net",
+    "subject": "Drug Channels: The 2026 pharmacy DIR hangover — who really pays for fee reform",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Drug Channels — New Analysis</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>The DIR hangover, one year on</strong>: pharmacy margins compressed 180bps as fees moved to point-of-sale, while plan sponsors captured most of the rebate shift. Our updated waterfall charts break down who pays.</p><p style=\"color:#888;font-size:12px\">Drug Channels Institute &middot; subscription email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-scrip",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Scrip Citeline",
+      "email": "alerts@citeline.com"
+    },
+    "replyTo": "alerts@citeline.com",
+    "subject": "Scrip: Japan approves first domestic CAR-T; China biotech licensing deals hit record $28B",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Scrip — Global Pharma News</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>Japan approves its first domestically developed CAR-T</strong>, priced 30% below imported competitors under the new HTA framework.</p><p><strong>China out-licensing hits $28B</strong> in H1 deal value — western majors now source 22% of clinical candidates from Chinese biotechs.</p><p style=\"color:#888;font-size:12px\">Citeline &middot; Scrip daily alert &middot; manage alerts</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-kff",
+    "daysAgo": 2,
+    "isRead": false,
+    "from": {
+      "name": "KFF Health News",
+      "email": "newsletters@kff.org"
+    },
+    "replyTo": "newsletters@kff.org",
+    "subject": "KFF Morning Briefing: Medicare drug price negotiation round 3 list leaks — 18 drugs named",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>KFF Health News — Morning Briefing</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>Round 3 negotiation list leaks</strong>: 18 drugs reportedly selected, including two blockbuster anticoagulants and the first biologic with a pending biosimilar. Official announcement expected Feb 1.</p><p><strong>Also</strong>: state PBM licensing laws now cover 38 states.</p><p style=\"color:#888;font-size:12px\">KFF &middot; morning briefing &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-pinkSheet",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Pink Sheet",
+      "email": "pinksheet@citeline.com"
+    },
+    "replyTo": "pinksheet@citeline.com",
+    "subject": "Pink Sheet: FDA's new real-world evidence framework — what changes for 505(b)(2) filers",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Pink Sheet — Regulatory Insight</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>RWE framework finalized</strong>: FDA will accept registry and claims-data evidence as primary support for label expansions in defined scenarios — a significant opening for 505(b)(2) filers and older molecules.</p><p>Our analysis maps the six qualifying scenarios and their data-quality bars.</p><p style=\"color:#888;font-size:12px\">Citeline &middot; Pink Sheet &middot; manage subscription</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-pharmafile",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "Pharmafocus",
+      "email": "weekly@pharmafile.com"
+    },
+    "replyTo": "weekly@pharmafile.com",
+    "subject": "Pharmafocus: UK VPAG rebate rate jumps to 26.8%; NICE fast-tracks obesity indications",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Pharmafocus — Weekly Round-up</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>VPAG payback rises to 26.8%</strong> for newer medicines, prompting two manufacturers to delay UK launches.</p><p><strong>NICE fast-tracks</strong> three obesity-adjacent indications under the severity modifier.</p><p style=\"color:#888;font-size:12px\">Pharmafile &middot; weekly newsletter &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "pharma-newsletter",
+    "thread": "pn-genengnews",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "GEN - Genetic Engineering News",
+      "email": "newsletter@genengnews.com"
+    },
+    "replyTo": "newsletter@genengnews.com",
+    "subject": "GEN Daily: CRISPR base-editing therapy clears first in-human liver trial endpoint",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>GEN — Daily News</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>Base-editing milestone</strong>: an in-vivo liver-targeted base editor hit its primary safety endpoint with durable 68% LDL reduction at 12 months in the first human cohort.</p><p><strong>Also</strong>: two new AI-designed protein binders enter IND-enabling studies.</p><p style=\"color:#888;font-size:12px\">GEN &middot; daily newsletter &middot; manage preferences</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-himss-logistics",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "HIMSS 2026",
+      "email": "speakers@himssconference.org"
+    },
+    "replyTo": "speakers@himssconference.org",
+    "subject": "ACTION REQUIRED: HIMSS speaker agreement + AV form due {{+5d}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Deepu Kumar,</p><p>Following your accepted session <em>&quot;AI-driven denial prediction in revenue cycle workflows&quot;</em>, two items are pending in the speaker portal, due <strong>{{+5d}}</strong>:</p><ul><li>Signed speaker agreement (e-sign)</li><li>AV &amp; room-setup form (screen ratio, demo requirements)</li></ul><p>Unconfirmed sessions are released to the waitlist after the deadline.</p><p>HIMSS Speaker Management</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-chil",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "CHIL 2027",
+      "email": "cfp@chilconference.org"
+    },
+    "replyTo": "cfp@chilconference.org",
+    "subject": "CHIL 2027 call for papers: health AI systems track — abstracts due {{+18d}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear colleague,</p><p>The <strong>Conference on Health, Inference, and Learning (CHIL) 2027</strong> invites submissions to its <em>Deployed Health AI Systems</em> track — real-world systems, evaluation in production, and failure analyses are explicitly in scope.</p><ul><li>Abstracts: {{+18d}}</li><li>Full papers: 2 weeks after abstract deadline</li><li>Double-blind, PMLR proceedings</li></ul><p>CHIL Program Chairs</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-amia-reminder",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "AMIA 2026 Program Committee",
+      "email": "reviews@amia.org"
+    },
+    "replyTo": "reviews@amia.org",
+    "subject": "Reminder: 2 of 3 assigned AMIA reviews still pending — due {{+10d}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Reviewer,</p><p>A friendly reminder that <strong>2 of your 3 assigned reviews</strong> for the AMIA 2026 Annual Symposium are still pending in ScholarOne. The review deadline is <strong>{{+10d}}</strong>.</p><p>Submission 1184 (completed) — thank you. Pending: 1219, 1305.</p><p>AMIA Scientific Program Committee</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-hlth",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "HLTH 2026",
+      "email": "registration@hlth.com"
+    },
+    "replyTo": "registration@hlth.com",
+    "subject": "Your HLTH 2026 pass is confirmed — Las Vegas, Oct 18–21 (booking code inside)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Your <strong>HLTH 2026</strong> attendee pass is confirmed (order #H26-84213). Oct 18–21, Venetian Convention Center, Las Vegas.</p><ul><li>Hotel block code: <strong>HLTH26-DOSYS</strong> (expires Sep 1)</li><li>App access opens Sep 15 for meeting scheduling</li></ul><p>See you there!<br>HLTH Registration Team</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-ieee-decision",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "IEEE ICHI 2026",
+      "email": "chairs@ichi2026.org"
+    },
+    "replyTo": "chairs@ichi2026.org",
+    "subject": "Decision on submission #142: Major revision — response due {{+12d}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Deepu Kumar,</p><p>Thank you for your submission <strong>#142 — &quot;Cost-aware routing of LLM inference in healthcare back-office pipelines&quot;</strong> to IEEE ICHI 2026.</p><p>Decision: <strong>Major revision</strong>. Reviewers ask for (1) an ablation on the routing threshold, and (2) comparison against a distilled single-model baseline. Revised manuscript and response letter due <strong>{{+12d}}</strong>.</p><p>ICHI 2026 Program Chairs</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-webinar",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "MGMA Events",
+      "email": "events@mgma.com"
+    },
+    "replyTo": "events@mgma.com",
+    "subject": "You're registered: 'Denials in 2026 — benchmarking webinar', {{wednesday}} 11 AM ET",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>You're registered for the MGMA benchmarking webinar <strong>&quot;Denials in 2026: what top-decile practices do differently&quot;</strong> on <strong>{{wednesday}}, 11:00 AM ET</strong>.</p><p>Join link and slides will be emailed 1 hour before the session. A recording will be available for 30 days.</p><p>MGMA Events Team</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-poster",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "ISPOR 2026",
+      "email": "abstracts@ispor.org"
+    },
+    "replyTo": "abstracts@ispor.org",
+    "subject": "ISPOR Europe 2026: your poster P-3312 scheduling details and print specs",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear presenter,</p><p>Your poster <strong>P-3312 — &quot;Administrative-cost impact of AI triage in payer-provider workflows&quot;</strong> is scheduled for <strong>Session 4, Tuesday 15:30–17:00</strong> at ISPOR Europe 2026 (Barcelona).</p><ul><li>Print: A0 portrait, 841×1189mm</li><li>Setup from 14:45; presenter must attend the full session</li></ul><p>ISPOR Scientific Programs</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-keynote-invite",
+    "daysAgo": 2,
+    "isRead": false,
+    "from": {
+      "name": "NASSCOM HealthTech",
+      "email": "programs@nasscom.in"
+    },
+    "replyTo": "programs@nasscom.in",
+    "subject": "Invitation to speak: NASSCOM HealthTech Summit, Hyderabad — 'GenAI in RCM' keynote",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Mr. Kumar,</p><p>On behalf of the program committee, we'd be delighted to have you deliver a 25-minute keynote on <strong>&quot;Generative AI in revenue cycle management — from pilots to production&quot;</strong> at the <strong>NASSCOM HealthTech Summit</strong> in Hyderabad this September.</p><p>We cover travel within India and offer two complimentary delegate passes for your team. Could you confirm interest by end of next week?</p><p>Warm regards,<br>Programs Team, NASSCOM</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-arxiv-digest",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "arXiv Daily",
+      "email": "no-reply@arxiv.org"
+    },
+    "replyTo": "no-reply@arxiv.org",
+    "subject": "arXiv cs.CL daily digest: 6 new papers matching 'clinical NLP, claims processing'",
+    "html": "<div style=\"font-family:Arial,sans-serif;font-size:14px;color:#222;line-height:1.6\"><p><strong>arXiv daily digest — cs.CL</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p>6 new papers match your saved query:</p><ul><li><em>Structured extraction from EOBs with layout-aware LLMs</em> (2607.05118)</li><li><em>Auditable chain-of-thought for medical coding</em> (2607.05231)</li><li><em>Small models, big claims: distillation for payer-rule QA</em> (2607.05307)</li></ul><p style=\"color:#777;font-size:12px\">arXiv.org &middot; manage your subscription</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-travel-approval",
+    "daysAgo": 3,
+    "isRead": true,
+    "from": {
+      "name": "Meghana Rao",
+      "email": "meghana.rao@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "subject": "HIMSS 2026 travel pre-approval — need your estimated budget by {{+6d}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Deepu,</p><p>Congrats on the HIMSS acceptance! For international travel pre-approval, HR needs your estimated budget (flights, 4 nights, per-diem) in the travel portal by <strong>{{+6d}}</strong> so Karthik can sign off before the quarterly budget lock.</p><p>Conference registration is covered by the speaker pass, correct? Confirm and I'll mark it zero.</p><p>Meghana</p></div>"
+  },
+  {
+    "category": "bitbucket",
+    "thread": "repo-admin",
+    "daysAgo": 4,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc] Suresh Babu added you to repository denial-analytics",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Suresh Babu</strong> granted you access</p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>You now have <strong>Write</strong> access to <code>dosystemsinc/denial-analytics</code>.</p><p>Branch protection on <strong>main</strong>: pull request with 1 approval required.</p><p style=\"color:#6b778c;font-size:12px\">Manage repository access in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-anniversary",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "Happy 3-year work anniversary, Sandeep! 🎉",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Sandeep,</p><p>Congratulations on completing <strong>3 years</strong> at DO Systems Inc today! Thank you for everything you've built on the RCM platform — the config service especially has become core infrastructure.</p><p>A small gift voucher has been added to your rewards wallet. 🎁</p><p>Warmly,<br>HR Team &amp; Rahul</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-linkedin",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "LinkedIn",
+      "email": "messages-noreply@linkedin.com"
+    },
+    "replyTo": "messages-noreply@linkedin.com",
+    "subject": "Sandeep, try LinkedIn Premium free for 1 month — 3 people viewed your profile this week",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Your profile is getting noticed</strong> 👀</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>3 people viewed your profile this week, including a <strong>Director of Engineering at a Fortune 500 healthcare company</strong>.</p><p>See who's viewing you and message them directly with <strong>Premium — free for 1 month</strong>.</p><p><a href=\"#\">Try free</a></p><p style=\"color:#888;font-size:12px\">LinkedIn Corp &middot; marketing email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "bitbucket-pr",
+    "thread": "pr-521",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Pull request #521 opened: Remittance file parser for ERA 835 v2",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Priya Nair</strong> opened pull request <strong>#521</strong> in <code>dosystemsinc/rcm-platform</code></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Remittance file parser for ERA 835 v2</strong></p><p>feature/era-835-v2 &rarr; develop &middot; 9 commits &middot; 21 files changed</p><p>Handles the 2026 835 addenda changes and adds strict segment validation with a quarantine queue for malformed files.</p><p>Reviewers: <strong>Jake</strong>, <strong>Rahul Sharma</strong></p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket-pr",
+    "thread": "pr-522",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/patient-portal] Jake, your review is requested on pull request #522: Payment plan self-service",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Vinay Mehta</strong> requested your review</p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>You have been added as a reviewer on pull request <strong>#522 — Payment plan self-service</strong> in <code>dosystemsinc/patient-portal</code>.</p><p>feature/payment-plans &rarr; develop &middot; 12 commits &middot; 28 files changed. Target: this week's release train.</p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket-merged",
+    "thread": "pr-518",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/rcm-platform] Pull request #518 merged: Claim status polling backoff",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Rahul Sharma</strong> merged pull request <strong>#518</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Claim status polling backoff</strong> was merged into <strong>develop</strong> in <code>dosystemsinc/rcm-platform</code>.</p><p>Squash merge &middot; source branch <code>feature/claim-status-backoff</code> deleted.</p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket-merged",
+    "thread": "pr-519",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/denial-analytics] Pull request #519 merged: Appeal letter template engine",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Arjun Iyer</strong> merged pull request <strong>#519</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Appeal letter template engine</strong> was merged into <strong>develop</strong> in <code>dosystemsinc/denial-analytics</code>.</p><p>2 approvals &middot; all checks passed &middot; 17 files changed.</p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket-merged",
+    "thread": "pr-520",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/patient-portal] Your pull request #520 was merged: Statement PDF accessibility fixes",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Anita Patel</strong> merged your pull request <strong>#520</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p><strong>Statement PDF accessibility fixes</strong> was merged into <strong>develop</strong> in <code>dosystemsinc/patient-portal</code>.</p><p>Nice work — this closes the WCAG audit ticket PORT-2151.</p><p style=\"color:#6b778c;font-size:12px\">View this pull request in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket-notification",
+    "thread": "pipeline-da",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc/denial-analytics] Pipeline #966 FAILED on develop after PR #519",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong style=\"color:#de350b\">Pipeline #966 failed</strong> on branch <strong>develop</strong></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>Commit <code>4be91cc</code> by <strong>Arjun Iyer</strong> — Appeal letter template engine (#519)</p><p>Failed step: <strong>e2e-tests</strong> &middot; template rendering timeout in <code>appealLetter.e2e.js</code> (2 specs).</p><p style=\"color:#6b778c;font-size:12px\">View logs in Bitbucket Pipelines &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "bitbucket-notification",
+    "thread": "repo-webhook",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Bitbucket",
+      "email": "notifications@bitbucket.org"
+    },
+    "replyTo": "noreply@bitbucket.org",
+    "subject": "[dosystemsinc] Webhook failing: jira-sync has returned errors for 24 hours",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#172b4d;line-height:1.6\"><p><strong>Webhook delivery problem</strong> in workspace <code>dosystemsinc</code></p><hr style=\"border:none;border-top:1px solid #dfe1e6\"><p>The webhook <strong>jira-sync</strong> (rcm-platform) has returned <strong>HTTP 500</strong> for all deliveries in the last 24 hours. Automatic retries will stop after 72 hours of failures.</p><p>A workspace admin should check the endpoint configuration.</p><p style=\"color:#6b778c;font-size:12px\">Manage webhooks in Bitbucket &middot; dosystemsinc workspace</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-vive",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "ViVE 2027",
+      "email": "program@viveevent.com"
+    },
+    "replyTo": "program@viveevent.com",
+    "subject": "Session proposal accepted: 'Automating the back office — AI agents in RCM' at ViVE 2027",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear Jake,</p><p>Great news — your session proposal <strong>&quot;Automating the back office: AI agents in RCM&quot;</strong> has been <strong>accepted</strong> for <strong>ViVE 2027</strong> (Miami, Feb 22–25).</p><p>Please confirm participation in the speaker portal by <strong>{{+10d}}</strong> and note co-presenters need separate registration.</p><p>ViVE Program Team</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-mlhc-cfp",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "MLHC 2026",
+      "email": "info@mlforhc.org"
+    },
+    "replyTo": "info@mlforhc.org",
+    "subject": "MLHC 2026 final CFP: clinical + operational ML papers due {{+8d}} (AoE)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear colleague,</p><p>Final call for papers — <strong>Machine Learning for Healthcare (MLHC) 2026</strong>. Research and software tracks close <strong>{{+8d}}, 11:59 PM AoE</strong>.</p><ul><li>Operational/administrative ML is an explicit topic this year</li><li>Proceedings in PMLR; double-blind review</li></ul><p>MLHC Organizing Committee</p></div>"
+  },
+  {
+    "category": "conference",
+    "thread": "conf-webinar-reminder",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "HFMA Events",
+      "email": "events@hfma.org"
+    },
+    "replyTo": "events@hfma.org",
+    "subject": "Starts in 24 hours: 'Denial prevention with AI' webinar — your join link inside",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>A reminder that <strong>&quot;Denial prevention with AI: from prediction to prevention&quot;</strong> starts <strong>{{tomorrow}} at 1:00 PM ET</strong>.</p><p>Your personal join link is in the calendar invite; slides are shared afterwards. Submit questions in advance via the event page.</p><p>HFMA Events Team</p></div>"
+  },
+  {
+    "category": "newsletter",
+    "thread": "nl-fiercebiotech",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "FierceBiotech",
+      "email": "newsletter@fiercebiotech.com"
+    },
+    "replyTo": "newsletter@fiercebiotech.com",
+    "subject": "FierceBiotech: ADC megadeal tops $9B; FDA flags three trial-integrity cases",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>FierceBiotech — Daily Briefing</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>ADC megadeal</strong>: a $9.2B licensing pact hands global rights to a phase-2 HER3 antibody-drug conjugate.</p><p><strong>FDA flags trial-integrity issues</strong> at three sites in an ongoing obesity study — data unaffected, per the sponsor.</p><p style=\"color:#888;font-size:12px\">FierceBiotech &middot; unsubscribe &middot; manage preferences</p></div>"
+  },
+  {
+    "category": "newsletter",
+    "thread": "nl-github",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "GitHub Changelog",
+      "email": "noreply@github.com"
+    },
+    "replyTo": "noreply@github.com",
+    "subject": "GitHub Changelog: merge queues GA for all plans; Actions gets ARM64 runners",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:14px;color:#24292e;line-height:1.6\"><p><strong>GitHub Changelog — weekly digest</strong></p><hr style=\"border:none;border-top:1px solid #e1e4e8\"><ul><li><strong>Merge queues</strong> now generally available on all paid plans</li><li><strong>ARM64 hosted runners</strong> for Actions, 40% cheaper per minute</li><li>Dependabot grouped updates now support monorepo path filters</li></ul><p style=\"color:#6a737d;font-size:12px\">GitHub &middot; email preferences</p></div>"
+  },
+  {
+    "category": "newsletter",
+    "thread": "nl-beckers",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Becker's Hospital Review",
+      "email": "newsletter@beckershealthcare.com"
+    },
+    "replyTo": "newsletter@beckershealthcare.com",
+    "subject": "Becker's Daily: 12 health systems consolidate RCM vendors; prior-auth denials up 9%",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Becker's Hospital Review — Daily E-Newsletter</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>RCM vendor consolidation</strong>: 12 major systems reduced from 6+ RCM vendors to 2 on average, citing integration overhead.</p><p><strong>Prior-auth denials up 9% YoY</strong> — commercial plans drive most of the increase.</p><p style=\"color:#888;font-size:12px\">Becker's Healthcare &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-open-enrollment",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "subject": "Open enrollment closes {{friday}} — you haven't made your FY27 elections",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>Our records show you haven't completed your <strong>FY27 benefits elections</strong>. The open enrollment window closes <strong>{{friday}} at 6 PM IST</strong> — after that your current plan rolls over unchanged and the top-up option lapses.</p><p>Complete your elections on the HR portal under Benefits &gt; Open Enrollment.</p><p>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-policy-ack",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "subject": "Acknowledgment pending: updated data privacy & AI usage policy",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>The updated <strong>Data Privacy &amp; AI Usage Policy</strong> (v4.2) requires acknowledgment from all engineering staff. Yours is still pending — please e-sign on the HR portal by <strong>{{+7d}}</strong>.</p><p>Key change: customer PHI may not be pasted into external AI tools; approved internal endpoints are listed in Appendix B.</p><p>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-l-and-d",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Learning & Development",
+      "email": "learning@dosystemsinc.com"
+    },
+    "replyTo": "hr@dosystemsinc.com",
+    "subject": "You've been nominated: Staff Engineer leadership cohort (starts August)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>Rahul has nominated you for the <strong>Staff Engineer leadership cohort</strong> starting in August — 6 sessions over 12 weeks, held Fridays 2–4 PM IST.</p><p>Reply to confirm your seat by <strong>{{thursday}}</strong>; the cohort is capped at 12.</p><p>Learning &amp; Development, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-flexi-benefit",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Payroll - DO Systems",
+      "email": "payroll@dosystemsinc.com"
+    },
+    "subject": "Flexi-benefit declarations for FY27 now open (fuel, telecom, LTA)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>Flexi-benefit declarations for FY27 are open on the payroll portal until <strong>July 31</strong>: fuel, telecom, LTA and meal-card components can be restructured once per year.</p><p>No action means your current split continues. Tax-impact calculator is linked on the declaration page.</p><p>Payroll Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "hr",
+    "thread": "hr-offsite",
+    "daysAgo": 2,
+    "isRead": false,
+    "from": {
+      "name": "HR Team - DO Systems",
+      "email": "hr@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Engineering All",
+        "email": "engineering@dosystemsinc.com"
+      }
+    ],
+    "subject": "Engineering offsite: Goa, Aug 21–23 — dietary & travel preferences form",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Dear all,</p><p>The engineering offsite is confirmed for <strong>Goa, Aug 21–23</strong>. Please fill the travel &amp; dietary preferences form on the HR portal by <strong>July 24</strong> so we can book flights in one batch.</p><p>Agenda: H2 planning day, team activities, and one hack-day. Plus-ones are not covered this year.</p><p>HR Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "action-required",
+    "thread": "ar-sso",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "IT Security - DO Systems",
+      "email": "security@dosystemsinc.com"
+    },
+    "subject": "ACTION REQUIRED: your SSO session certificates expire in 48 hours",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>Your device certificates for SSO expire in <strong>48 hours</strong>. Re-enroll via the Okta self-service portal (Settings &gt; Devices &gt; Renew) before expiry, or you'll lose access to Bitbucket, Jira and the VPN until IT manually re-provisions.</p><p>Takes ~5 minutes. Contact security@ if renewal fails.</p><p>IT Security, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "action-required",
+    "thread": "ar-access-recert",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Compliance - DO Systems",
+      "email": "compliance@dosystemsinc.com"
+    },
+    "subject": "ACTION REQUIRED: quarterly access recertification — 14 grants awaiting your review",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>As a system owner you have <strong>14 access grants</strong> awaiting recertification for Q3 (production DB read roles and two admin panels). Deadline: <strong>{{+5d}}</strong>.</p><p>Unreviewed grants are <strong>automatically revoked</strong> at the deadline per SOC 2 policy. Review in the compliance portal &gt; Access Reviews.</p><p>Compliance Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "action-required",
+    "thread": "ar-invoice",
+    "daysAgo": 1,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Finance Team",
+      "email": "finance@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "subject": "Approval needed by {{wednesday}}: Datadog annual renewal ($23,800)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>The <strong>Datadog annual renewal</strong> ($23,800, 12% uplift from last year) needs your approval as service owner by <strong>{{wednesday}}</strong> to keep the renewal discount. After that, pricing reverts to month-to-month (+31%).</p><p>Approve or dispute in the finance portal, ref <strong>REN-2026-0412</strong>. Karthik is cc'd as budget owner.</p><p>Finance Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "action-required",
+    "thread": "ar-contract",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Legal - DO Systems",
+      "email": "legal@dosystemsinc.com"
+    },
+    "subject": "Signature required: BrightCare data processing addendum (expires {{+4d}})",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>You are the named technical signatory on the <strong>BrightCare Medical data processing addendum</strong>. The DocuSign envelope expires <strong>{{+4d}}</strong> — after that legal has to reissue and the integration kickoff slips.</p><p>Please review Section 4 (subprocessor list) before signing; it now names our cloud and monitoring vendors.</p><p>Legal Team, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "action-required",
+    "thread": "ar-change-approval",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Suresh Babu",
+      "email": "suresh.babu@dosystemsinc.com"
+    },
+    "subject": "CAB approval needed today: prod Mongo index build for claims collection (CHG-1102)",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Jake,</p><p>Change <strong>CHG-1102</strong> — rolling index build on the production claims collection (fixes the INC-231 follow-up) — is scheduled for tonight's window but still needs your CAB approval as service owner.</p><p>Please approve in the change portal <strong>by 6 PM IST today</strong> or it slips a week to the next window.</p><p>Suresh Babu<br>DevOps Lead, DO Systems Inc</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-aws",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Amazon Web Services",
+      "email": "aws-marketing-email-replies@amazon.com"
+    },
+    "replyTo": "aws-marketing-email-replies@amazon.com",
+    "subject": "Jake, claim $5,000 in AWS credits for AI workloads — startup program enrollment open",
+    "html": "<div style=\"font-family:'Amazon Ember',Segoe UI,Arial,sans-serif;font-size:14px;color:#232f3e;line-height:1.6\"><p><strong>AWS Activate — limited enrollment</strong></p><hr style=\"border:none;border-top:1px solid #e7e7e7\"><p>Your organization may qualify for <strong>$5,000 in AWS credits</strong> for generative-AI workloads on Bedrock and SageMaker.</p><p>Enrollment closes at the end of the month. <a href=\"#\">Check eligibility</a></p><p style=\"color:#687078;font-size:12px\">Amazon Web Services &middot; marketing email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-notion",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Notion",
+      "email": "team@mail.notion.so"
+    },
+    "replyTo": "team@mail.notion.so",
+    "subject": "Notion AI for teams: 20% off annual Business plan this week only",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Give your team an AI workspace</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Meeting notes that write themselves, connected docs, and enterprise search — <strong>20% off</strong> the annual Business plan through Sunday.</p><p><a href=\"#\">Upgrade now</a></p><p style=\"color:#888;font-size:12px\">Notion Labs &middot; marketing email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-coursera",
+    "daysAgo": 1,
+    "isRead": true,
+    "from": {
+      "name": "Coursera",
+      "email": "no-reply@t.mail.coursera.org"
+    },
+    "replyTo": "no-reply@t.mail.coursera.org",
+    "subject": "Jake, your saved course 'MLOps Specialization' is 40% off — sale ends {{sunday}}",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>A course you saved is on sale 🎓</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>The <strong>MLOps Engineering Specialization</strong> on your wishlist is <strong>40% off</strong> until {{sunday}} — includes the new LLMOps module added this year.</p><p><a href=\"#\">Enroll now</a></p><p style=\"color:#888;font-size:12px\">Coursera &middot; promotional email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-airmiles",
+    "daysAgo": 1,
+    "isRead": false,
+    "from": {
+      "name": "Vistara Club",
+      "email": "offers@clubvistara.com"
+    },
+    "replyTo": "offers@clubvistara.com",
+    "subject": "Double miles on Hyderabad–Mumbai business routes this quarter ✈️",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Double CV points — corporate quarter promo</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Earn <strong>2× Club Vistara points</strong> on all Hyderabad–Mumbai and Hyderabad–Delhi business-class segments booked before Sep 30.</p><p>Register once with code <strong>CVCORP2X</strong>. <a href=\"#\">Register now</a></p><p style=\"color:#888;font-size:12px\">Club Vistara &middot; promotional email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-grammarly",
+    "daysAgo": 2,
+    "isRead": true,
+    "from": {
+      "name": "Grammarly Business",
+      "email": "hello@em.grammarly.com"
+    },
+    "replyTo": "hello@em.grammarly.com",
+    "subject": "Your team wrote 12,400 emails last quarter — see what Grammarly Business could save",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Communication insights for engineering leaders</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Teams your size save an average of <strong>3.2 hours/person/month</strong> with AI-assisted writing and tone review across email and docs.</p><p>Book a demo this month and get 3 months free. <a href=\"#\">See plans</a></p><p style=\"color:#888;font-size:12px\">Grammarly &middot; marketing email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-client-sync",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "importance": "high",
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Laura Whitman",
+        "email": "laura.whitman@brightcaremedical.com"
+      }
+    ],
+    "subject": "Invitation: BrightCare weekly sync — {{tomorrow}} 3:00–3:45 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>BrightCare weekly sync</strong></p><p>When: {{tomorrow}}, 3:00 – 3:45 PM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Standing weekly with BrightCare integrations team. This week: sandbox rate limits and the 271 copay fields.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 771 204 556 18</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-vendor-demo",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Suresh Babu",
+      "email": "suresh.babu@dosystemsinc.com"
+    },
+    "subject": "Invitation: Observability vendor demo (Grafana Cloud) — {{tomorrow}} 3:00–4:00 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Observability vendor demo — Grafana Cloud</strong></p><p>When: {{tomorrow}}, 3:00 – 4:00 PM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Evaluating Grafana Cloud against the Datadog renewal. Jake — your take on the tracing story would be valuable before we approve REN-2026-0412.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 448 917 300 25</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-arch-521",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Priya Nair",
+      "email": "priya.nair@dosystemsinc.com"
+    },
+    "subject": "Invitation: ERA 835 v2 parser design walkthrough — {{tomorrow}} 3:30–4:30 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>ERA 835 v2 parser — design walkthrough (PR #521)</strong></p><p>When: {{tomorrow}}, 3:30 – 4:30 PM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Walking through the segment validation and quarantine design before review comments land on PR #521. Design doc in RCM-1601.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 205 663 819 44</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-grooming",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "RCM Platform Team",
+        "email": "rcm-platform-team@dosystemsinc.com"
+      }
+    ],
+    "subject": "Invitation: Backlog grooming — {{wednesday}} 11:00 AM–12:00 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Sprint 42 backlog grooming</strong></p><p>When: {{wednesday}}, 11:00 AM – 12:00 PM IST<br>Where: Conference Room A / Teams</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Grooming the eligibility GA epic and the 835 v2 stories. Estimates ready, please.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 883 220 471 06</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-payer-escalation",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "importance": "high",
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "subject": "Invitation: Payer escalation call (Aetna clearinghouse rejects) — {{wednesday}} 11:30 AM–12:15 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Payer escalation — Aetna clearinghouse rejects</strong></p><p>When: {{wednesday}}, 11:30 AM – 12:15 PM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Reject rate on Aetna 837s jumped to 4.1% this week. Need engineering on the call to speak to the validation changes. Jake — please join if grooming can spare you.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 640 118 259 73</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-security-training",
+    "daysAgo": 1,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "IT Security - DO Systems",
+      "email": "security@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "Engineering All",
+        "email": "engineering@dosystemsinc.com"
+      }
+    ],
+    "subject": "Invitation: Mandatory secure-coding training — {{thursday}} 2:00–3:00 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Mandatory secure-coding training (SOC 2 requirement)</strong></p><p>When: {{thursday}}, 2:00 – 3:00 PM IST<br>Where: Teams Live</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Annual secure-coding session covering the OWASP 2026 top-10 changes. Attendance is logged for the audit; a make-up session runs next month.</p><p style=\"color:#616161;font-size:12px\">Join Teams Live Event</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-hiring-panel",
+    "daysAgo": 1,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Meghana Rao",
+      "email": "meghana.rao@dosystemsinc.com"
+    },
+    "subject": "Invitation: Interview panel — Senior Backend candidate, {{thursday}} 2:30–3:30 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Interview: Senior Backend Engineer (REQ-2214) — system design round</strong></p><p>When: {{thursday}}, 2:30 – 3:30 PM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Jake, you're on the system-design panel for this candidate (resume in Greenhouse). Scorecard due same day, please.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 377 540 992 81</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-gonogo",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "importance": "high",
+    "from": {
+      "name": "Anita Patel",
+      "email": "anita.patel@dosystemsinc.com"
+    },
+    "subject": "Invitation: v2.15 release go/no-go — {{friday}} 5:00–5:30 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>patient-portal v2.15 — release go/no-go</strong></p><p>When: {{friday}}, 5:00 – 5:30 PM IST<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Decision call: payment-plan self-service (PR #522) in or out of v2.15. QA status and rollback plan will be tabled; service owners must attend.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 812 460 337 90</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-townhall",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Office of the CEO",
+      "email": "ceo-office@dosystemsinc.com"
+    },
+    "to": [
+      {
+        "name": "All Employees",
+        "email": "all@dosystemsinc.com"
+      }
+    ],
+    "subject": "Invitation: Mid-quarter town hall — {{friday}} 5:00–6:00 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>DO Systems — mid-quarter town hall</strong></p><p>When: {{friday}}, 5:00 – 6:00 PM IST<br>Where: Town Hall + Teams Live</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Agenda: H1 numbers, the Meridian and BrightCare wins, and the annual engagement survey results. Recording available for those in customer calls.</p><p style=\"color:#616161;font-size:12px\">Join Teams Live Event</p></div>"
+  },
+  {
+    "category": "calendar",
+    "thread": "mtg-oneone-rahul",
+    "daysAgo": 0,
+    "isRead": false,
+    "isMeeting": true,
+    "from": {
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@dosystemsinc.com"
+    },
+    "subject": "Updated invitation: 1:1 Jake / Rahul moved to {{friday}} 5:15–5:45 PM IST",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>1:1 — Jake / Rahul (rescheduled)</strong></p><p>When: {{friday}}, 5:15 – 5:45 PM IST (was Thursday 4 PM)<br>Where: Microsoft Teams Meeting</p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Had to move again, sorry — payer escalation ate Thursday. Agenda: leadership cohort nomination and your H2 goals.</p><p style=\"color:#616161;font-size:12px\">Join Teams Meeting &middot; Meeting ID 156 998 002 34</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "mgr-postmortem-ask",
+    "daysAgo": 0,
+    "isRead": false,
+    "importance": "high",
+    "from": {
+      "name": "Karthik Reddy",
+      "email": "karthik.reddy@dosystemsinc.com"
+    },
+    "cc": [
+      {
+        "name": "Rahul Sharma",
+        "email": "rahul.sharma@dosystemsinc.com"
+      }
+    ],
+    "subject": "Need by EOD: your section of the Novant RCA for the client-facing report",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Jake,</p><p>The client-facing RCA for the Novant remit-address incident goes out tomorrow morning. Your section — <strong>detection gap and the monitoring fix</strong> — is the only one outstanding.</p><p>Two paragraphs is enough; template is in the shared doc. <strong>Need it by EOD today.</strong></p><p>Karthik</p></div>"
+  },
+  {
+    "category": "manager-customer",
+    "thread": "cust-meridian-followup",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Sofia Ramirez",
+      "email": "sofia.ramirez@meridianclinics.com"
+    },
+    "cc": [
+      {
+        "name": "Karthik Reddy",
+        "email": "karthik.reddy@dosystemsinc.com"
+      }
+    ],
+    "subject": "Post-demo questions: data migration timeline and HL7 interface support",
+    "html": "<div style=\"font-family:Calibri,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p>Hi Jake,</p><p>Thank you for the demo — the denial dashboards landed very well with our billing directors. Two questions before we shortlist:</p><ol><li>What does a typical data migration look like for 12 sites on athenahealth — timeline and our lift?</li><li>Do you support inbound HL7v2 ADT feeds directly, or only through an interface engine?</li></ol><p>We're aiming to decide by month-end.</p><p>Best,<br>Sofia Ramirez<br>Director of Billing Operations, Meridian Clinics</p></div>"
+  },
+  {
+    "category": "newsletter",
+    "thread": "nl-tldr",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "TLDR",
+      "email": "dan@tldrnewsletter.com"
+    },
+    "replyTo": "dan@tldrnewsletter.com",
+    "subject": "TLDR: OpenAI ships agent runtime; Postgres 19 beta; the death of the standup?",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.7\"><p><strong>TLDR — daily tech digest</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p><strong>OpenAI ships an agent runtime</strong> with sandboxed tool execution and per-step budgets (3 min read).</p><p><strong>Postgres 19 beta</strong>: incremental view maintenance lands after a decade of patches (5 min read).</p><p><strong>The death of the standup?</strong> Async check-in tools report 40% adoption in engineering orgs (4 min read).</p><p style=\"color:#888;font-size:12px\">TLDR &middot; unsubscribe &middot; advertise</p></div>"
+  },
+  {
+    "category": "newsletter",
+    "thread": "nl-pragmatic",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "The Pragmatic Engineer",
+      "email": "pragmaticengineer@substack.com"
+    },
+    "replyTo": "pragmaticengineer@substack.com",
+    "subject": "The Pragmatic Engineer: Inside a Big Tech on-call overhaul — and what it pays",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>The Pragmatic Engineer — weekly deep dive</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>This week</strong>: how one Big Tech rebuilt on-call — halving pages with ownership changes rather than tooling, and introducing paid on-call tiers across Europe.</p><p>Also: engineering comp snapshots from 40 companies, and why staff-plus promotions slowed this cycle.</p><p style=\"color:#888;font-size:12px\">Substack &middot; you are a free subscriber &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "newsletter",
+    "thread": "nl-modernhealthcare",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Modern Healthcare AM",
+      "email": "newsletters@modernhealthcare.com"
+    },
+    "replyTo": "newsletters@modernhealthcare.com",
+    "subject": "Modern Healthcare AM: payer-provider AI arms race heats up; two health systems merge",
+    "html": "<div style=\"font-family:Georgia,serif;font-size:14px;color:#2c2c2c;line-height:1.7\"><p><strong>Modern Healthcare — AM Briefing</strong></p><hr style=\"border:none;border-top:1px solid #ddd\"><p><strong>The AI arms race</strong>: payers now auto-adjudicate 31% of prior-auth requests while providers deploy AI appeal engines — regulators are watching both sides.</p><p><strong>Merger</strong>: two midwest systems announce a $4.8B combination, pending FTC review.</p><p style=\"color:#888;font-size:12px\">Modern Healthcare &middot; manage newsletters &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-figma",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Figma",
+      "email": "hello@email.figma.com"
+    },
+    "replyTo": "hello@email.figma.com",
+    "subject": "Figma Config recordings are live + 3 months of Dev Mode free for your team",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Config 2026 — watch on demand 🎬</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>All 60+ Config sessions are now streaming free, including the new AI design-to-code workflows.</p><p>Plus: teams that activate <strong>Dev Mode</strong> this month get <strong>3 months free</strong> for every engineer seat.</p><p><a href=\"#\">Watch + claim offer</a></p><p style=\"color:#888;font-size:12px\">Figma &middot; marketing email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-slack",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Slack",
+      "email": "feedback@slack.com"
+    },
+    "replyTo": "feedback@slack.com",
+    "subject": "Slack AI is now included in Business+ — recap channels you missed, automatically",
+    "html": "<div style=\"font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:14px;color:#1d1c1d;line-height:1.6\"><p><strong>Slack AI, now in your plan ✨</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Channel recaps, thread summaries and answers from your workspace history are now included in <strong>Business+</strong> at no extra cost.</p><p>Admins can enable it in one click. <a href=\"#\">Turn on Slack AI</a></p><p style=\"color:#888;font-size:12px\">Slack Technologies &middot; marketing email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-oreilly",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "O'Reilly",
+      "email": "online-learning@oreilly.com"
+    },
+    "replyTo": "online-learning@oreilly.com",
+    "subject": "Jake, your early-access pick 'Designing AI Agents' just got 4 new chapters — plus 30% off teams",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>New on O'Reilly this week 📚</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p><em>Designing AI Agents</em> (early release) added 4 chapters on tool orchestration and evaluation — you have it on your shelf.</p><p>Team plans are <strong>30% off</strong> through the end of the month, including live courses and certification prep.</p><p><a href=\"#\">Continue reading</a></p><p style=\"color:#888;font-size:12px\">O'Reilly Media &middot; promotional email &middot; unsubscribe</p></div>"
+  },
+  {
+    "category": "promotional",
+    "thread": "promo-zomato",
+    "daysAgo": 0,
+    "isRead": false,
+    "from": {
+      "name": "Zomato",
+      "email": "offers@zomato.com"
+    },
+    "replyTo": "offers@zomato.com",
+    "subject": "Office lunch sorted 🍱 — flat 40% off corporate group orders this week",
+    "html": "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#242424;line-height:1.6\"><p><strong>Team lunches, minus the chaos</strong></p><hr style=\"border:none;border-top:1px solid #e1e1e1\"><p>Get <strong>flat 40% off</strong> on group orders above ₹1,500 with Zomato for Work, delivered to your office in one drop.</p><p>Use code <strong>WORKWEEK40</strong> — valid Mon–Fri this week, Hyderabad offices only.</p><p><a href=\"#\">Order for the team</a></p><p style=\"color:#888;font-size:12px\">Zomato &middot; promotional email &middot; unsubscribe</p></div>"
+  }
+]

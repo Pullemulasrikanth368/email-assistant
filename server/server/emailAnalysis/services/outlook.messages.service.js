@@ -11,6 +11,7 @@ import {
   ensureMasterCategories,
   bulkPushCategories,
   pushCategoriesToMessage,
+  LOCAL_SAMPLE_ID_PREFIX,
 } from "./outlookCategorySync.service";
 
 import Settings from "../../models/settings.model";
@@ -596,6 +597,16 @@ export default class OutlookMessagesService {
     }).lean();
     if (!mail) throw new Error("Linked email not found for this account.");
 
+    // Local-only sample mails can't be replied to at the provider — simulate
+    // success so reply-driven flows (strike-off/complete, quick replies) work.
+    if (String(sourceId).startsWith(LOCAL_SAMPLE_ID_PREFIX)) {
+      await EmailAnalysisMail.updateOne(
+        { _id: mail._id },
+        { $set: { isRepliedMail: true } }
+      );
+      return { to: mail.replyTo || mail.from, subject: mail.subject, threadId: mail.threadId || null, messageId: null, simulated: true };
+    }
+
     await this.#graph("POST", `/me/messages/${encodeURIComponent(sourceId)}/reply`, {
       data: {
         comment: text || "",
@@ -622,6 +633,11 @@ export default class OutlookMessagesService {
     let trashed = 0;
     let failed = 0;
     for (const id of [...new Set(messageIds.filter(Boolean))]) {
+      // Local-only sample mails have nothing to trash at the provider.
+      if (String(id).startsWith(LOCAL_SAMPLE_ID_PREFIX)) {
+        trashed += 1;
+        continue;
+      }
       try {
         await this.#graph("DELETE", `/me/messages/${encodeURIComponent(id)}`);
         trashed += 1;
@@ -637,7 +653,17 @@ export default class OutlookMessagesService {
     await this.#loadUser();
     let updated = 0;
     for (const id of [...new Set(messageIds.filter(Boolean))]) {
-      await this.#graph("PATCH", `/me/messages/${encodeURIComponent(id)}`, { data: { isRead } });
+      // Sample mails (scripts/insert-sample-mails.js) don't exist in Outlook —
+      // Graph rejects their ids. Skip the provider call but still update the
+      // local read state; also keep one bad id from aborting the whole batch.
+      if (!String(id).startsWith(LOCAL_SAMPLE_ID_PREFIX)) {
+        try {
+          await this.#graph("PATCH", `/me/messages/${encodeURIComponent(id)}`, { data: { isRead } });
+        } catch (err) {
+          console.error(`[EmailAnalysis] Outlook markRead failed for ${id}:`, err.message);
+          continue;
+        }
+      }
       await EmailAnalysisMail.updateOne(
         { email: this.email, provider: "outlook", providerMessageId: id },
         isRead ? { $pull: { labels: "UNREAD" } } : { $addToSet: { labels: "UNREAD" } }

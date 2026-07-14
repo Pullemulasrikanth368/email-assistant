@@ -44,6 +44,7 @@ import {
   ensureMasterCategories,
   bulkPushCategories,
   pushCategoriesToMessage,
+  LOCAL_SAMPLE_ID_PREFIX,
 } from "../../emailAnalysis/services/outlookCategorySync.service";
 
 import Settings from "../../models/settings.model";
@@ -735,6 +736,18 @@ export default class OutlookMessagesService {
     }).lean();
     if (!mail) throw new Error("Linked email not found for this Outlook account.");
 
+    // Sample mails (scripts/insert-sample-mails.js) exist only in Mongo — there
+    // is no real message to reply to at the provider. Simulate a successful
+    // reply so flows built on replying (strike-off/complete, quick replies)
+    // work for them; mark the mail replied locally like a real reply would be.
+    if (String(sourceId).startsWith(LOCAL_SAMPLE_ID_PREFIX)) {
+      await EmailAnalysisMail.updateOne(
+        { _id: mail._id },
+        { $set: { isRepliedMail: true } }
+      );
+      return { to: mail.from, subject: mail.subject, threadId: mail.threadId || null, messageId: null, simulated: true };
+    }
+
     await this.#graph("POST", `/me/messages/${encodeURIComponent(sourceId)}/reply`, {
       data: {
         comment: text || "",
@@ -769,6 +782,11 @@ export default class OutlookMessagesService {
     let trashed = 0;
     let failed  = 0;
     for (const id of ids) {
+      // Local-only sample mails have nothing to move at the provider.
+      if (String(id).startsWith(LOCAL_SAMPLE_ID_PREFIX)) {
+        trashed += 1;
+        continue;
+      }
       try {
         await this.#graph("POST", `/me/messages/${encodeURIComponent(id)}/move`, {
           data: { destinationId: "deleteditems" },
@@ -793,9 +811,20 @@ export default class OutlookMessagesService {
 
     let updated = 0;
     for (const id of ids) {
-      await this.#graph("PATCH", `/me/messages/${encodeURIComponent(id)}`, {
-        data: { isRead },
-      });
+      // Sample mails (scripts/insert-sample-mails.js) exist only in Mongo —
+      // Graph rejects their ids ("Id is malformed"). Skip the provider call
+      // but still track read state locally; and don't let one bad id abort
+      // the rest of the batch.
+      if (!String(id).startsWith(LOCAL_SAMPLE_ID_PREFIX)) {
+        try {
+          await this.#graph("PATCH", `/me/messages/${encodeURIComponent(id)}`, {
+            data: { isRead },
+          });
+        } catch (err) {
+          console.error(`[Outlook] markRead failed for ${id}:`, err.message);
+          continue;
+        }
+      }
       // Keep our DB in sync. Read state is tracked via the UNREAD label; a
       // single operator avoids the $set+$addToSet path conflict on `labels`.
       await EmailAnalysisMail.updateOne(

@@ -240,9 +240,19 @@ export async function ensureMasterCategories(graphFn, email = null) {
  * @param {Object}   [lookup]  - optional resolved lookup from DB config
  * @returns {Promise<{ pushed: boolean, labels: string[] }>}
  */
+// Sample mails inserted straight into Mongo (scripts/insert-sample-mails.js)
+// carry this id prefix and don't exist in Outlook — Graph rejects their ids
+// with "Id is malformed". Report them as pushed so callers mark them
+// categoriesSynced and never retry.
+export const LOCAL_SAMPLE_ID_PREFIX = 'AAMkADSAMPLE';
+
 export async function pushCategoriesToMessage(graphFn, providerMessageId, fields, lookup = null) {
   const labels = buildOutlookCategories(fields, lookup);
   if (!labels.length) return { pushed: false, labels: [] };
+
+  if (String(providerMessageId).startsWith(LOCAL_SAMPLE_ID_PREFIX)) {
+    return { pushed: true, labels };
+  }
 
   try {
     await graphFn('PATCH', `/me/messages/${encodeURIComponent(providerMessageId)}`, {

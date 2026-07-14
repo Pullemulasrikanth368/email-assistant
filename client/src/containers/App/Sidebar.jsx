@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import './Sidebar.scss';
 
 const NAV_ITEMS = [
+  { label: 'Command Center', path: '/operationsCommandCenter', icon: LayoutDashboard },
   { label: 'Morning Brief', path: '/dailyBrief', icon: Sun },
   { label: 'Inbox Triage', path: '/emailAnalysisMails', icon: Mail },
-  { label: 'Command Center', path: '/operationsCommandCenter', icon: LayoutDashboard },
   { label: 'Reports', path: '/operationsReport', icon: FileText },
   // { label: 'Drafts', path: '/drafts', icon: PenLine },
   // { label: 'Bulk Email', path: '/bulkEmailSend', icon: Send },
